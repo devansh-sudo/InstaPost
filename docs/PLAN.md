@@ -221,9 +221,69 @@ These assume: 1–2 good reels per day, never skipping a day, original content, 
 
 ---
 
-## 11. Open questions for you
+## 11. Open questions for you (answered → §12)
 
 See the chat message. Answers go into §12 here once you decide.
 
 ## 12. Decisions log
-_(empty: filled in after your answers)_
+
+| # | Topic | Decision |
+|---|---|---|
+| D1 | Accounts | New Instagram, Facebook and YouTube accounts, all starting from 0. → Publish the same piece to **IG Reels + FB Reels + YouTube Shorts** (§13) |
+| D2 | Language | ❓ Still open. Default if not answered: **Hindi in Devanagari on visuals; caption = Hindi + one short Hinglish line**. The A/B data then decides |
+| D3 | Audio | **Let the data decide.** Arms: (a) calm ambience only, (b) ambience + soft Hindi voice-over reading the sutra, (c) you add trending audio by hand from your phone. Only voice-over makes speech, nothing is "sung" |
+| D4 | Autonomy | Start at **L0: you approve everything**. Plus **batch approval**: "approve next post", "approve next N", "approve all of tomorrow" from the dashboard or Telegram |
+| D5 | Images | **Paid image API**, the cheapest one that passes the quality bar (decided by a short bake-off in Phase 1) |
+| D6 | Hosting | **Your own VPS** → ₹0 hosting cost. Specs/OS still needed |
+| D7 | Dashboard | Build it (Next.js + shadcn/ui, behind Cloudflare Access) |
+| D8 | Budget | **$15–20/month hard cap** (§14) |
+| D9 | Brand | **Customisable template system**: page name, handle, fonts, colours, paper texture, divider symbol, scene presets are all set in one `brand.yaml` and editable from the dashboard |
+| D10 | Scope | Shiva, Krishna/Gita, Kabir, general life lessons. Mix and topics chosen by the planner from data + calendar |
+| D11 | "Algorithm crack" | = data-driven content planning + post creation (no posts *about* growth) |
+
+---
+
+## 13. Multi-platform publishing (new, from D1)
+
+One render → three platforms. This roughly triples the reach of each piece for almost no extra cost.
+
+| Platform | How | Why it matters | ⚠️ VERIFY |
+|---|---|---|---|
+| Instagram | Graph API (Instagram Login, Professional account) | Main brand, sends/saves | Daily publish limit |
+| Facebook Reels | Pages API (video_reels) | FB Reels can pay per view if the Page becomes eligible for Content Monetization | Eligibility for new Pages |
+| YouTube Shorts | YouTube Data API v3 `videos.insert` | **The only platform with real per-view ad revenue share** (YouTube Partner Program: 1k subscribers + 10M Shorts views in 90 days for ad share; lower tier for fan funding) | Upload quota (~6 uploads/day on the default 10k units). **Uploads from unverified API projects are forced to private until Google audits the app**, so we apply for the audit in Phase 0 |
+
+Rules: the caption and title are adapted per platform. Each platform gets its own learning signal, because what works on IG may not work on Shorts. New accounts warm up: **no more than 1 post per platform per day in week 1**, and you also use the accounts normally from your phone.
+
+---
+
+## 14. Fitting the $15–20/month budget
+
+Your VPS = $0. The budget below is then API spend only. It is enforced by code: **$0.60/day soft cap, $18/month hard cap**. When the cap is hit, publishing of already-approved items continues and new generation pauses.
+
+| Item | How we keep it cheap | Est. / month |
+|---|---|---|
+| Writing + fact-check | Sonnet 5.5, prompt caching. Tomorrow's content is generated tonight with the **Batch API (50% off)** | ~$4–6 |
+| Tagging, QA, story text | Haiku 5.5 ($0.10/$0.50 per M tokens) | ~$0.5–1 |
+| Weekly strategy report | Opus 5.5, once a week | ~$1.5–2.5 |
+| Images | ~90–120 images × ~$0.03–0.04. Stories and carousels reuse the reel's image | ~$3–5 |
+| Voice-over (arm b) | Open-source TTS on the VPS (Indic Parler-TTS, CPU, slow but free) | $0 |
+| R2 / Cloudflare / Telegram | Free tiers | $0 |
+| **Total** | | **≈ $10–15**, leaving a small buffer |
+
+Volume this budget supports: 1–2 reels/day (each sent to 3 platforms), 3 carousels/week, 3–5 stories/day.
+
+---
+
+## 15. Earnings projection (base case, very uncertain)
+
+Spend ≈ $15–20/month (₹1,300–1,700). Earnings come late and come mostly from **brand deals**, not views.
+
+| Period | Instagram | YouTube Shorts | Facebook | Brand deals | Total / month (base) |
+|---|---|---|---|---|---|
+| Month 1–3 | ₹0 (not eligible yet) | ₹0 (YPP not reached) | ₹0 | ₹0 | **₹0** → you are investing ~₹4–5k in total |
+| Month 4–6 | Gifts, small: ₹0–2k | Maybe YPP if one Short goes viral. Indian Shorts RPM is low (~₹2–8 per 1,000 views) | ₹0–2k if eligible | 0–2 small deals × ₹1–5k | **₹0–10k** |
+| Month 7–12 | Gifts/Subscriptions ₹1–5k | ₹1–8k | ₹1–5k | 2–4 deals × ₹3–15k | **₹5k–40k** |
+| Optimistic (viral) month 12 | | | | 100k+ followers: ₹15–50k per deal | ₹50k–1.5L+ |
+
+The **break-even** on the API spend (~₹1,700/month) is realistic around **month 4–8** in the base case. These numbers are estimates from typical Indian creator rates, not guarantees. A page can also stay below break-even if the content doesn't connect, and the 6-week checkpoint in §10 exists to catch that early.

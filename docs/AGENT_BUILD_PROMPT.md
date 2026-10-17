@@ -42,8 +42,8 @@ Python 3.12, FastAPI, APScheduler, PostgreSQL 16 (SQLAlchemy + Alembic), FFmpeg 
 Pillow[raqm], Cloudflare R2 (S3 API, short-lived signed URLs for Graph API media fetch),
 Anthropic Python SDK (`claude-opus-5-5` for weekly strategy and fact-check, `claude-sonnet-5-5` for
 writing, `claude-haiku-5-5` for tagging, adaptive thinking, prompt caching, structured outputs),
-image provider behind an interface `ImageProvider` (implementations: `{{IMAGE_PROVIDER}}` first),
-Telegram bot for approvals and digests, dashboard `{{DASHBOARD_STACK}}`, Docker Compose,
+paid image API behind an interface `ImageProvider` (winner of the Phase 1 bake-off),
+Telegram bot for approvals and digests, dashboard Next.js + shadcn/ui, Docker Compose,
 Cloudflare Tunnel + Access in front of the dashboard, pytest, ruff, mypy.
 
 ## Modules
@@ -79,7 +79,7 @@ someone who needs this" CTA → 3–5 hashtags. Language: {{LANGUAGE: Hindi / Hi
 Phase 1 Studio MVP (generates files only) → Phase 2 Publisher + Telegram approval + minimal
 dashboard → Phase 3 Collector + stats → Phase 4 Learner + Planner + weekly report → Phase 5
 autonomy and extras. Each phase needs tests, a README section, and a short demo before you move on.
-Start at autonomy L0.
+Start at autonomy L0 with batch approval ("approve next", "approve next N", "approve all of tomorrow"). Publish each render to Instagram Reels, Facebook Reels and YouTube Shorts (see PLAN §13). Enforce the budget in PLAN §14 ($0.60/day soft, $18/month hard), and use the Batch API for next-day generation. Brand settings live in `brand.yaml`, editable from the dashboard.
 
 ## Before writing code
 Check against the live Meta and vendor docs, and write down in `docs/VERIFIED_FACTS.md`: Graph API
