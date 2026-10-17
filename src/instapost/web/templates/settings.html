@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<div class="grid">
+  <div class="card">
+    <h2>Connected platforms</h2>
+    <table>
+      {% for p in ["instagram", "facebook", "youtube"] %}
+      <tr><td>{{ p }}</td><td>{% if p in platforms %}<span class="pill ok">connected</span>
+        {% else %}<span class="pill bad">not set up</span>{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="muted">Instagram token:
+      {% if ig_token.refreshed_at %}refreshed {{ ig_token.refreshed_at[:10] }}, expires {{ (ig_token.expires_at or '?')[:10] }}
+      {% else %}from .env, not refreshed yet (the worker refreshes it automatically){% endif %}</p>
+    <p class="muted">YouTube privacy for uploads: <b>{{ s.youtube_privacy }}</b>
+      (set YOUTUBE_PRIVACY=public once the YouTube API audit is approved).</p>
+    <p class="muted">Setup steps: docs/SETUP_META_YOUTUBE.md</p>
+  </div>
+  <div class="card">
+    <h2>Budget</h2>
+    <p>Today ${{ "%.3f"|format(spend_day) }} of ${{ "%.2f"|format(s.daily_budget_usd) }}<br>
+       This month ${{ "%.3f"|format(spend_month) }} of ${{ "%.2f"|format(s.monthly_budget_usd) }}</p>
+    <p class="muted">Change the caps in .env (DAILY_BUDGET_USD, MONTHLY_BUDGET_USD) and restart.</p>
+    <h2>Content</h2>
+    <p class="muted">Writer {{ s.writer_model }} · fact check {{ s.factcheck_model }} ·
+      QA {{ s.qa_model }} · images {{ s.image_provider }}{{ " · DEMO MODE" if s.demo_mode }}</p>
+  </div>
+  <div class="card">
+    <h2>Schedule ({{ sched.timezone }})</h2>
+    <p>New content is created daily at <b>{{ sched.generate_at }}</b> for the next day.</p>
+    <table>
+      {% for fmt, times in sched.slots.items() %}
+      <tr><td>{{ fmt.value }}</td><td>{{ times | join(", ") }}</td>
+        <td class="muted">→ {{ sched.targets[fmt] | join(", ") }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="muted">Daily limits: {% for p, n in sched.max_posts_per_day.items() %}{{ p }} {{ n }}{{ ", " if not loop.last }}{% endfor %}.
+      Edit schedule.yaml to change, then restart the worker.</p>
+  </div>
+</div>
+{% endblock %}

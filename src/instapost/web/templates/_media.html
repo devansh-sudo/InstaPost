@@ -1,0 +1,14 @@
+{% if files.video %}
+  <video class="media" controls loop playsinline preload="metadata"
+         poster="/files/{{ item.id }}/cover.jpg" src="/files/{{ item.id }}/reel.mp4"></video>
+{% elif files.story %}
+  <img class="media" src="/files/{{ item.id }}/story.jpg" alt="{{ item.hook }}">
+{% elif files.slides %}
+  <div class="slides">{% for name in files.slides %}
+    <img src="/files/{{ item.id }}/{{ name }}" alt="slide {{ loop.index }}" loading="lazy">
+  {% endfor %}</div>
+{% elif files.cover %}
+  <img class="media" src="/files/{{ item.id }}/cover.jpg" alt="{{ item.hook }}">
+{% else %}
+  <p class="muted">No media (blocked before rendering).</p>
+{% endif %}

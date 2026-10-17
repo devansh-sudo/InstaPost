@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}InstaPost{% endblock %} · InstaPost</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
+{% if user %}
+<header>
+  <span class="brand">🕉 InstaPost</span>
+  {% set path = request.url.path %}
+  <nav>
+    <a href="/" class="{{ 'on' if path == '/' }}">Live</a>
+    <a href="/queue" class="{{ 'on' if path.startswith('/queue') }}">Approvals</a>
+    <a href="/calendar" class="{{ 'on' if path.startswith('/calendar') }}">Calendar</a>
+    <a href="/library" class="{{ 'on' if path.startswith('/library') }}">Library</a>
+    <a href="/settings" class="{{ 'on' if path.startswith('/settings') }}">Settings</a>
+  </nav>
+  <form method="post" action="/logout"><input type="hidden" name="token" value="{{ csrf }}">
+    <button>Log out</button></form>
+</header>
+{% endif %}
+<main>
+  {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
+    # Blank values in .env (e.g. "IG_USER_ID=") count as not set.
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore", env_ignore_empty=True)
 
     # Claude models. Writing and fact-check run on Sonnet, cheap checks on Haiku (PLAN §14).
     writer_model: str = "claude-sonnet-5-5"
@@ -24,6 +25,45 @@ class Settings(BaseSettings):
 
     daily_budget_usd: float = 0.60
     monthly_budget_usd: float = 18.00
+
+    # Demo mode: the worker uses sample text and placeholder images (no paid API calls),
+    # so the whole system can be tried before any keys are set.
+    demo_mode: bool = False
+
+    # Phase 2: storage, schedule, publishing, approvals, dashboard.
+    database_url: str = f"sqlite:///{ROOT / 'state' / 'instapost.db'}"
+    schedule_file: Path = ROOT / "schedule.yaml"
+    secrets_dir: Path = ROOT / "secrets"
+
+    meta_app_id: str | None = None
+    meta_app_secret: str | None = None
+    ig_user_id: str | None = None
+    ig_access_token: str | None = None
+    ig_api_base: str = "https://graph.instagram.com/v23.0"
+    fb_page_id: str | None = None
+    fb_page_token: str | None = None
+    fb_api_base: str = "https://graph.facebook.com/v23.0"
+    # "public" once the YouTube API audit is approved; until then YouTube forces private anyway.
+    youtube_privacy: str = "private"
+
+    # Public file hosting for Meta to fetch media: "r2" (recommended) or "local".
+    media_host: str = "r2"
+    r2_account_id: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
+    r2_bucket: str | None = None
+    # For media_host="local": the public HTTPS base URL that reaches this server's /media route.
+    public_base_url: str | None = None
+
+    telegram_bot_token: str | None = None
+    telegram_admin_chat_id: int | None = None
+
+    session_secret: str | None = None
+    admin_username: str = "admin"
+    admin_password_hash: str | None = None
+    admin_totp_secret: str | None = None
+    web_host: str = "127.0.0.1"
+    web_port: int = 8800
 
     brand_file: Path = ROOT / "brand.yaml"
     data_dir: Path = ROOT / "data"

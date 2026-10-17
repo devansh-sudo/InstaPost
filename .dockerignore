@@ -1,0 +1,7 @@
+.venv
+.git
+state
+output
+secrets
+.env
+__pycache__

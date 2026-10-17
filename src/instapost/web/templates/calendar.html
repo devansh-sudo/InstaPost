@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<h1>Calendar (next 14 days)</h1>
+{% if not days %}<p class="muted">Nothing scheduled. Approve items in the queue to fill the calendar.</p>{% endif %}
+<div class="grid">
+{% for day, items in days.items() %}
+  <div class="card">
+    <h2>{{ day }}</h2>
+    <ul class="log">{% for i in items %}
+      <li>{{ i.scheduled_at | local("%H:%M") }} · <span class="pill">{{ i.format }}</span>
+        <span class="pill {{ {'published':'ok','failed':'bad','partial':'warn'}.get(i.status, '') }}">{{ i.status }}</span><br>
+        <a href="/items/{{ i.id }}">{{ i.hook[:60] }}</a></li>
+    {% endfor %}</ul>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

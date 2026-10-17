@@ -1,0 +1,41 @@
+# Posting schedule (Phase 2). The planner in Phase 4 will rewrite this from data.
+# All times are local (timezone below).
+
+timezone: Asia/Kolkata
+
+# When the worker creates the next day's content and sends it to Telegram for approval.
+generate_at: "20:30"
+
+# Time slots per format. Items are scheduled into the next free slot after approval.
+slots:
+  reel_book_pov: ["07:15", "20:45"]
+  carousel_shlok: ["13:15"]
+  story_line: ["06:45", "12:30", "21:30"]
+
+# What to create for each weekday (mon..sun). Pillars rotate through the list.
+daily_plan:
+  mon: {reel_book_pov: 2, carousel_shlok: 0, story_line: 2}   # Somvar: Shiv focus
+  tue: {reel_book_pov: 1, carousel_shlok: 1, story_line: 2}
+  wed: {reel_book_pov: 1, carousel_shlok: 0, story_line: 2}
+  thu: {reel_book_pov: 1, carousel_shlok: 1, story_line: 2}
+  fri: {reel_book_pov: 1, carousel_shlok: 0, story_line: 2}
+  sat: {reel_book_pov: 1, carousel_shlok: 1, story_line: 2}
+  sun: {reel_book_pov: 1, carousel_shlok: 0, story_line: 2}
+
+pillar_rotation:
+  reel_book_pov: [jeevan_sutra, gita, shiv_dhyan, kabir, life_lesson]
+  carousel_shlok: [gita, kabir, gita, shiv_dhyan]
+  story_line: [life_lesson, jeevan_sutra]
+monday_pillar: shiv_dhyan
+
+# Where each format goes. Platforms without credentials are skipped automatically.
+targets:
+  reel_book_pov: [instagram, facebook, youtube]
+  carousel_shlok: [instagram]
+  story_line: [instagram]
+
+# Safety limits per platform per day (new accounts: keep these low for the first weeks).
+max_posts_per_day:
+  instagram: 6
+  facebook: 2
+  youtube: 2

@@ -6,10 +6,27 @@ Kabir, life lessons) on Instagram, Facebook Reels and YouTube Shorts.
 - Product and technical plan: [`docs/PLAN.md`](docs/PLAN.md)
 - Build prompt for the full agent: [`docs/AGENT_BUILD_PROMPT.md`](docs/AGENT_BUILD_PROMPT.md)
 
-## Status: Phase 1 (Studio MVP)
+## Status
 
-Phase 1 creates finished, QA-checked content as files. You review them and post by hand.
-Publishing, Telegram approvals and the dashboard come in Phase 2.
+- **Phase 1 – Studio:** creates finished, QA-checked content (below).
+- **Phase 2 – Publishing, approvals, dashboard:** built. The worker creates tomorrow's content
+  every evening, sends it to Telegram for approval, and publishes approved items on schedule
+  to Instagram (reels, carousels, stories), Facebook Reels and YouTube Shorts. The admin
+  dashboard shows live jobs, the approval queue, calendar, library and settings, with a kill
+  switch. Deployment: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+### Phase 2 at a glance
+
+| Piece | What it does |
+|---|---|
+| `instapost worker` | Evening generation → Telegram; publishes due items; refreshes the Instagram token; runs dashboard requests |
+| `instapost web` | Dashboard on 127.0.0.1 (behind Cloudflare Tunnel + Access), password + authenticator code |
+| Telegram bot | ✅ Approve / ❌ Reject / 🔁 Regenerate per item, "approve next 3", "approve all of a day"; `/kill`, `/resume`, `/autonomy`, `/queue`, `/upcoming`, `/status` |
+| Autonomy | L0 approve everything (default) · L1 auto stories + carousels · L2 auto everything. Items whose facts are unverified always wait for you |
+| Safety | Kill switch, per-platform daily limits, one record per item and platform (never posts twice), crash recovery, tokens never in URLs or logs, audit log of every action |
+| Schedule | `schedule.yaml`: slots, daily plan per weekday, pillar rotation, targets, limits |
+
+## Phase 1: the studio
 
 | Format | Output |
 |---|---|
@@ -39,15 +56,10 @@ Every item also gets `caption.txt` (Hindi + one Hinglish line + CTA + 3–5 hash
 Failed items are saved with `status: blocked` and the reason. Budget caps ($0.60/day,
 $18/month by default) are enforced before every paid call; see `instapost budget`.
 
-## Setup (on the VPS)
+## Setup
 
-```bash
-sudo apt install ffmpeg libraqm0          # libraqm = correct Hindi text shaping
-curl -LsSf https://astral.sh/uv/install.sh | sh
-git clone https://github.com/devansh-sudo/InstaPost && cd InstaPost
-uv sync
-cp .env.example .env && chmod 600 .env    # then add your keys with a text editor
-```
+Full server setup: [`docs/DEPLOY.md`](docs/DEPLOY.md). Platform accounts and tokens:
+[`docs/SETUP_META_YOUTUBE.md`](docs/SETUP_META_YOUTUBE.md).
 
 ## Usage
 
@@ -59,6 +71,10 @@ uv run instapost make story --pillar life_lesson
 uv run instapost make reel --draft my_draft.json     # render your own text
 uv run instapost budget                              # spend vs caps
 uv run instapost verses                              # verse database and review status
+uv run instapost admin-setup                         # dashboard password + authenticator
+uv run instapost web                                 # dashboard
+uv run instapost worker                              # scheduler, publisher, Telegram bot
+uv run instapost check                               # which platforms are connected
 ```
 
 Pillars: `jeevan_sutra`, `shiv_dhyan`, `gita`, `kabir`, `life_lesson`.

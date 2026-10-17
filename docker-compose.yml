@@ -1,0 +1,17 @@
+# docker compose up -d   (reads .env; state, output and secrets live in ./ on the host)
+services:
+  worker:
+    build: .
+    command: instapost worker
+    env_file: .env
+    volumes: [./state:/app/state, ./output:/app/output, ./secrets:/app/secrets]
+    restart: unless-stopped
+  web:
+    build: .
+    command: instapost web
+    env_file: .env
+    environment: [WEB_HOST=0.0.0.0]
+    # Only reachable from the VPS itself; Cloudflare Tunnel connects to it.
+    ports: ["127.0.0.1:8800:8800"]
+    volumes: [./state:/app/state, ./output:/app/output, ./secrets:/app/secrets]
+    restart: unless-stopped

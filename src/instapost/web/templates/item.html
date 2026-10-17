@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ item.hook[:30] }}{% endblock %}
+{% block content %}
+<h1>{{ item.hook }}</h1>
+<div class="grid">
+  <div class="card">
+    {% include "_media.html" %}
+  </div>
+  <div class="card">
+    <div class="row"><span class="pill">{{ item.status }}</span><span class="pill">{{ item.format }}</span>
+      <span class="pill">{{ item.pillar }}</span></div>
+    <p class="muted">Planned for {{ item.for_date }} · scheduled {{ item.scheduled_at | local }}
+      {% if item.approved_by %}· approved by {{ item.approved_by }}{% endif %}</p>
+
+    <div class="row">
+      {% if item.status == 'needs_review' %}
+        {% set actions = [("approve","✅ Approve","primary"),("reject","❌ Reject",""),("regenerate","🔁 Regenerate",""),("publish-now","🚀 Post now","")] %}
+      {% elif item.status == 'approved' %}
+        {% set actions = [("publish-now","🚀 Post now","primary"),("unapprove","↩ Back to queue",""),("reject","❌ Cancel","")] %}
+      {% elif item.status in ('failed', 'partial') %}
+        {% set actions = [("retry","🔁 Retry publishing","primary")] %}
+      {% elif item.status == 'blocked' %}
+        {% set actions = [("regenerate","🔁 Regenerate","primary"),("reject","❌ Discard","")] %}
+      {% else %}{% set actions = [] %}{% endif %}
+      {% for action, label, cls in actions %}
+      <form method="post" action="/items/{{ item.id }}/{{ action }}" class="inline">
+        <input type="hidden" name="token" value="{{ csrf }}"><button class="{{ cls }}">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% if item.status == 'approved' %}
+    <form method="post" action="/items/{{ item.id }}/reschedule" class="row" style="margin-top:8px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input type="datetime-local" name="when" value="{{ now_local.strftime('%Y-%m-%dT%H:%M') }}">
+      <button>Reschedule</button>
+    </form>
+    {% endif %}
+
+    <h2 style="margin-top:14px">Caption</h2>
+    <pre class="caption">{{ item.caption }}</pre>
+    {% if draft.alternative_hooks %}
+      <p class="muted">Other hooks: {{ draft.alternative_hooks | join(" · ") }}</p>
+    {% endif %}
+
+    <h2>Fact check: {{ fact.verdict }}</h2>
+    {% if fact.reference_label %}<p><b>{{ fact.reference_label }}</b><br>{{ fact.reference_text }}</p>{% endif %}
+    <ul>{% for i in fact.issues %}<li>{{ i }}</li>{% endfor %}</ul>
+
+    <h2>Quality checks</h2>
+    <table>{% for c in qa.checks %}
+      <tr><td>{{ '✅' if c.passed else '❌' }}</td><td>{{ c.name }}</td><td class="muted">{{ c.detail }}</td></tr>
+    {% endfor %}</table>
+  </div>
+</div>
+
+<div class="grid" style="margin-top:14px">
+  <div class="card">
+    <h2>Publishing</h2>
+    <table>
+      <tr><th>Platform</th><th>Status</th><th>Tries</th><th>Link / error</th></tr>
+      {% for p in pubs %}
+      <tr><td>{{ p.platform }}</td><td>{{ p.status }}</td><td>{{ p.attempts }}</td>
+        <td>{% if p.permalink %}<a href="{{ p.permalink }}" rel="noopener noreferrer" target="_blank">open</a>{% endif %}
+          <span class="muted">{{ p.error or '' }}</span></td></tr>
+      {% else %}<tr><td colspan="4" class="muted">Not published yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>History</h2>
+    <ul class="log">{% for a in history %}
+      <li><span class="muted">{{ a.ts | local("%d %b %H:%M") }}</span> <b>{{ a.actor }}</b> {{ a.action }}</li>
+    {% endfor %}</ul>
+  </div>
+</div>
+{% endblock %}

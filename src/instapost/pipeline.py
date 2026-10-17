@@ -7,6 +7,8 @@ image is generated, so a bad draft never costs image money.
 import hashlib
 import json
 import random
+import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -35,9 +37,8 @@ def load_sample(fmt: Format) -> Draft:
     return Draft.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def _item_id(draft: Draft, fmt: Format) -> str:
-    digest = hashlib.sha1(" ".join(draft.hook_lines).encode()).hexdigest()[:6]
-    return f"{date.today().isoformat()}-{fmt.value}-{digest}"
+def _item_id(fmt: Format) -> str:
+    return f"{date.today().isoformat()}-{fmt.value}-{secrets.token_hex(3)}"
 
 
 def _write_json(path: Path, obj) -> None:
@@ -55,18 +56,23 @@ def make(
     image_provider: str | None = None,
     vision_qa: bool = False,
     brand: Brand | None = None,
+    on_step: Callable[[str], None] | None = None,
 ) -> Result:
+    """`on_step` receives a short label for each stage, for live progress on the dashboard."""
+    step = on_step or (lambda _label: None)
     brand = brand or load_brand()
+    step("writing")
     if draft is None:
         draft = load_sample(fmt) if offline else writer.write(
             brand, fmt, pillar, topic, history.recent_hooks())
 
-    item_id = _item_id(draft, fmt)
+    item_id = _item_id(fmt)
     folder = get_settings().output_dir / date.today().isoformat() / item_id
     folder.mkdir(parents=True, exist_ok=True)
     _write_json(folder / "draft.json", draft)
     seed = int(hashlib.sha1(item_id.encode()).hexdigest()[:8], 16)
 
+    step("safety and fact check")
     safety_issues = safety.check(draft)
     fact = (fact_check.offline_fact_check(draft) if offline or safety_issues
             else fact_check.fact_check(draft))
@@ -76,6 +82,7 @@ def make(
     if any(not c.passed for c in checks):
         return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
 
+    step("generating images")
     provider = images.get_provider("placeholder" if offline else image_provider)
     reference = ((fact.reference_label, fact.reference_text)
                  if fact.reference_label and fact.reference_text else None)
@@ -85,6 +92,7 @@ def make(
             images.illustration_prompt(draft.illustration_prompt, brand.illustration_style),
             portrait=False)
         scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
+        step("rendering")
         page_no = 108 if pillar == Pillar.SHIV_DHYAN else random.Random(seed).randint(12, 240)
         page = render_page(brand, PageContent(
             header=brand.header_text, page_number=page_no, hook_lines=draft.hook_lines,
@@ -99,6 +107,7 @@ def make(
         if vision_qa:
             checks.append(qa.check_vision(still))
         if all(c.passed for c in checks):
+            step("encoding video")
             video.encode(still, brand, duration, folder / "reel.mp4", seed)
 
     elif fmt == Format.CAROUSEL_SHLOK:

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Live{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between">
+  <h1>Live</h1>
+  <div class="row">
+    <form method="post" action="/kill" class="inline">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      {% if kill %}
+        <input type="hidden" name="on" value="0"><button class="primary">▶ Resume publishing</button>
+      {% else %}
+        <input type="hidden" name="on" value="1"><button class="danger">🛑 KILL SWITCH</button>
+      {% endif %}
+    </form>
+    <form method="post" action="/autonomy" class="inline row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <select name="level">
+        {% for l, label in [("L0","L0 · I approve everything"),("L1","L1 · auto stories+carousels"),("L2","L2 · auto everything")] %}
+          <option value="{{ l }}" {{ 'selected' if autonomy == l }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button>Set</button>
+    </form>
+  </div>
+</div>
+
+<div hx-get="/partials/live" hx-trigger="every 5s" hx-swap="innerHTML">
+  {% include "_live.html" %}
+</div>
+
+<div class="grid" style="margin-top:14px">
+  <div class="card">
+    <h2>Create one piece now</h2>
+    <form method="post" action="/make" class="row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <select name="format">{% for f in formats %}<option>{{ f.value }}</option>{% endfor %}</select>
+      <select name="pillar">{% for p in pillars %}<option>{{ p.value }}</option>{% endfor %}</select>
+      <input type="date" name="for_date" value="{{ tomorrow }}">
+      <input name="topic" placeholder="Topic (optional), e.g. गुस्सा">
+      <button>Create</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Create a full day's plan</h2>
+    <form method="post" action="/generate-day" class="row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input type="date" name="day" value="{{ tomorrow }}">
+      <button>Create plan</button>
+    </form>
+    <p class="muted">Normally the worker does this automatically every evening for the next day.</p>
+  </div>
+</div>
+{% endblock %}
