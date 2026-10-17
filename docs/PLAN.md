@@ -242,6 +242,8 @@ See the chat message. Answers go into §12 here once you decide.
 | D11 | "Algorithm crack" | = data-driven content planning + post creation (no posts *about* growth) |
 | D12 | Notifications | **Telegram bot** for approvals and daily reports (Phase 2) |
 | D14 | Dashboard stack | **Changed from Next.js to server-rendered FastAPI + htmx**: one service on the VPS, no Node build, smaller attack surface. Revisit for Phase 3 charts if needed |
+| D16 | Learning scope | The planner decides *what* (pillar, hook, scene, slot, length, topic); *how much* stays with you (schedule.yaml). The weekly AI review only advises |
+| D17 | Festivals | Dates in data/calendar/festivals.yaml are used only after you confirm them |
 | D15 | Database | SQLite (WAL) by default; PostgreSQL via `DATABASE_URL` |
 | D13 | Stories | The API can publish story images/videos but **cannot add poll/quiz stickers**. The studio makes the story image + a `story_poll.txt`; you add the sticker in the app (about 20 s) |
 
@@ -301,7 +303,8 @@ The **break-even** on the API spend (~₹1,700/month) is realistic around **mont
 | 1. Studio MVP (writer, safety, fact-check, images, Hindi renderer, reel/carousel/story, QA gate, budget caps) | ✅ Built and tested offline. Needs real API keys for the first live run |
 | 2. Publisher + Telegram approval + dashboard | ✅ Built and tested with mocked platform APIs and a demo run. Needs real accounts/tokens for the first live post |
 | 3. Collector + stats | ✅ Built and tested with mocked platform APIs and seeded demo data. Metric names are verified against the live APIs at the first real run |
-| 4. Learner + planner + weekly report | Next |
+| 4. Learner + planner + weekly report | ✅ Built and tested (simulated learning, planner rules, fake-API review run). Real conclusions need ~30–50 real posts |
+| 5. Batch API generation (−50% writing cost) | Deferred: ~$2–3/month saving vs. a larger rework; do it if spend nears the cap |
 
 ## 17. What I need from you
 

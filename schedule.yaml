@@ -1,5 +1,5 @@
-# Posting schedule (Phase 2). The planner in Phase 4 will rewrite this from data.
-# All times are local (timezone below).
+# Posting schedule. You decide HOW MUCH is posted (daily_plan, slots, limits); the weekly
+# planner (Phase 4) decides WHAT each piece is. All times are local (timezone below).
 
 timezone: Asia/Kolkata
 
@@ -9,13 +9,18 @@ generate_at: "20:30"
 # When the daily report for the previous day is sent to Telegram.
 report_at: "09:00"
 
+# Weekly review + next week's plan (the plan can be edited on the dashboard's Plan page).
+plan_day: sun
+plan_at: "18:00"
+
 # Time slots per format. Items are scheduled into the next free slot after approval.
 slots:
   reel_book_pov: ["07:15", "20:45"]
   carousel_shlok: ["13:15"]
   story_line: ["06:45", "12:30", "21:30"]
 
-# What to create for each weekday (mon..sun). Pillars rotate through the list.
+# How many pieces to create each weekday. Pillars below are only used when no weekly plan
+# exists yet; normally the planner picks them.
 daily_plan:
   mon: {reel_book_pov: 2, carousel_shlok: 0, story_line: 2}   # Somvar: Shiv focus
   tue: {reel_book_pov: 1, carousel_shlok: 1, story_line: 2}

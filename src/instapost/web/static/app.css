@@ -106,3 +106,4 @@ svg.chart .cell-text { font-size: 11px; pointer-events: none; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .checklist li { margin: 4px 0; }
 svg.chart.heat { width: auto; max-width: 100%; }
+svg.chart.fixed { width: auto; max-width: 100%; }

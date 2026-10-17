@@ -3,10 +3,14 @@
 from collections.abc import Callable
 from datetime import date
 
+from sqlalchemy import select
+
 from instapost import approvals, budget, pipeline
+from instapost.brand import load_brand
 from instapost.config import get_settings
-from instapost.db import Item, ItemStatus, audit, get_kv, session, set_kv
+from instapost.db import Item, ItemStatus, PlanEntry, audit, get_kv, session, set_kv
 from instapost.jobs import track
+from instapost.learn import planner
 from instapost.models import Format, Pillar
 from instapost.publish.tokens import redact
 from instapost.schedule import load_schedule
@@ -16,13 +20,28 @@ Notify = Callable[[str], None]
 
 
 def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
-                       topic: str | None = None) -> str | None:
+                       topic: str | None = None, entry_id: int | None = None) -> str | None:
     label = f"{fmt.value} / {pillar.value} for {for_date.isoformat()}"
+    plan, slot, scene = None, None, None
+    if entry_id is not None:
+        with session() as s:
+            e = s.get(PlanEntry, entry_id)
+            topic = topic or e.topic
+            slot, scene = e.slot, e.scene
+            presets = load_brand().scene_presets
+            plan = {"hook_style": e.hook_style, "scene": presets[e.scene % len(presets)],
+                    "length": e.length, "experiment": e.experiment}
+            plan = {k: v for k, v in plan.items() if v}
+            label += f" (plan #{entry_id})"
     with track("generate", label) as job:
         result = pipeline.make(fmt, pillar, topic, on_step=job.step,
-                               offline=get_settings().demo_mode)
+                               offline=get_settings().demo_mode, plan=plan)
         with session() as s:
-            item = approvals.register(s, result, fmt, pillar.value, for_date, actor=actor)
+            item = approvals.register(s, result, fmt, pillar.value, for_date, actor=actor,
+                                      preferred_slot=slot, scene=scene)
+            if entry_id is not None:
+                e = s.get(PlanEntry, entry_id)
+                e.status, e.item_id = "used", item.id
             return item.id
 
 
@@ -44,10 +63,15 @@ def generate_day(day: date, notify: Notify, on_item: Callable[[str], None],
         audit(s, "agent", "generate_day_started", day=day.isoformat())
 
     created = []
-    plan = load_schedule().plan_for(day, offset=(day - EPOCH).days)
-    for fmt, pillar in plan:
+    with session() as s:
+        entries = [(Format(e.format), Pillar(e.pillar), e.id)
+                   for e in planner.entries_for_day(s, day)]
+    # The weekly plan decides what to make; without one, fall back to schedule.yaml rotation.
+    plan = entries or [(fmt, pillar, None) for fmt, pillar in
+                       load_schedule().plan_for(day, offset=(day - EPOCH).days)]
+    for fmt, pillar, entry_id in plan:
         try:
-            item_id = _make_and_register(fmt, pillar, day, "agent")
+            item_id = _make_and_register(fmt, pillar, day, "agent", entry_id=entry_id)
         except budget.BudgetExceeded as e:
             notify(f"⛔ Budget cap reached, generation paused: {e}")
             break
@@ -72,4 +96,7 @@ def regenerate(item_id: str, actor: str) -> str:
         if item.status != ItemStatus.REJECTED:
             approvals.reject(s, item, actor, reason="regenerate")
         fmt, pillar, for_date = Format(item.format), Pillar(item.pillar), item.for_date
-    return _make_and_register(fmt, pillar, date.fromisoformat(for_date), actor)
+        entry = s.scalars(select(PlanEntry).where(PlanEntry.item_id == item_id)).first()
+        entry_id = entry.id if entry else None
+    return _make_and_register(fmt, pillar, date.fromisoformat(for_date), actor,
+                              entry_id=entry_id)

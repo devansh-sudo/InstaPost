@@ -53,6 +53,9 @@ def checklist() -> list[Step]:
         Step("Dashboard behind Cloudflare (HTTPS)", bool(s.public_base_url),
              "PUBLIC_BASE_URL after the tunnel is set up (docs/DEPLOY.md step 5)"),
         Step("Demo mode off", not s.demo_mode, "DEMO_MODE=false before going live"),
+        Step("Festival dates confirmed", _festivals_confirmed(),
+             "check data/calendar/festivals.yaml against a panchang, set confirmed: true",
+             required=False),
         Step("YouTube uploads public", s.youtube_privacy == "public",
              "after the YouTube API audit is approved, set YOUTUBE_PRIVACY=public",
              required=False),
@@ -61,3 +64,13 @@ def checklist() -> list[Step]:
 
 def open_items() -> list[Step]:
     return [step for step in checklist() if not step.done]
+
+
+def _festivals_confirmed() -> bool:
+    import yaml
+
+    path = get_settings().data_dir / "calendar" / "festivals.yaml"
+    if not path.exists():
+        return False
+    entries = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("festivals", [])
+    return bool(entries) and all(e.get("confirmed") for e in entries)

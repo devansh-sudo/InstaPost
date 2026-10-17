@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from instapost.db import Item, ItemStatus, audit, get_kv, set_kv, utcnow
+from instapost.learn.bandit import item_features
 from instapost.models import FactCheckVerdict, Format
 from instapost.pipeline import Result
 from instapost.render.video import probe_duration
@@ -51,16 +52,20 @@ def set_kill_switch(s: Session, on: bool, actor: str) -> None:
 # --- items ------------------------------------------------------------------------------
 
 def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: date,
-             actor: str = "agent") -> Item:
-    draft_hook = " ".join(_read_draft(result)["hook_lines"])
+             actor: str = "agent", preferred_slot: str | None = None,
+             scene: int | None = None) -> Item:
+    draft = _read_draft(result)
+    draft_hook = " ".join(draft["hook_lines"])
+    duration = probe_duration(result.folder / "reel.mp4") \
+        if (result.folder / "reel.mp4").exists() else None
     item = Item(
         id=result.item_id, format=fmt.value, pillar=pillar, folder=str(result.folder),
         status=ItemStatus.NEEDS_REVIEW if result.status == "needs_review" else ItemStatus.BLOCKED,
         hook=draft_hook, caption=(result.folder / "caption.txt").read_text(encoding="utf-8"),
         fact_check=result.fact.verdict.value, for_date=for_date.isoformat(),
         qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
-        duration_s=probe_duration(result.folder / "reel.mp4")
-        if (result.folder / "reel.mp4").exists() else None,
+        duration_s=duration, preferred_slot=preferred_slot,
+        features=item_features(draft, pillar, duration, scene),
     )
     s.merge(item)
     s.flush()
@@ -83,7 +88,7 @@ def _auto_approvable(s: Session, item: Item) -> bool:
 
 
 def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None = None,
-                   now: datetime | None = None) -> datetime:
+                   now: datetime | None = None, preferred: str | None = None) -> datetime:
     """Earliest unused slot (UTC, naive) for this format on or after `start_day`."""
     sched = sched or load_schedule()
     now = now or utcnow()
@@ -92,7 +97,13 @@ def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None
             select(Item.scheduled_at).where(Item.format == fmt, Item.status.in_(TAKEN),
                                             Item.scheduled_at.is_not(None)))
     }
-    for local in candidate_slots(sched, Format(fmt), start_day):
+    candidates = candidate_slots(sched, Format(fmt), start_day)
+    if preferred:
+        # The plan's slot on the planned day comes first, if it is still free.
+        first = [c for c in candidates
+                 if c.date() == start_day and c.strftime("%H:%M") == preferred]
+        candidates = first + [c for c in candidates if c not in first]
+    for local in candidates:
         utc = to_utc_naive(local)
         if utc >= now + MIN_LEAD and utc not in taken:
             return utc
@@ -103,7 +114,8 @@ def approve(s: Session, item: Item, actor: str, when: datetime | None = None) ->
     if item.status != ItemStatus.NEEDS_REVIEW:
         raise QueueError(f"{item.id} is {item.status}, not waiting for review")
     start = date.fromisoformat(item.for_date) if item.for_date else utcnow().date()
-    item.scheduled_at = when or next_free_slot(s, item.format, start)
+    item.scheduled_at = when or next_free_slot(s, item.format, start,
+                                               preferred=item.preferred_slot)
     item.status = ItemStatus.APPROVED
     item.approved_by = actor
     item.approved_at = utcnow()

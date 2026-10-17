@@ -6,7 +6,8 @@ Every 30 seconds it:
 3. at `generate_at` (schedule.yaml) creates the next day's content and sends it to Telegram;
 4. once a day refreshes the Instagram token when it is more than 7 days old;
 5. collects post and account stats (throttled to every 10 minutes);
-6. at `report_at` sends the daily report for the previous day.
+6. at `report_at` sends the daily report for the previous day;
+7. on `plan_day` at `plan_at`: weekly Claude review, then next week's plan.
 """
 
 import logging
@@ -17,9 +18,10 @@ from instapost import approvals, jobs, producer
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, audit, get_kv, session, set_kv, utcnow
 from instapost.jobs import track
+from instapost.learn import planner, review
 from instapost.models import Format, Pillar
 from instapost.publish import instagram, publisher, tokens
-from instapost.schedule import load_schedule
+from instapost.schedule import WEEKDAYS, load_schedule
 from instapost.stats import collect, report
 
 log = logging.getLogger("instapost.worker")
@@ -124,6 +126,13 @@ class Worker:
                                                 date.fromisoformat(p["for_date"]),
                                                 p.get("topic"), p.get("actor", "web"))
                     self.send_item(item_id)
+                elif job.kind == "build_plan":
+                    with session() as s:
+                        planner.build_week(s, date.fromisoformat(p["week_start"]),
+                                           actor=p.get("actor", "web"))
+                elif job.kind == "weekly_review":
+                    ws = date.fromisoformat(p["week_start"])
+                    self.weekly(ws - timedelta(days=7), ws, actor=p.get("actor", "web"))
                 elif job.kind == "generate_day":
                     producer.generate_day(date.fromisoformat(p["day"]), self.notify,
                                           self.send_item, force=True)
@@ -148,11 +157,42 @@ class Worker:
             set_kv(s, "report_sent", day.isoformat())
         self.notify(report.create(day).text)
 
+    def maybe_plan_week(self) -> None:
+        """Weekly: review this week with Claude, then build next week's plan."""
+        sched = load_schedule()
+        now = sched.local_now()
+        hh, mm = map(int, sched.plan_at.split(":"))
+        if WEEKDAYS[now.weekday()] != sched.plan_day or (now.hour, now.minute) < (hh, mm):
+            return
+        this_week = planner.week_start_of(now.date())
+        next_week = this_week + timedelta(days=7)
+        with session() as s:
+            if get_kv(s, "weekly_done", "") == next_week.isoformat():
+                return
+            set_kv(s, "weekly_done", next_week.isoformat())
+        self.weekly(this_week, next_week)
+
+    def weekly(self, review_week, plan_week, actor: str = "agent") -> None:
+        if not get_settings().demo_mode:
+            try:
+                with session() as s:
+                    text = review.create(s, review_week).text
+                self.notify(text)
+            except Exception as e:  # noqa: BLE001 - the plan is still built without new topics
+                self.notify(f"⚠️ Weekly review skipped: {tokens.redact(str(e))[:300]}")
+        with session() as s:
+            entries = planner.build_week(s, plan_week, actor=actor)
+            experiments = sum(1 for e in entries if e.experiment)
+        self.notify(f"🗓 Plan for the week of {plan_week.strftime('%d %b')} is ready: "
+                    f"{len(entries)} pieces, {experiments} experiments. Edit it on the "
+                    "dashboard Plan page, or /plan to see it.")
+
     def tick(self) -> None:
         with session() as s:
             set_kv(s, "worker_heartbeat", utcnow().isoformat())
         for duty in (self.publish_due, self.run_requests, self.maybe_generate,
-                     self.maybe_refresh_token, self.collect_stats, self.maybe_report):
+                     self.maybe_refresh_token, self.collect_stats, self.maybe_report,
+                     self.maybe_plan_week):
             try:
                 duty()
             except Exception as e:  # noqa: BLE001 - keep the worker alive, but tell the admin

@@ -17,9 +17,12 @@ from sqlalchemy import select
 from starlette.middleware.sessions import SessionMiddleware
 
 from instapost import approvals, budget, jobs, setup_status
+from instapost.brand import load_brand
 from instapost.config import get_settings
-from instapost.db import AuditLog, Item, ItemStatus, Job, get_kv, session, utcnow
-from instapost.models import Format, Pillar
+from instapost.db import AuditLog, Item, ItemStatus, Job, PlanEntry, audit, get_kv, session, utcnow
+from instapost.learn import planner, review
+from instapost.learn.bandit import LENGTHS, Learner, dimensions
+from instapost.models import Format, HookStyle, Pillar
 from instapost.publish import publisher, tokens, youtube
 from instapost.publish.media_host import verify_local
 from instapost.schedule import load_schedule, to_local, to_utc_naive
@@ -64,7 +67,9 @@ def create_app() -> FastAPI:
             "img-src 'self' data:; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
             "form-action 'self'")
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "no-referrer"
+        # same-origin: our own pages see where a form came from (to return there after an
+        # action), other sites never see dashboard URLs.
+        response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "DENY"
         return response
 
@@ -147,6 +152,12 @@ def _by_format(rows) -> list[tuple[str, float, int]]:
             acc.setdefault(r.item.format, []).append(r.score)
     return sorted(((f, round(sum(v) / len(v), 1), len(v)) for f, v in acc.items()),
                   key=lambda t: t[1], reverse=True)
+
+
+def _option_label(dim: str, option: str, presets: list[str]) -> str:
+    if dim == "scene" and option.isdigit() and int(option) < len(presets):
+        return f"{int(option) + 1}: {presets[int(option)][:14]}…"
+    return option
 
 
 # --- routes -------------------------------------------------------------------------------
@@ -388,6 +399,89 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     def reports_page(request: Request, who: str = Depends(user)):
         with session() as s:
             return render(request, "reports.html", reports=report.latest(s))
+
+    # Learning & plan (Phase 4)
+    @app.get("/plan", response_class=HTMLResponse)
+    def plan_page(request: Request, week: str = "", who: str = Depends(user)):
+        today = load_schedule().local_now().date()
+        this_week = planner.week_start_of(today)
+        ws = date.fromisoformat(week) if week else this_week + timedelta(days=7)
+        ws = planner.week_start_of(ws)
+        with session() as s:
+            entries = planner.week_entries(s, ws)
+            days: dict[str, list] = {}
+            for e in entries:
+                days.setdefault(e.day, []).append(e)
+            return render(request, "plan.html", days=days, week=ws,
+                          prev_week=ws - timedelta(days=7), next_week=ws + timedelta(days=7),
+                          pillars=[p.value for p in Pillar],
+                          hooks=[h.value for h in HookStyle],
+                          scenes=load_brand().scene_presets, sched=load_schedule(),
+                          lengths=LENGTHS, festivals=planner.festivals())
+
+    @app.post("/plan/{entry_id}")
+    def plan_edit(request: Request, entry_id: int, pillar: str = Form(...),
+                  hook_style: str = Form(...), slot: str = Form(...), scene: int = Form(0),
+                  length: str = Form(""), topic: str = Form(""), action: str = Form("save"),
+                  who: str = Depends(user), _=Depends(csrf)):
+        with session() as s:
+            e = s.get(PlanEntry, entry_id)
+            if e is None:
+                raise HTTPException(404)
+            if e.status != "planned":
+                return back(request, "This entry was already used; it can't be changed.")
+            if action == "skip":
+                e.status, e.edited_by = "skipped", f"web:{who}"
+                audit(s, f"web:{who}", "plan_skip", entry=entry_id)
+                return back(request, "Skipped. Nothing will be made for this entry.")
+            Pillar(pillar), HookStyle(hook_style)  # validate
+            if slot not in load_schedule().slots.get(Format(e.format), []):
+                raise HTTPException(400, "unknown slot")
+            e.pillar, e.hook_style, e.slot = pillar, hook_style, slot
+            e.scene = scene % max(len(load_brand().scene_presets), 1)
+            e.length = length if length in LENGTHS else e.length
+            e.topic = topic.strip() or None
+            e.edited_by = f"web:{who}"
+            audit(s, f"web:{who}", "plan_edit", entry=entry_id)
+        return back(request, "Saved. Rebuilding the plan will keep your change.")
+
+    @app.post("/plan-rebuild")
+    def plan_rebuild(request: Request, week: str = Form(...), who: str = Depends(user),
+                     _=Depends(csrf)):
+        date.fromisoformat(week)
+        jobs.enqueue("build_plan", f"plan for week of {week}", week_start=week,
+                     actor=f"web:{who}")
+        return back(request, "Rebuilding the plan (your edited entries stay).")
+
+    @app.post("/weekly-review")
+    def weekly_review(request: Request, week: str = Form(...), who: str = Depends(user),
+                      _=Depends(csrf)):
+        date.fromisoformat(week)
+        jobs.enqueue("weekly_review", f"weekly review + plan for {week}", week_start=week,
+                     actor=f"web:{who}")
+        return back(request, "Queued: Claude reviews last week, then the plan is rebuilt "
+                    "(about $0.10).")
+
+    @app.get("/learning", response_class=HTMLResponse)
+    def learning_page(request: Request, who: str = Depends(user)):
+        with session() as s:
+            rows = queries.post_rows(s, since=utcnow() - timedelta(days=planner.HISTORY_DAYS))
+            learner = Learner(rows)
+            beliefs = learner.beliefs()
+            presets = load_brand().scene_presets
+            sections = []
+            for fmt in Format:
+                dims = []
+                for dim in dimensions(fmt):
+                    arms = [dict(b, label=_option_label(dim, b["option"], presets))
+                            for b in beliefs if b["format"] == fmt.value and b["dimension"] == dim]
+                    dims.append((dim, learner.confidence(
+                        fmt, dim, lambda o, d=dim: _option_label(d, o, presets)),
+                                 charts.interval_chart(arms, f"{fmt.value} {dim}")))
+                sections.append((fmt.value, dims))
+            return render(request, "learning.html", sections=sections,
+                          observations=learner.observations, reviews=review.latest(s),
+                          explore=int(planner.EXPLORE_RATE * 100))
 
     # Files
     @app.get("/files/{item_id}/{name}")

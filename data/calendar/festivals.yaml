@@ -1,0 +1,40 @@
+# Festival calendar for the weekly planner.
+#
+# Lunar-calendar dates move every year, and the dates below are best estimates that have NOT
+# been checked. The planner only uses entries with `confirmed: true`. Check each date against
+# a panchang (e.g. drikpanchang.com or a printed calendar), fix it if needed, then set
+# confirmed: true. Add Pradosh, Ekadashi, Sawan Somvar and others the same way.
+#
+# On a confirmed day, the first reel of the day uses the given pillar and topic.
+
+festivals:
+  - name: Dhanteras
+    date: 2026-11-06
+    pillar: life_lesson
+    topic: "धनतेरस: असली धन क्या है (संतोष, स्वास्थ्य, परिवार)"
+    confirmed: false
+  - name: Diwali
+    date: 2026-11-08
+    pillar: jeevan_sutra
+    topic: "दीपावली: भीतर का दीया जलाना"
+    confirmed: false
+  - name: Dev Deepawali / Kartik Purnima
+    date: 2026-11-24
+    pillar: shiv_dhyan
+    topic: "देव दीपावली: शिव की नगरी काशी और प्रकाश"
+    confirmed: false
+  - name: Gita Jayanti
+    date: 2026-12-20
+    pillar: gita
+    topic: "गीता जयंती: एक श्लोक जो जीवन बदल दे"
+    confirmed: false
+  - name: Makar Sankranti
+    date: 2027-01-14
+    pillar: life_lesson
+    topic: "मकर संक्रांति: नई दिशा, नया प्रकाश"
+    confirmed: false
+  - name: Maha Shivratri
+    date: 2027-03-06
+    pillar: shiv_dhyan
+    topic: "महाशिवरात्रि: मौन, ध्यान और जागरण"
+    confirmed: false

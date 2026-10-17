@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Plan{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between">
+  <h1>Plan · week of {{ week.strftime('%d %b %Y') }}</h1>
+  <div class="row">
+    <a class="btn" href="/plan?week={{ prev_week }}">← previous</a>
+    <a class="btn" href="/plan?week={{ next_week }}">next →</a>
+    <form method="post" action="/plan-rebuild" class="inline">
+      <input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="week" value="{{ week }}">
+      <button>Rebuild plan</button>
+    </form>
+    <form method="post" action="/weekly-review" class="inline">
+      <input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="week" value="{{ week }}">
+      <button>Review last week + rebuild</button>
+    </form>
+  </div>
+</div>
+<p class="muted">The planner picks what each piece is from what is working; 🔬 marks experiments that
+  keep testing other options. Change anything and press Save; rebuilding keeps your changes. How many
+  pieces go out each day is set in schedule.yaml. Festivals are used only once their date is confirmed in
+  data/calendar/festivals.yaml ({{ festivals|length }} confirmed).</p>
+
+{% if not days %}
+  <div class="card"><p>No plan for this week yet. It is built automatically every {{ sched.plan_day }} at
+    {{ sched.plan_at }}, or press <b>Rebuild plan</b>.</p></div>
+{% endif %}
+
+{% for day, entries in days.items() %}
+<div class="card" style="margin-bottom:12px; overflow-x:auto">
+  <h2>{{ day }}</h2>
+  <table>
+    <tr><th>Slot</th><th>Format</th><th>Pillar</th><th>Hook style</th><th>Scene</th><th>Length</th>
+      <th>Topic</th><th>Why</th><th></th></tr>
+    {% for e in entries %}
+    {% if e.status == 'planned' %}
+    <tr>
+      <td><select form="pe-{{ e.id }}" name="slot">{% for sl in sched.slots[e.format] %}<option {{ 'selected' if sl == e.slot }}>{{ sl }}</option>{% endfor %}</select></td>
+      <td>{{ e.format }}{% if e.experiment %}<br><span class="pill warn">🔬 {{ e.experiment }}</span>{% endif %}</td>
+      <td><select form="pe-{{ e.id }}" name="pillar">{% for p in pillars %}<option {{ 'selected' if p == e.pillar }}>{{ p }}</option>{% endfor %}</select></td>
+      <td><select form="pe-{{ e.id }}" name="hook_style">{% for h in hooks %}<option {{ 'selected' if h == e.hook_style }}>{{ h }}</option>{% endfor %}</select></td>
+      <td><select form="pe-{{ e.id }}" name="scene">{% for sc in scenes %}<option value="{{ loop.index0 }}" {{ 'selected' if loop.index0 == e.scene }}>{{ loop.index }}: {{ sc[:24] }}…</option>{% endfor %}</select></td>
+      <td>{% if e.format == 'reel_book_pov' %}<select form="pe-{{ e.id }}" name="length">{% for l in lengths %}<option {{ 'selected' if l == e.length }}>{{ l }}</option>{% endfor %}</select>{% else %}–{% endif %}</td>
+      <td><input form="pe-{{ e.id }}" name="topic" value="{{ e.topic or '' }}" placeholder="any topic"></td>
+      <td class="muted">{{ e.reason }}{% if e.edited_by %}<br>edited by {{ e.edited_by }}{% endif %}</td>
+      <td class="row"><form id="pe-{{ e.id }}" method="post" action="/plan/{{ e.id }}">
+          <input type="hidden" name="token" value="{{ csrf }}"></form>
+        <button form="pe-{{ e.id }}" name="action" value="save">Save</button>
+        <button form="pe-{{ e.id }}" name="action" value="skip">Skip</button></td>
+    </tr>
+    {% else %}
+    <tr class="muted"><td>{{ e.slot }}</td><td>{{ e.format }}</td><td>{{ e.pillar }}</td><td>{{ e.hook_style }}</td>
+      <td>{{ e.scene + 1 }}</td><td>{{ e.length or '–' }}</td><td>{{ e.topic or '' }}</td>
+      <td colspan="2">{{ e.status }}{% if e.item_id %} · <a href="/items/{{ e.item_id }}">item</a>{% endif %}</td></tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+</div>
+{% endfor %}
+{% endblock %}

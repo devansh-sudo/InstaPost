@@ -100,6 +100,8 @@ browser, log in with the channel's Google account and approve. Done.
 - About **09:00** the bot sends yesterday's report (followers, posts, best of the week). The
   **Stats** page has the charts; `/report` gives the report any time.
 - `/setup` (or the Settings page) shows what is still missing in the setup.
+- **Sunday 18:00:** Claude reviews the week (Telegram message), then next week's plan is built.
+  Check it on the **Plan** page (or `/plan`) and change anything before the evening runs use it.
 - **Emergency:** `/kill` in Telegram or the red **KILL SWITCH** button stops everything at once.
 
 ## Backups

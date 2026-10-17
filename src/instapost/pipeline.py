@@ -57,6 +57,7 @@ def make(
     vision_qa: bool = False,
     brand: Brand | None = None,
     on_step: Callable[[str], None] | None = None,
+    plan: dict | None = None,
 ) -> Result:
     """`on_step` receives a short label for each stage, for live progress on the dashboard."""
     step = on_step or (lambda _label: None)
@@ -64,7 +65,7 @@ def make(
     step("writing")
     if draft is None:
         draft = load_sample(fmt) if offline else writer.write(
-            brand, fmt, pillar, topic, history.recent_hooks())
+            brand, fmt, pillar, topic, history.recent_hooks(), plan)
 
     item_id = _item_id(fmt)
     folder = get_settings().output_dir / date.today().isoformat() / item_id

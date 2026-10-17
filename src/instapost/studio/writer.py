@@ -46,7 +46,11 @@ scene_prompt (English): pick or lightly vary one of the scene presets in the req
 slides: only for format carousel_shlok, 5 slides (cover hook, the verse idea, meaning,
 how to use it today, closing line); otherwise an empty list.
 story_line, poll_question, poll_options: only for format story_line (a one-line morning or
-night thought plus a two-option poll); otherwise null and an empty list."""
+night thought plus a two-option poll); otherwise null and an empty list.
+
+The request may contain a "plan" from the weekly planner. Follow it: use its hook_style,
+use its scene as scene_prompt (light variation is fine), and match its length: "short" =
+hook plus a body of at most 12 words, "medium" = up to 20 words, "long" = up to 28 words."""
 
 
 def write(
@@ -55,6 +59,7 @@ def write(
     pillar: Pillar,
     topic: str | None,
     recent_hooks: list[str],
+    plan: dict | None = None,
 ) -> Draft:
     request = {
         "format": fmt.value,
@@ -64,6 +69,8 @@ def write(
         "scene_presets": brand.scene_presets,
         "avoid_repeating_these_recent_hooks": recent_hooks[-30:],
     }
+    if plan:
+        request["plan"] = plan
     content = (
         "Verified references you may cite (by id):\n" + catalogue_for_prompt()
         + "\n\nRequest:\n" + json.dumps(request, ensure_ascii=False, indent=1)

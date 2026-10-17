@@ -30,6 +30,7 @@ HELP = """Commands
 /resume – allow publishing again
 /budget – spend against the caps
 /report – yesterday's report now
+/plan – the plan for the next 7 days
 /setup – what is still missing in the setup"""
 
 FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "carousel_shlok": "🖼 Carousel",
@@ -246,6 +247,21 @@ class Bot:
                 day = load_schedule().local_now().date() - timedelta(days=1)
                 text, _ = report.build(s, day)
                 return text
+            if cmd == "/plan":
+                from sqlalchemy import select
+
+                from instapost.db import PlanEntry
+                today = load_schedule().local_now().date()
+                entries = list(s.scalars(select(PlanEntry).where(
+                    PlanEntry.day >= today.isoformat(),
+                    PlanEntry.day <= (today + timedelta(days=6)).isoformat())
+                    .order_by(PlanEntry.day, PlanEntry.slot)))
+                if not entries:
+                    return "No plan yet. It is built every week, or from the dashboard Plan page."
+                return "Plan:\n" + "\n".join(
+                    f"{e.day[5:]} {e.slot} {FORMAT_LABEL.get(e.format, e.format)} {e.pillar} "
+                    f"· {e.hook_style}{' 🔬' if e.experiment else ''}"
+                    f"{' · ' + e.topic[:30] if e.topic else ''}" for e in entries)
             if cmd == "/setup":
                 from instapost.setup_status import checklist
                 return "Setup checklist:\n" + "\n".join(

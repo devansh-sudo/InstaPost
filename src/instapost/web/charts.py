@@ -103,7 +103,7 @@ def line_chart(series: dict[str, list[tuple[date, int]]], title: str,
 
 
 def bar_chart(rows: list[tuple[str, float, int]], title: str, max_value: float = 100,
-              width: int = 520) -> Markup:
+              width: int = 420) -> Markup:
     """Horizontal bars for one measure (average score), value at the tip."""
     if not rows:
         return Markup('<p class="muted">No scored posts yet. Posts are scored once they '
@@ -111,8 +111,8 @@ def bar_chart(rows: list[tuple[str, float, int]], title: str, max_value: float =
     label_w, pad_r, bar_h, gap = 120, 70, 22, 14
     height = len(rows) * (bar_h + gap) + gap
     pw = width - label_w - pad_r
-    parts = [f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" '
-             f'aria-label="{escape(title)}">']
+    parts = [f'<svg class="chart fixed" width="{width}" viewBox="0 0 {width} {height}" '
+             f'role="img" aria-label="{escape(title)}">']
     parts.append(f'<line class="grid" x1="{label_w}" x2="{label_w}" y1="0" y2="{height}"/>')
     for i, (label, value, n) in enumerate(rows):
         y0 = gap + i * (bar_h + gap)
@@ -179,3 +179,47 @@ def heatmap(cells: dict[tuple[int, int], tuple[float, int]], hours: list[int],
                  f"<tr><td>{WEEKDAYS[wd]}</td><td>{h:02d}:00</td><td>{v:g}</td><td>{n}</td></tr>"
                  for (wd, h), (v, n) in sorted(cells.items())) + "</table></details>")
     return Markup(f'<div class="viz">{legend}{"".join(parts)}{table}</div>')
+
+
+def interval_chart(arms: list[dict], title: str, width: int = 380) -> Markup:
+    """What the learner believes: one row per option, dot = average score, line = the range
+    the true average probably lies in (90%). Wide line = not sure yet."""
+    label_w, pad_r, row_h = 120, 62, 26
+    rows = sorted(arms, key=lambda a: (a["posts"] == 0, -a["mean"]))
+    height = len(rows) * row_h + 24
+    pw = width - label_w - pad_r
+
+    def x(v: float) -> float:
+        return label_w + pw * v / 100
+
+    parts = [f'<svg class="chart fixed" width="{width}" viewBox="0 0 {width} {height}" '
+             f'role="img" aria-label="{escape(title)}">']
+    for t in (0, 50, 100):
+        parts.append(f'<line class="grid" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="0" '
+                     f'y2="{height - 20}"/><text class="tick" x="{x(t):.1f}" y="{height - 6}" '
+                     f'text-anchor="middle">{t}</text>')
+    for i, a in enumerate(rows):
+        cy = 14 + i * row_h
+        label = escape(str(a["label"]))
+        parts.append(f'<text class="label" x="{label_w - 8}" y="{cy + 4}" '
+                     f'text-anchor="end">{label}</text>')
+        if a["posts"] == 0:
+            parts.append(f'<text class="tick" x="{label_w + 4}" y="{cy + 4}">not tried yet</text>')
+            continue
+        tip = escape(f"{a['label']}: average {a['mean']} (probably {a['low']}–{a['high']}), "
+                     f"{a['posts']} posts")
+        parts.append(f'<line class="line s1" x1="{x(a["low"]):.1f}" x2="{x(a["high"]):.1f}" '
+                     f'y1="{cy}" y2="{cy}"/>'
+                     f'<circle class="dot s1" cx="{x(a["mean"]):.1f}" cy="{cy}" r="5" '
+                     f'data-tip="{tip}"/>'
+                     f'<rect class="hit" x="{label_w}" y="{cy - row_h / 2}" width="{pw}" '
+                     f'height="{row_h}" data-tip="{tip}"/>'
+                     f'<text class="label" x="{x(a["high"]) + 8:.1f}" y="{cy + 4}">'
+                     f'{a["mean"]:g} <tspan class="tick">({a["posts"]})</tspan></text>')
+    parts.append("</svg>")
+    table = ("<details class='table-view'><summary>Table</summary><table><tr><th>Option</th>"
+             "<th>Average</th><th>Probably between</th><th>Posts</th></tr>" + "".join(
+                 f"<tr><td>{escape(str(a['label']))}</td><td>{a['mean']:g}</td>"
+                 f"<td>{a['low']:g}–{a['high']:g}</td><td>{a['posts']}</td></tr>"
+                 for a in rows) + "</table></details>")
+    return Markup(f'<div class="viz">{"".join(parts)}{table}</div>')

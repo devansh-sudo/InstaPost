@@ -72,6 +72,9 @@ class Item(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime)
     telegram_message_id: Mapped[int | None] = mapped_column(Integer)
     duration_s: Mapped[float | None] = mapped_column(Float)  # reels only, for watch ratio
+    preferred_slot: Mapped[str | None] = mapped_column(String(5))  # "HH:MM" from the plan
+    # What the learner tracks: pillar, hook_style, scene, length (slot comes from publishing).
+    features: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -151,6 +154,40 @@ class Report(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     day: Mapped[str] = mapped_column(String(10), unique=True)  # the local day it covers
+    text: Mapped[str] = mapped_column(Text)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PlanEntry(Base):
+    """One planned piece in the weekly plan (Phase 4). The planner fills these; you can edit
+    them on the Plan page; the evening generation turns them into items."""
+
+    __tablename__ = "plan_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    week_start: Mapped[str] = mapped_column(String(10), index=True)  # local Monday
+    day: Mapped[str] = mapped_column(String(10), index=True)  # local YYYY-MM-DD
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    format: Mapped[str] = mapped_column(String(40))
+    pillar: Mapped[str] = mapped_column(String(40))
+    hook_style: Mapped[str] = mapped_column(String(20))
+    scene: Mapped[int] = mapped_column(Integer, default=0)  # index into brand scene_presets
+    slot: Mapped[str] = mapped_column(String(5))  # "HH:MM"
+    length: Mapped[str | None] = mapped_column(String(10))  # reels: short / medium / long
+    topic: Mapped[str | None] = mapped_column(Text)
+    experiment: Mapped[str | None] = mapped_column(Text)  # what is being tested, if anything
+    reason: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="planned")  # planned/used/skipped
+    edited_by: Mapped[str | None] = mapped_column(String(40))
+    item_id: Mapped[str | None] = mapped_column(String(80))
+
+
+class WeeklyReview(Base):
+    __tablename__ = "weekly_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    week_start: Mapped[str] = mapped_column(String(10), unique=True)  # the week reviewed
     text: Mapped[str] = mapped_column(Text)
     data: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

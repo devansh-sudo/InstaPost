@@ -21,6 +21,24 @@ Kabir, life lessons) on Instagram, Facebook Reels and YouTube Shorts.
   The dashboard has a **Stats** page (follower growth, score by pillar and format, best posting
   times, all posts with sends/saves/watch) and a **Reports** page.
 
+- **Phase 4 – Learning loop:** built. Every scored post teaches the learner which pillar, hook
+  style, background scene, posting slot and reel length work best (Thompson sampling, with
+  honest "not sure yet" ranges). Every Sunday at 18:00 Claude Opus 5.5 reviews the week and
+  suggests topics, then the planner builds next week's plan: mostly what works, about 20%
+  experiments, confirmed festivals and the Monday Shiva rule respected. You can edit any
+  entry on the **Plan** page; the **Learning** page shows what it believes and how sure it is.
+  How many posts go out per day stays your setting in `schedule.yaml`.
+
+### Phase 4 at a glance
+
+| Piece | What it does |
+|---|---|
+| Learner (`learn/bandit.py`) | Beta belief per option and dimension, from post scores at 24 h+; Thompson sampling to choose |
+| Planner (`learn/planner.py`) | Weekly plan: festival → Monday rule → ~20% experiments → best guesses; never overwrites your edits |
+| Weekly review (`learn/review.py`) | Claude Opus 5.5, about $0.05–0.15 a week; advice and topic ideas only, it cannot change settings |
+| Festivals (`data/calendar/festivals.yaml`) | Used only after you confirm each date (`confirmed: true`) |
+| Generation | The evening run makes exactly the planned pieces; the writer follows the planned hook style, scene and length; approval uses the planned slot |
+
 ### Phase 3 at a glance
 
 | Piece | What it does |

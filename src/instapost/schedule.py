@@ -17,6 +17,8 @@ class Schedule(BaseModel):
     timezone: str
     generate_at: str
     report_at: str = "09:00"
+    plan_day: str = "sun"
+    plan_at: str = "18:00"
     slots: dict[Format, list[str]]
     daily_plan: dict[str, dict[Format, int]]
     pillar_rotation: dict[Format, list[Pillar]]
