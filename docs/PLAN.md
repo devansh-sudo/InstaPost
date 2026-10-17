@@ -314,7 +314,7 @@ Keys go into `.env` on the VPS (`chmod 600`), **never into chat or git**.
 
 **Before Phase 2 (publishing):**
 6. Instagram switched to a **Professional (Creator) account**.
-7. A **Facebook Page** for the brand, and a **Meta developer app** (developers.facebook.com) with Instagram API access. I will give step-by-step instructions.
+7. A **Facebook Page** for the brand, and a **Meta developer app** with Instagram API access. Step-by-step: [`SETUP_META_YOUTUBE.md`](SETUP_META_YOUTUBE.md)
 8. **Google Cloud project** with YouTube Data API enabled, plus the OAuth consent screen. We apply for the API audit so uploads are not forced to private.
 9. A **Telegram bot** from @BotFather (just the token) and your Telegram user ID.
 10. A **domain** (optional but recommended) for the dashboard behind Cloudflare Access, plus a free Cloudflare account.
