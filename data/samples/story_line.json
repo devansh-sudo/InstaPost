@@ -1,0 +1,19 @@
+{
+  "topic": "सुबह का संकल्प",
+  "hook_lines": ["आज किसी एक बात पर गुस्सा नहीं करेंगे।"],
+  "hook_style": "statement",
+  "alternative_hooks": ["आज का दिन शांति के नाम।", "आज किसी का दिन अच्छा बनाएँ।"],
+  "body": "छोटा संकल्प, बड़ा बदलाव।",
+  "reference_id": null,
+  "caption_hi": "आज का संकल्प",
+  "caption_hinglish": "Aaj ka sankalp: gussa nahi, shanti.",
+  "cta": "अपने किसी अपने को भी याद दिलाएँ 🙏",
+  "hashtags": ["#आजकासंकल्प", "#सुप्रभात", "#मनकीशांति"],
+  "alt_text": "सुबह की धूप में कागज़ पर लिखा आज का संकल्प।",
+  "illustration_prompt": "a small brass diya with a steady flame",
+  "scene_prompt": "quiet temple courtyard at dawn, oil lamps, marigold flowers, soft mist, warm light",
+  "slides": [],
+  "story_line": "आज का संकल्प: किसी एक बात पर गुस्सा नहीं करेंगे। 🙏",
+  "poll_question": "क्या आप आज ये संकल्प लेंगे?",
+  "poll_options": ["हाँ, ज़रूर 🙏", "कोशिश करूँगा/करूँगी"]
+}

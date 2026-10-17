@@ -230,7 +230,7 @@ See the chat message. Answers go into §12 here once you decide.
 | # | Topic | Decision |
 |---|---|---|
 | D1 | Accounts | New Instagram, Facebook and YouTube accounts, all starting from 0. → Publish the same piece to **IG Reels + FB Reels + YouTube Shorts** (§13) |
-| D2 | Language | ❓ Still open. Default if not answered: **Hindi in Devanagari on visuals; caption = Hindi + one short Hinglish line**. The A/B data then decides |
+| D2 | Language | **Hindi + Hinglish**: Hindi (Devanagari) on visuals; caption = Hindi + one short Hinglish line. The A/B data can shift the mix later |
 | D3 | Audio | **Let the data decide.** Arms: (a) calm ambience only, (b) ambience + soft Hindi voice-over reading the sutra, (c) you add trending audio by hand from your phone. Only voice-over makes speech, nothing is "sung" |
 | D4 | Autonomy | Start at **L0: you approve everything**. Plus **batch approval**: "approve next post", "approve next N", "approve all of tomorrow" from the dashboard or Telegram |
 | D5 | Images | **Paid image API**, the cheapest one that passes the quality bar (decided by a short bake-off in Phase 1) |
@@ -240,6 +240,8 @@ See the chat message. Answers go into §12 here once you decide.
 | D9 | Brand | **Customisable template system**: page name, handle, fonts, colours, paper texture, divider symbol, scene presets are all set in one `brand.yaml` and editable from the dashboard |
 | D10 | Scope | Shiva, Krishna/Gita, Kabir, general life lessons. Mix and topics chosen by the planner from data + calendar |
 | D11 | "Algorithm crack" | = data-driven content planning + post creation (no posts *about* growth) |
+| D12 | Notifications | **Telegram bot** for approvals and daily reports (Phase 2) |
+| D13 | Stories | The API can publish story images/videos but **cannot add poll/quiz stickers**. The studio makes the story image + a `story_poll.txt`; you add the sticker in the app (about 20 s) |
 
 ---
 
@@ -287,3 +289,32 @@ Spend ≈ $15–20/month (₹1,300–1,700). Earnings come late and come mostly 
 | Optimistic (viral) month 12 | | | | 100k+ followers: ₹15–50k per deal | ₹50k–1.5L+ |
 
 The **break-even** on the API spend (~₹1,700/month) is realistic around **month 4–8** in the base case. These numbers are estimates from typical Indian creator rates, not guarantees. A page can also stay below break-even if the content doesn't connect, and the 6-week checkpoint in §10 exists to catch that early.
+
+---
+
+## 16. Build status
+
+| Phase | Status |
+|---|---|
+| 1. Studio MVP (writer, safety, fact-check, images, Hindi renderer, reel/carousel/story, QA gate, budget caps) | ✅ Built and tested offline. Needs real API keys for the first live run |
+| 2. Publisher + Telegram approval + dashboard | Next |
+| 3. Collector + stats | |
+| 4. Learner + planner + weekly report | |
+
+## 17. What I need from you
+
+**Now (for the first live Phase 1 run):**
+1. **Anthropic API key**: console.anthropic.com → API keys. Set a monthly spend limit there as a second safety net.
+2. **Image API key**: Google AI Studio (Gemini) key, and optionally an OpenAI key so we can compare quality on 5 test images and keep the better one.
+3. **Your Instagram handle and page name**, for `brand.yaml`.
+4. **Review the verse database** (`uv run instapost verses`): compare each verse with a printed edition (Gita Press for the Gita) and change `review_status` to `reviewed`. Until then, every post citing a verse is marked for human fact review.
+5. **VPS details**: CPU/RAM, OS version, whether Docker is installed, and SSH access for deployment (or you run the setup commands in the README yourself).
+
+Keys go into `.env` on the VPS (`chmod 600`), **never into chat or git**.
+
+**Before Phase 2 (publishing):**
+6. Instagram switched to a **Professional (Creator) account**.
+7. A **Facebook Page** for the brand, and a **Meta developer app** (developers.facebook.com) with Instagram API access. I will give step-by-step instructions.
+8. **Google Cloud project** with YouTube Data API enabled, plus the OAuth consent screen. We apply for the API audit so uploads are not forced to private.
+9. A **Telegram bot** from @BotFather (just the token) and your Telegram user ID.
+10. A **domain** (optional but recommended) for the dashboard behind Cloudflare Access, plus a free Cloudflare account.

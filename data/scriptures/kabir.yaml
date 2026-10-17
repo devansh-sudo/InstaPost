@@ -1,0 +1,48 @@
+# Kabir's dohe. Spellings vary between editions; review_status stays "pending" until a human
+# confirms the wording against a trusted edition.
+
+source: "संत कबीर"
+speaker_default: "संत कबीर"
+entries:
+  - id: kabir-bura-jo-dekhan
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "बुरा जो देखन मैं चला, बुरा न मिलिया कोय। जो दिल खोजा आपना, मुझसे बुरा न कोय॥"
+    meaning: "दूसरों में बुराई ढूँढी तो कोई बुरा नहीं मिला; अपने भीतर देखा तो खुद से बुरा कोई नहीं मिला।"
+    themes: [self-reflection, humility, judgement]
+    review_status: pending
+  - id: kabir-dheere-dheere
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "धीरे-धीरे रे मना, धीरे सब कुछ होय। माली सींचे सौ घड़ा, ऋतु आए फल होय॥"
+    meaning: "हे मन, सब कुछ धीरे-धीरे होता है; माली सौ घड़े पानी डाले, फिर भी फल ऋतु आने पर ही आता है।"
+    themes: [patience, time, effort]
+    review_status: pending
+  - id: kabir-aisi-vani
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "ऐसी वाणी बोलिए, मन का आपा खोय। औरन को शीतल करे, आपहुं शीतल होय॥"
+    meaning: "अहंकार छोड़कर ऐसी वाणी बोलो जो दूसरों को शीतलता दे और खुद को भी शांत करे।"
+    themes: [speech, kindness, ego]
+    review_status: pending
+  - id: kabir-kaal-kare
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "काल करे सो आज कर, आज करे सो अब। पल में परलय होएगी, बहुरि करेगा कब॥"
+    meaning: "जो कल करना है वह आज करो, जो आज करना है वह अभी; समय का भरोसा नहीं।"
+    themes: [procrastination, action, time]
+    review_status: pending
+  - id: kabir-dukh-mein-sumiran
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "दुख में सुमिरन सब करे, सुख में करे न कोय। जो सुख में सुमिरन करे, दुख काहे को होय॥"
+    meaning: "दुःख में सब ईश्वर को याद करते हैं, सुख में कोई नहीं; जो सुख में भी याद करे, उसे दुःख क्यों हो।"
+    themes: [devotion, gratitude, remembrance]
+    review_status: pending
+  - id: kabir-pothi-padhi
+    label: "संत कबीर (दोहा)"
+    speaker: "संत कबीर"
+    text: "पोथी पढ़ि पढ़ि जग मुआ, पंडित भया न कोय। ढाई आखर प्रेम का, पढ़े सो पंडित होय॥"
+    meaning: "किताबें पढ़-पढ़कर दुनिया थक गई पर कोई ज्ञानी नहीं बना; जिसने प्रेम के ढाई अक्षर समझ लिए, वही ज्ञानी है।"
+    themes: [love, wisdom, knowledge]
+    review_status: pending

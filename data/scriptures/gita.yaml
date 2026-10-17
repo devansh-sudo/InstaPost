@@ -1,0 +1,72 @@
+# Verified-verse database. The writer may only cite references listed in this folder, and the
+# verse text shown on posts always comes from here, never from the model.
+#
+# review_status: "pending" until a human has compared the text with a printed edition
+# (e.g. Gita Press, Gorakhpur). Content citing a pending entry is always sent for human review.
+
+source: "श्रीमद्भगवद्गीता"
+speaker_default: "श्रीकृष्ण (अर्जुन से)"
+entries:
+  - id: gita-2.14
+    label: "श्रीमद्भगवद्गीता 2.14"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "मात्रास्पर्शास्तु कौन्तेय शीतोष्णसुखदुःखदाः। आगमापायिनोऽनित्यास्तांस्तितिक्षस्व भारत॥"
+    meaning: "सर्दी-गर्मी, सुख-दुःख देने वाले विषय आते-जाते रहते हैं, ये अनित्य हैं; इन्हें सहन करना सीखो।"
+    themes: [acceptance, patience, impermanence]
+    review_status: pending
+  - id: gita-2.47
+    label: "श्रीमद्भगवद्गीता 2.47"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन। मा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि॥"
+    meaning: "तुम्हारा अधिकार केवल कर्म पर है, फल पर नहीं; फल की इच्छा को कारण मत बनाओ और कर्म न करने में भी आसक्ति न हो।"
+    themes: [action, detachment, work]
+    review_status: pending
+  - id: gita-2.48
+    label: "श्रीमद्भगवद्गीता 2.48"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "योगस्थः कुरु कर्माणि सङ्गं त्यक्त्वा धनञ्जय। सिद्ध्यसिद्ध्योः समो भूत्वा समत्वं योग उच्यते॥"
+    meaning: "आसक्ति छोड़कर, सफलता-असफलता में समान रहकर कर्म करो; यही समता योग कहलाती है।"
+    themes: [equanimity, acceptance, detachment]
+    review_status: pending
+  - id: gita-2.50
+    label: "श्रीमद्भगवद्गीता 2.50"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "बुद्धियुक्तो जहातीह उभे सुकृतदुष्कृते। तस्माद्योगाय युज्यस्व योगः कर्मसु कौशलम्॥"
+    meaning: "समबुद्धि वाला व्यक्ति पुण्य-पाप दोनों से ऊपर उठ जाता है; इसलिए योग में लगो, कर्म में कुशलता ही योग है।"
+    themes: [skill, work, wisdom]
+    review_status: pending
+  - id: gita-3.35
+    label: "श्रीमद्भगवद्गीता 3.35"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "श्रेयान्स्वधर्मो विगुणः परधर्मात्स्वनुष्ठितात्। स्वधर्मे निधनं श्रेयः परधर्मो भयावहः॥"
+    meaning: "दूसरे के अच्छी तरह किए गए धर्म से अपना अधूरा धर्म भी श्रेष्ठ है; दूसरे का मार्ग भय देने वाला है।"
+    themes: [self, comparison, purpose]
+    review_status: pending
+  - id: gita-4.7
+    label: "श्रीमद्भगवद्गीता 4.7"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "यदा यदा हि धर्मस्य ग्लानिर्भवति भारत। अभ्युत्थानमधर्मस्य तदात्मानं सृजाम्यहम्॥"
+    meaning: "जब-जब धर्म की हानि और अधर्म की वृद्धि होती है, तब-तब मैं स्वयं प्रकट होता हूँ।"
+    themes: [faith, dharma, hope]
+    review_status: pending
+  - id: gita-6.5
+    label: "श्रीमद्भगवद्गीता 6.5"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "उद्धरेदात्मनात्मानं नात्मानमवसादयेत्। आत्मैव ह्यात्मनो बन्धुरात्मैव रिपुरात्मनः॥"
+    meaning: "अपने द्वारा अपना उद्धार करो, खुद को गिरने मत दो; मनुष्य स्वयं ही अपना मित्र है और स्वयं ही अपना शत्रु।"
+    themes: [self-help, discipline, mind]
+    review_status: pending
+  - id: gita-6.35
+    label: "श्रीमद्भगवद्गीता 6.35"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "असंशयं महाबाहो मनो दुर्निग्रहं चलम्। अभ्यासेन तु कौन्तेय वैराग्येण च गृह्यते॥"
+    meaning: "निःसंदेह मन चंचल है और कठिनाई से वश में होता है, पर अभ्यास और वैराग्य से इसे वश में किया जा सकता है।"
+    themes: [mind, practice, discipline]
+    review_status: pending
+  - id: gita-18.66
+    label: "श्रीमद्भगवद्गीता 18.66"
+    speaker: "श्रीकृष्ण (अर्जुन से)"
+    text: "सर्वधर्मान्परित्यज्य मामेकं शरणं व्रज। अहं त्वा सर्वपापेभ्यो मोक्षयिष्यामि मा शुचः॥"
+    meaning: "सब धर्मों को छोड़कर मेरी शरण में आओ; मैं तुम्हें सब पापों से मुक्त कर दूँगा, शोक मत करो।"
+    themes: [surrender, faith, worry]
+    review_status: pending

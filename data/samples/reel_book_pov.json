@@ -1,0 +1,22 @@
+{
+  "topic": "जो बदला नहीं जा सकता, उसे स्वीकार करना",
+  "hook_lines": ["जिसे बदल नहीं सकते,", "उसे स्वीकार करना ही शांति है।"],
+  "hook_style": "statement",
+  "alternative_hooks": [
+    "हर बात पर लड़ना ज़रूरी नहीं होता।",
+    "क्या आप भी उस बात से लड़ रहे हैं जो आपके हाथ में नहीं?"
+  ],
+  "body": "जो हाथ में है उसे पूरे मन से करें, बाकी को शांत मन से स्वीकार करें। यही समता है।",
+  "reference_id": "gita-2.48",
+  "caption_hi": "गीता में श्रीकृष्ण कहते हैं: सफलता और असफलता में समान रहना ही योग है। लड़ाई छोड़ना हार नहीं, समझदारी है।\n\nआज आप किस बात को स्वीकार करके हल्का महसूस करना चाहेंगे?",
+  "caption_hinglish": "Jo badal nahi sakte, use sweekar karna hi shanti hai.",
+  "cta": "जिसे आज ये सुनना ज़रूरी है, उसे भेजें 🙏",
+  "hashtags": ["#भगवद्गीता", "#गीताज्ञान", "#जीवनसूत्र", "#मनकीशांति"],
+  "alt_text": "एक खुली किताब पर हिमालय के सामने ध्यान करते शिव का पेंसिल स्केच और गीता का एक सूत्र।",
+  "illustration_prompt": "Lord Shiva meditating on a rock facing the Himalayas, seen from behind, trishul planted beside him, crescent moon in his hair, pine trees and a calm lake",
+  "scene_prompt": "cozy living room at golden hour, brass diya and lantern glowing softly, money plant, cup of chai on a wooden side table, balcony with city trees, warm light",
+  "slides": [],
+  "story_line": null,
+  "poll_question": null,
+  "poll_options": []
+}

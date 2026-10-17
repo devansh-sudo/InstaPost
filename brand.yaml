@@ -1,0 +1,37 @@
+# Brand template. Everything visual is driven from here (PLAN D9).
+# Edit freely; the dashboard will edit this same file in Phase 2.
+
+page_name: "जीवन सूत्र"
+handle: "@your_handle"          # TODO: set the real Instagram handle
+header_text: "॥ जीवन-सूत्र ॥"
+divider_symbol: "ॐ"
+
+fonts:
+  hook: TiroDevanagariHindi-Regular.ttf
+  body: Mukta-Regular.ttf
+  reference: Mukta-Regular.ttf
+  header: TiroDevanagariHindi-Regular.ttf
+  footer: Mukta-SemiBold.ttf
+
+colors:
+  paper: "#F3EADB"
+  paper_edge: "#E2D3BA"
+  ink: "#2B2420"
+  ink_soft: "#5A4E45"
+  highlight: "#F2C79A"
+  highlight_alpha: 0.78
+  glow: "#FFB25C"
+
+# Background scene presets the writer can pick from (English, for the image model).
+scene_presets:
+  - "cozy living room at golden hour, brass diya and lantern glowing softly, money plant, cup of chai on a wooden side table, balcony with city trees, warm light"
+  - "quiet temple courtyard at dawn, oil lamps, marigold flowers, soft mist, warm light"
+  - "wooden desk by a window during monsoon evening, rain drops on glass, a small diya, cup of tea, calm mood"
+  - "himalayan riverside at sunrise seen from a wooden porch, prayer flags, steaming cup, soft golden light"
+
+illustration_style: >-
+  detailed pencil and ink sketch on plain white paper, hand-drawn, fine hatching,
+  monochrome graphite, centered composition, generous white margin
+
+# Glow (diya flicker) position in the 1080x1920 frame, as fractions of width/height.
+glow_position: [0.12, 0.10]

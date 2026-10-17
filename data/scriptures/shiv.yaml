@@ -1,0 +1,19 @@
+# Shiva mantras. review_status stays "pending" until a human confirms the text and source.
+
+source: "शिव मंत्र"
+speaker_default: null
+entries:
+  - id: shiv-panchakshari
+    label: "पंचाक्षर मंत्र"
+    speaker: null
+    text: "ॐ नमः शिवाय"
+    meaning: "मैं शिव को नमन करता हूँ: कल्याणकारी, शांत चेतना को प्रणाम।"
+    themes: [devotion, peace, mantra]
+    review_status: pending
+  - id: shiv-mahamrityunjaya
+    label: "महामृत्युंजय मंत्र (ऋग्वेद 7.59.12)"
+    speaker: null
+    text: "ॐ त्र्यम्बकं यजामहे सुगन्धिं पुष्टिवर्धनम्। उर्वारुकमिव बन्धनान्मृत्योर्मुक्षीय माऽमृतात्॥"
+    meaning: "हम तीन नेत्रों वाले शिव की उपासना करते हैं; जैसे पका फल बेल से सहज छूट जाता है, वैसे ही हमें बंधन और मृत्यु के भय से मुक्त करें।"
+    themes: [fear, healing, devotion, mantra]
+    review_status: pending

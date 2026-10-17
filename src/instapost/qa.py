@@ -1,0 +1,122 @@
+"""Automatic QA gate (PLAN §3 "stop the scroll" rules). Nothing is offered for approval
+unless every check passes; a failed item is kept with its report so it can be fixed."""
+
+import base64
+import io
+
+import numpy as np
+from PIL import Image
+from pydantic import BaseModel
+
+from instapost import history, llm
+from instapost.config import get_settings
+from instapost.models import Draft, FactCheckResult, FactCheckVerdict, QACheck, QAReport
+from instapost.render import text
+from instapost.render.scene import FRAME_H, FRAME_W
+from instapost.render.text import Box
+from instapost.render.video import ZOOM_AMPLITUDE, Motion, read_time_seconds
+
+MAX_HOOK_WORDS = 12
+SAFE_TOP = 0.14 * FRAME_H
+SAFE_BOTTOM = 0.80 * FRAME_H
+SAFE_SIDE = 48
+# Instagram's like/comment/share buttons sit in a column on the lower right.
+RIGHT_RAIL = Box(FRAME_W - 130, 0.58 * FRAME_H, FRAME_W, FRAME_H)
+DUPLICATE_RATIO = 0.8
+
+
+def _zoomed(box: Box, z: float) -> Box:
+    cx, cy = FRAME_W / 2, FRAME_H / 2
+    return Box(cx + (box.x0 - cx) * z, cy + (box.y0 - cy) * z,
+               cx + (box.x1 - cx) * z, cy + (box.y1 - cy) * z)
+
+
+def _overlaps(a: Box, b: Box) -> bool:
+    return a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1
+
+
+def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) -> list[QACheck]:
+    hook_words = sum(len(line.split()) for line in draft.hook_lines)
+    similarity, match = history.most_similar(" ".join(draft.hook_lines))
+    dup_detail = f"closest earlier hook {similarity:.2f}: {match}" if match else "first post"
+    try:
+        text.require_raqm()
+        shaping = QACheck(name="hindi_shaping", passed=True)
+    except text.ShapingUnavailable as e:
+        shaping = QACheck(name="hindi_shaping", passed=False, detail=str(e))
+    return [
+        QACheck(name="hook_length", passed=1 <= hook_words <= MAX_HOOK_WORDS,
+                detail=f"{hook_words} words (max {MAX_HOOK_WORDS})"),
+        QACheck(name="hashtags", passed=3 <= len(draft.hashtags) <= 5,
+                detail=f"{len(draft.hashtags)} hashtags (3-5)"),
+        QACheck(name="caption_length", passed=len(caption_text(draft)) <= 2000,
+                detail=f"{len(caption_text(draft))} characters"),
+        QACheck(name="safety", passed=not safety_issues, detail="; ".join(safety_issues)),
+        QACheck(name="fact_check", passed=fact.verdict != FactCheckVerdict.FAIL,
+                detail=f"{fact.verdict.value}: {'; '.join(fact.issues)}"),
+        QACheck(name="not_duplicate", passed=similarity < DUPLICATE_RATIO,
+                detail=dup_detail),
+        shaping,
+    ]
+
+
+def check_reel(draft: Draft, motion: Motion, text_boxes: list[Box]) -> list[QACheck]:
+    checks = []
+    z = 1 + ZOOM_AMPLITUDE
+    bad = [b for b in (_zoomed(b, z) for b in text_boxes)
+           if b.y0 < SAFE_TOP or b.y1 > SAFE_BOTTOM or b.x0 < SAFE_SIDE
+           or b.x1 > FRAME_W - SAFE_SIDE or _overlaps(b, RIGHT_RAIL)]
+    checks.append(QACheck(name="safe_area", passed=not bad,
+                          detail=f"{len(bad)} text lines outside the safe area" if bad else ""))
+
+    read = read_time_seconds(*draft.hook_lines, draft.body)
+    d = motion.duration
+    checks.append(QACheck(name="duration", passed=7 <= d <= 12 and d >= read + 1.0,
+                          detail=f"{d:.1f}s for {read:.1f}s of reading"))
+
+    first = motion.frame_at(0).astype(np.int16)
+    last = motion.frame_at(d - 1 / 30).astype(np.int16)
+    middle = motion.frame_at(d / 2).astype(np.int16)
+    seam = float(np.abs(first - last).mean())
+    movement = float(np.abs(first - middle).mean())
+    checks.append(QACheck(name="seamless_loop", passed=seam < 1.5,
+                          detail=f"first/last frame difference {seam:.2f}"))
+    checks.append(QACheck(name="has_motion", passed=movement > 2.0,
+                          detail=f"first/middle frame difference {movement:.2f}"))
+    return checks
+
+
+class VisionVerdict(BaseModel):
+    readable: bool
+    problems: list[str]
+
+
+VISION_SYSTEM = """You check finished Instagram images before they are posted.
+Report problems only: text that is hard to read, cut off or overlapping, misspelled or broken
+Hindi characters, distorted hands, faces or anatomy, disrespectful depiction of a deity,
+any stray letters or watermarks inside the illustration or background."""
+
+
+def check_vision(image: Image.Image) -> QACheck:
+    buf = io.BytesIO()
+    image.convert("RGB").resize((540, 960)).save(buf, "JPEG", quality=85)
+    data = base64.standard_b64encode(buf.getvalue()).decode()
+    verdict = llm.structured(
+        model=get_settings().qa_model, system=VISION_SYSTEM,
+        content=[{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                              "data": data}},
+                 {"type": "text", "text": "Check this image."}],
+        schema=VisionVerdict, purpose="vision_qa", effort="low", max_tokens=2000,
+        estimated_usd=0.005,
+    )
+    return QACheck(name="vision", passed=verdict.readable and not verdict.problems,
+                   detail="; ".join(verdict.problems))
+
+
+def caption_text(draft: Draft) -> str:
+    return "\n\n".join([draft.caption_hi, draft.caption_hinglish, draft.cta,
+                        " ".join(draft.hashtags)])
+
+
+def report(checks: list[QACheck]) -> QAReport:
+    return QAReport(passed=all(c.passed for c in checks), checks=checks)

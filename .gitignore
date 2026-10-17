@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+secrets/
+
+# Generated content and runtime state
+output/
+state/

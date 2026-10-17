@@ -1,0 +1,27 @@
+{
+  "topic": "मन को वश में करना: अभ्यास और वैराग्य",
+  "hook_lines": ["मन भटकता है?", "गीता का यह सूत्र आपके लिए है।"],
+  "hook_style": "question",
+  "alternative_hooks": [
+    "मन को शांत करने के दो ही रास्ते हैं।",
+    "बेचैन मन के लिए गीता का उत्तर।"
+  ],
+  "body": "श्रीकृष्ण मानते हैं कि मन चंचल है, पर अभ्यास और वैराग्य से वश में आता है।",
+  "reference_id": "gita-6.35",
+  "caption_hi": "अर्जुन ने भी माना था कि मन को वश में करना हवा को रोकने जैसा है। श्रीकृष्ण का उत्तर आज भी उतना ही सच्चा है।\n\nआप अपने मन को शांत करने के लिए रोज़ क्या अभ्यास करते हैं?",
+  "caption_hinglish": "Mann chanchal hai, par abhyas se shant hota hai.",
+  "cta": "इसे सेव करें और उस दोस्त को भेजें जिसका मन आजकल बेचैन है 🙏",
+  "hashtags": ["#भगवद्गीता", "#गीताज्ञान", "#मनकीशांति"],
+  "alt_text": "गीता के श्लोक 6.35 पर आधारित स्लाइड्स: मन को अभ्यास और वैराग्य से शांत करना।",
+  "illustration_prompt": "Krishna and Arjuna on a chariot at Kurukshetra, Krishna gently explaining, Arjuna listening with folded hands",
+  "scene_prompt": "wooden desk by a window during monsoon evening, rain drops on glass, a small diya, cup of tea, calm mood",
+  "slides": [
+    {"title": "मन चंचल है", "text": "श्रीकृष्ण भी मानते हैं कि मन को वश में करना कठिन है। अगर आपका मन भटकता है, तो आप अकेले नहीं हैं।"},
+    {"title": "पहला उपाय: अभ्यास", "text": "रोज़ थोड़ा-थोड़ा। पाँच मिनट शांत बैठना, साँस पर ध्यान देना। छोटे अभ्यास ही बड़ा बदलाव लाते हैं।"},
+    {"title": "दूसरा उपाय: वैराग्य", "text": "हर बात को पकड़कर न बैठें। जो ज़रूरी नहीं, उसे जाने दें। मन अपने-आप हल्का हो जाएगा।"},
+    {"title": "आज से शुरू करें", "text": "सोने से पहले दो मिनट: आज का एक अच्छा पल याद करें और एक चिंता को छोड़ दें।"}
+  ],
+  "story_line": null,
+  "poll_question": null,
+  "poll_options": []
+}
