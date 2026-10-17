@@ -28,7 +28,9 @@ HELP = """Commands
 /autonomy L0|L1|L2 – how much is approved automatically
 /kill – stop all publishing now
 /resume – allow publishing again
-/budget – spend against the caps"""
+/budget – spend against the caps
+/report – yesterday's report now
+/setup – what is still missing in the setup"""
 
 FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "carousel_shlok": "🖼 Carousel",
                 "story_line": "📱 Story"}
@@ -239,6 +241,16 @@ class Bot:
                 except approvals.QueueError as e:
                     return str(e)
                 return f"Autonomy set to {args[0].upper()}."
+            if cmd == "/report":
+                from instapost.stats import report
+                day = load_schedule().local_now().date() - timedelta(days=1)
+                text, _ = report.build(s, day)
+                return text
+            if cmd == "/setup":
+                from instapost.setup_status import checklist
+                return "Setup checklist:\n" + "\n".join(
+                    f"{'✅' if st.done else '⬜'} {st.label}"
+                    + ("" if st.done else f" — {st.hint}") for st in checklist())
             if cmd in ("/status", "/budget"):
                 st = get_settings()
                 return (f"Kill switch: {'ON' if approvals.kill_switch_on(s) else 'off'}\n"

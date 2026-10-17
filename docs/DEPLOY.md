@@ -97,6 +97,9 @@ browser, log in with the channel's Google account and approve. Done.
 - Approved items post automatically at their slot. You get a 🚀 message with links.
 - Stories: add the poll sticker in the app when the bot reminds you (the API can't add stickers).
 - YouTube: until the API audit is approved, make each Short public in YouTube Studio (2 taps).
+- About **09:00** the bot sends yesterday's report (followers, posts, best of the week). The
+  **Stats** page has the charts; `/report` gives the report any time.
+- `/setup` (or the Settings page) shows what is still missing in the setup.
 - **Emergency:** `/kill` in Telegram or the red **KILL SWITCH** button stops everything at once.
 
 ## Backups

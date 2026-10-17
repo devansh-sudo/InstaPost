@@ -6,6 +6,7 @@ import anthropic
 from pydantic import BaseModel
 
 from instapost import budget
+from instapost.config import get_settings
 
 # Models with server-side refusal fallback. Haiku has none, so it uses the plain endpoint.
 _FALLBACK_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
@@ -17,7 +18,8 @@ class RefusalError(RuntimeError):
 
 @lru_cache
 def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic()
+    key = get_settings().anthropic_api_key
+    return anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
 
 
 def structured[T: BaseModel](

@@ -300,8 +300,8 @@ The **break-even** on the API spend (~₹1,700/month) is realistic around **mont
 |---|---|
 | 1. Studio MVP (writer, safety, fact-check, images, Hindi renderer, reel/carousel/story, QA gate, budget caps) | ✅ Built and tested offline. Needs real API keys for the first live run |
 | 2. Publisher + Telegram approval + dashboard | ✅ Built and tested with mocked platform APIs and a demo run. Needs real accounts/tokens for the first live post |
-| 3. Collector + stats | Next |
-| 4. Learner + planner + weekly report | |
+| 3. Collector + stats | ✅ Built and tested with mocked platform APIs and seeded demo data. Metric names are verified against the live APIs at the first real run |
+| 4. Learner + planner + weekly report | Next |
 
 ## 17. What I need from you
 

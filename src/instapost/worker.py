@@ -4,7 +4,9 @@ Every 30 seconds it:
 1. records a heartbeat (shown on the dashboard);
 2. publishes approved items whose time has come (unless the kill switch is on);
 3. at `generate_at` (schedule.yaml) creates the next day's content and sends it to Telegram;
-4. once a day refreshes the Instagram token when it is more than 7 days old.
+4. once a day refreshes the Instagram token when it is more than 7 days old;
+5. collects post and account stats (throttled to every 10 minutes);
+6. at `report_at` sends the daily report for the previous day.
 """
 
 import logging
@@ -18,6 +20,7 @@ from instapost.jobs import track
 from instapost.models import Format, Pillar
 from instapost.publish import instagram, publisher, tokens
 from instapost.schedule import load_schedule
+from instapost.stats import collect, report
 
 log = logging.getLogger("instapost.worker")
 TICK_SECONDS = 30
@@ -129,11 +132,27 @@ class Worker:
                 jobs.finish(job.id, tokens.redact(str(e))[:1000])
                 self.notify(f"⚠️ {job.kind} failed: {tokens.redact(str(e))[:300]}")
 
+    def collect_stats(self) -> None:
+        collect.run(self.notify)
+
+    def maybe_report(self) -> None:
+        sched = load_schedule()
+        now = sched.local_now()
+        hh, mm = map(int, sched.report_at.split(":"))
+        if (now.hour, now.minute) < (hh, mm):
+            return
+        day = now.date() - timedelta(days=1)
+        with session() as s:
+            if get_kv(s, "report_sent", "") == day.isoformat():
+                return
+            set_kv(s, "report_sent", day.isoformat())
+        self.notify(report.create(day).text)
+
     def tick(self) -> None:
         with session() as s:
             set_kv(s, "worker_heartbeat", utcnow().isoformat())
         for duty in (self.publish_due, self.run_requests, self.maybe_generate,
-                     self.maybe_refresh_token):
+                     self.maybe_refresh_token, self.collect_stats, self.maybe_report):
             try:
                 duty()
             except Exception as e:  # noqa: BLE001 - keep the worker alive, but tell the admin

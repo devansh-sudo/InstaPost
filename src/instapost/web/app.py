@@ -16,14 +16,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from starlette.middleware.sessions import SessionMiddleware
 
-from instapost import approvals, budget, jobs
+from instapost import approvals, budget, jobs, setup_status
 from instapost.config import get_settings
 from instapost.db import AuditLog, Item, ItemStatus, Job, get_kv, session, utcnow
 from instapost.models import Format, Pillar
 from instapost.publish import publisher, tokens, youtube
 from instapost.publish.media_host import verify_local
 from instapost.schedule import load_schedule, to_local, to_utc_naive
-from instapost.web import auth
+from instapost.stats import queries, report
+from instapost.stats import score as scoring
+from instapost.stats.labels import PLATFORM_LABEL, compact
+from instapost.web import auth, charts
 
 HERE = Path(__file__).parent
 FILE_NAME = re.compile(r"^(reel\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
@@ -135,6 +138,15 @@ def _ops_context() -> dict:
             "spend_day": budget.spent("day"), "spend_month": budget.spent("month"),
             "settings": get_settings(),
         }
+
+
+def _by_format(rows) -> list[tuple[str, float, int]]:
+    acc: dict[str, list[float]] = {}
+    for r in rows:
+        if r.score is not None:
+            acc.setdefault(r.item.format, []).append(r.score)
+    return sorted(((f, round(sum(v) / len(v), 1), len(v)) for f, v in acc.items()),
+                  key=lambda t: t[1], reverse=True)
 
 
 # --- routes -------------------------------------------------------------------------------
@@ -306,7 +318,14 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                 if (folder / n).exists() else {}  # noqa: E731
             history = list(s.scalars(select(AuditLog).where(AuditLog.item_id == item_id)
                                      .order_by(AuditLog.id)))
+            timeline = queries.item_timeline(s, item_id)
+            latest = {}
+            for snap in timeline:
+                latest[snap.platform] = snap.metrics
+            combined = scoring.combined(latest) if latest else {}
             return render(request, "item.html", item=item, files=_item_files(item),
+                          timeline=timeline, combined=combined, compact=compact,
+                          score_of=scoring.score,
                           qa=read("qa.json"), fact=read("fact_check.json"),
                           draft=read("draft.json"), pubs=list(item.publications),
                           history=history, now_local=load_schedule().local_now())
@@ -335,9 +354,40 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         sched = load_schedule()
         ig = tokens.info("ig_access_token")
         return render(request, "settings.html", s=s, sched=sched,
+                      steps=setup_status.checklist(),
                       platforms=sorted(publisher.configured_platforms()),
                       ig_token=ig, youtube_ok=youtube.is_configured(),
                       spend_day=budget.spent("day"), spend_month=budget.spent("month"))
+
+    # Stats & reports (Phase 3)
+    @app.get("/stats", response_class=HTMLResponse)
+    def stats_page(request: Request, days: int = 30, sort: str = "date",
+                   who: str = Depends(user)):
+        days = days if days in (7, 30, 90) else 30
+        with session() as s:
+            k = queries.kpis(s, days=7)
+            rows = queries.post_rows(s, since=utcnow() - timedelta(days=days))
+            keyfn = {"score": lambda r: r.score if r.score is not None else -1,
+                     "views": lambda r: r.combined.get("views") or 0,
+                     "date": lambda r: r.published_at}.get(sort, lambda r: r.published_at)
+            rows = sorted(rows, key=keyfn, reverse=True)
+            sched = load_schedule()
+            slot_hours = sorted({int(t.split(":")[0]) for times in sched.slots.values()
+                                 for t in times})
+            return render(
+                request, "stats.html", k=k, rows=rows, days=days, sort=sort,
+                labels=PLATFORM_LABEL, compact=compact,
+                followers_chart=charts.line_chart(queries.followers_series(s, days=days),
+                                                  "Followers per platform"),
+                pillar_chart=charts.bar_chart(queries.by_pillar(rows), "Average score by pillar"),
+                format_chart=charts.bar_chart(_by_format(rows), "Average score by format"),
+                heat=charts.heatmap(queries.slot_heatmap(rows), slot_hours,
+                                    "Average score by weekday and posting hour"))
+
+    @app.get("/reports", response_class=HTMLResponse)
+    def reports_page(request: Request, who: str = Depends(user)):
+        with session() as s:
+            return render(request, "reports.html", reports=report.latest(s))
 
     # Files
     @app.get("/files/{item_id}/{name}")

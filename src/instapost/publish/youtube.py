@@ -44,10 +44,9 @@ def login(port: int = 8085) -> None:
     os.chmod(path, 0o600)
 
 
-def _service():
+def credentials():
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
 
     if not is_configured():
         raise PublishError("YouTube is not connected; run `instapost youtube-login`")
@@ -55,7 +54,13 @@ def _service():
     if not creds.valid:
         creds.refresh(Request())
         _token_file().write_text(creds.to_json())
-    return build("youtube", "v3", credentials=creds, cache_discovery=False)
+    return creds
+
+
+def _service(api: str = "youtube", version: str = "v3"):
+    from googleapiclient.discovery import build
+
+    return build(api, version, credentials=credentials(), cache_discovery=False)
 
 
 def upload_short(video: Path, title: str, description: str, tags: list[str]) -> Published:

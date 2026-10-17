@@ -11,6 +11,7 @@ from functools import lru_cache
 from sqlalchemy import (
     JSON,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -18,6 +19,8 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     event,
+    inspect,
+    text,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -68,6 +71,7 @@ class Item(Base):
     approved_by: Mapped[str | None] = mapped_column(String(40))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime)
     telegram_message_id: Mapped[int | None] = mapped_column(Integer)
+    duration_s: Mapped[float | None] = mapped_column(Float)  # reels only, for watch ratio
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -112,6 +116,46 @@ class Job(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
+class MetricSnapshot(Base):
+    """Stats of one published post on one platform at one moment (Phase 3 collector).
+    `metrics` holds normalised keys (views, reach, likes, comments, shares, saves,
+    avg_watch_s, watch_ratio, follows, profile_visits, replies); `raw` keeps the API reply."""
+
+    __tablename__ = "metric_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    publication_id: Mapped[int] = mapped_column(ForeignKey("publications.id"), index=True)
+    item_id: Mapped[str] = mapped_column(String(80), index=True)
+    platform: Mapped[str] = mapped_column(String(20))
+    taken_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    age_hours: Mapped[float] = mapped_column(Float)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class AccountSnapshot(Base):
+    """Account-level numbers: kind "followers" (every few hours) or "daily" (one local day)."""
+
+    __tablename__ = "account_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(20), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    day: Mapped[str] = mapped_column(String(10), index=True)  # local YYYY-MM-DD
+    taken_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), unique=True)  # the local day it covers
+    text: Mapped[str] = mapped_column(Text)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class AuditLog(Base):
     """Append-only record of every action, by the agent or by you."""
 
@@ -150,7 +194,21 @@ def engine():
             conn.execute("PRAGMA busy_timeout=5000")
             conn.execute("PRAGMA foreign_keys=ON")
     Base.metadata.create_all(eng)
+    _add_missing_columns(eng)
     return eng
+
+
+def _add_missing_columns(eng) -> None:
+    """Tiny forward-only migration: add new nullable columns to existing tables, so a
+    database created by an earlier phase keeps working after an upgrade."""
+    insp = inspect(eng)
+    with eng.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            existing = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in existing and col.nullable:
+                    ddl = col.type.compile(eng.dialect)
+                    conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {ddl}'))
 
 
 @lru_cache

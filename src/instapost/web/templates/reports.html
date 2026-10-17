@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Daily reports</h1>
+<p class="muted">Created every morning for the day before and sent to Telegram.</p>
+<div class="grid">
+{% for r in reports %}
+  <div class="card"><pre class="caption">{{ r.text }}</pre></div>
+{% else %}
+  <p class="muted">No reports yet. The first one arrives the morning after the worker starts.</p>
+{% endfor %}
+</div>
+{% endblock %}

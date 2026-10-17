@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Stats{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between">
+  <h1>Stats</h1>
+  <form method="get" class="row">
+    <select name="days">
+      {% for d in (7, 30, 90) %}<option value="{{ d }}" {{ 'selected' if d == days }}>Last {{ d }} days</option>{% endfor %}
+    </select>
+    <select name="sort">
+      {% for key, label in [("date","Newest"),("score","Best score"),("views","Most views")] %}
+        <option value="{{ key }}" {{ 'selected' if key == sort }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button>Apply</button>
+  </form>
+</div>
+
+<div class="tiles">
+  {% for p in ("instagram", "facebook", "youtube") %}
+  <div class="tile">
+    <div class="k">{{ labels[p] }} followers</div>
+    <div class="v">{{ compact(k.followers[p]) }}</div>
+    {% set ch = k.followers_change[p] %}
+    <div class="d">{% if ch is none %}no data yet{% else %}{{ '+' if ch >= 0 }}{{ ch }} in 7 days{% endif %}</div>
+  </div>
+  {% endfor %}
+  <div class="tile"><div class="k">Views, posts of last 7 days</div><div class="v">{{ compact(k.views) }}</div>
+    <div class="d">{{ k.posts }} posts</div></div>
+  <div class="tile"><div class="k">Sends + saves (7 days)</div><div class="v">{{ compact(k.shares_saves) }}</div>
+    <div class="d">the strongest ranking signals</div></div>
+  <div class="tile"><div class="k">Avg watch (reels, 7 days)</div>
+    <div class="v">{{ '–' if k.avg_watch_ratio is none else '%d%%' % (k.avg_watch_ratio * 100) }}</div>
+    <div class="d">of the video length</div></div>
+  <div class="tile"><div class="k">Avg post score (7 days)</div>
+    <div class="v">{{ '–' if k.avg_score is none else k.avg_score }}</div><div class="d">0–100, see below</div></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Followers</h2>
+  {{ followers_chart }}
+</div>
+
+<div class="grid">
+  <div class="card"><h2>Average score by pillar</h2>{{ pillar_chart }}</div>
+  <div class="card"><h2>Average score by format</h2>{{ format_chart }}</div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <h2>Best posting times</h2>
+  <p class="muted">Average score of posts by weekday and local posting hour. Grey = not tried yet.</p>
+  {{ heat }}
+</div>
+
+<div class="card" style="margin-top:14px; overflow-x:auto">
+  <h2>Posts ({{ rows|length }})</h2>
+  <table>
+    <tr><th>Posted</th><th>Post</th><th>Pillar</th><th class="num">Score</th><th class="num">Views</th>
+      <th class="num">Reach</th><th class="num">Sends</th><th class="num">Saves</th><th class="num">Comments</th>
+      <th class="num">Watch</th><th>Links</th></tr>
+    {% for r in rows %}{% set c = r.combined %}
+    <tr>
+      <td class="muted">{{ r.published_at | local("%d %b %H:%M") }}</td>
+      <td><a href="/items/{{ r.item.id }}">{{ r.item.hook[:50] }}</a><br><span class="muted">{{ r.item.format }}</span></td>
+      <td>{{ r.item.pillar }}</td>
+      <td class="num"><b>{{ '–' if r.score is none else r.score }}</b></td>
+      <td class="num">{{ compact(c.views) }}</td><td class="num">{{ compact(c.reach) }}</td>
+      <td class="num">{{ compact(c.shares) }}</td><td class="num">{{ compact(c.saves) }}</td>
+      <td class="num">{{ compact(c.comments) }}</td>
+      <td class="num">{{ '–' if not c.watch_ratio else '%d%%' % (c.watch_ratio * 100) }}</td>
+      <td>{% for p, link in r.permalinks.items() %}<a href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ labels[p][:2] }}</a> {% endfor %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="11" class="muted">No published posts in this period yet.</td></tr>
+    {% endfor %}
+  </table>
+  <details class="table-view" style="margin-top:10px"><summary>How the score works</summary>
+    <p class="muted">0–100 from ratios only: sends ÷ reach (35%), saves ÷ reach (25%), average watch ÷ length (25%),
+    comments ÷ reach (10%), follows ÷ reach (5%). Each is compared with a "good" level for a small page
+    (2%, 3%, 100%, 1%, 0.5%) and capped at 1.5×. Missing signals are left out. Posts need 20+ people reached to be scored.
+    Across platforms, the score is weighted by each platform's reach.</p>
+  </details>
+</div>
+{% endblock %}

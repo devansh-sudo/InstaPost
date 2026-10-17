@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Blank values in .env (e.g. "IG_USER_ID=") count as not set.
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore", env_ignore_empty=True)
 
+    # Read from .env too (the SDK itself only looks at the process environment).
+    anthropic_api_key: str | None = None
+
     # Claude models. Writing and fact-check run on Sonnet, cheap checks on Haiku (PLAN §14).
     writer_model: str = "claude-sonnet-5-5"
     factcheck_model: str = "claude-sonnet-5-5"

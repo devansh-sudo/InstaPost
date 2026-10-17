@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}InstaPost{% endblock %} · InstaPost</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/charts.js" defer></script>
   <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
@@ -17,6 +19,8 @@
     <a href="/" class="{{ 'on' if path == '/' }}">Live</a>
     <a href="/queue" class="{{ 'on' if path.startswith('/queue') }}">Approvals</a>
     <a href="/calendar" class="{{ 'on' if path.startswith('/calendar') }}">Calendar</a>
+    <a href="/stats" class="{{ 'on' if path.startswith('/stats') }}">Stats</a>
+    <a href="/reports" class="{{ 'on' if path.startswith('/reports') }}">Reports</a>
     <a href="/library" class="{{ 'on' if path.startswith('/library') }}">Library</a>
     <a href="/settings" class="{{ 'on' if path.startswith('/settings') }}">Settings</a>
   </nav>

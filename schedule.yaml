@@ -6,6 +6,9 @@ timezone: Asia/Kolkata
 # When the worker creates the next day's content and sends it to Telegram for approval.
 generate_at: "20:30"
 
+# When the daily report for the previous day is sent to Telegram.
+report_at: "09:00"
+
 # Time slots per format. Items are scheduled into the next free slot after approval.
 slots:
   reel_book_pov: ["07:15", "20:45"]

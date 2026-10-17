@@ -15,6 +15,21 @@ Kabir, life lessons) on Instagram, Facebook Reels and YouTube Shorts.
   dashboard shows live jobs, the approval queue, calendar, library and settings, with a kill
   switch. Deployment: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
+- **Phase 3 – Stats:** built. The worker collects each post's numbers from Instagram, Facebook
+  and YouTube at fixed ages (1 h, 3 h, 1/3/7/14/30 days; stories 1 h, 3 h, 20 h) plus follower
+  counts every 6 hours, scores every post 0–100, and sends a daily report to Telegram at 09:00.
+  The dashboard has a **Stats** page (follower growth, score by pillar and format, best posting
+  times, all posts with sends/saves/watch) and a **Reports** page.
+
+### Phase 3 at a glance
+
+| Piece | What it does |
+|---|---|
+| Collector | Official insights APIs only; unsupported metric names are detected and skipped, numbers are never guessed |
+| Post score | 0–100 from ratios: sends/reach 35%, saves/reach 25%, watch/length 25%, comments/reach 10%, follows/reach 5% (formula in `src/instapost/stats/score.py`) |
+| Daily report | Followers and change, yesterday's posts, best 3 of the week, approvals waiting, spend, open setup items. Also `/report` in Telegram |
+| Setup checklist | What is still needed from you: Settings page, `instapost check`, `/setup` in Telegram |
+
 ### Phase 2 at a glance
 
 | Piece | What it does |

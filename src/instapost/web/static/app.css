@@ -53,3 +53,56 @@ ul.log { list-style: none; padding: 0; margin: 0; font-size: 13px; }
 ul.log li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
 .login { max-width: 360px; margin: 10vh auto; }
 .login input { width: 100%; margin-bottom: 10px; }
+
+/* --- charts (Phase 3). Colour follows the platform: 1 Instagram, 2 Facebook, 3 YouTube. --- */
+:root {
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a;
+  --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #1c5cab; --seq-6: #0d366b;
+  --grid: #ebe3d6; --empty: #f1ebe2; --tip-bg: #2b2420; --tip-ink: #fffdf9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
+    --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #2a78d6; --seq-4: #5598e7; --seq-5: #86b6ef; --seq-6: #b7d3f6;
+    --grid: #3a332c; --empty: #2c2722; --tip-bg: #f1e9df; --tip-ink: #1b1714;
+  }
+  svg.chart .cell-text.on-dark { fill: #1b1714; }
+  svg.chart .cell-text.on-light { fill: #f1e9df; }
+}
+.viz { position: relative; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart .grid { stroke: var(--grid); stroke-width: 1; }
+svg.chart .tick { fill: var(--soft); font-size: 11px; }
+svg.chart .label { fill: var(--ink); font-size: 12px; }
+svg.chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg.chart .dot { stroke: var(--card); stroke-width: 2; }
+svg.chart .s1 { stroke: var(--series-1); } svg.chart .dot.s1, svg.chart .bar.s1 { fill: var(--series-1); }
+svg.chart .s2 { stroke: var(--series-2); } svg.chart .dot.s2 { fill: var(--series-2); }
+svg.chart .s3 { stroke: var(--series-3); } svg.chart .dot.s3 { fill: var(--series-3); }
+svg.chart .bar { stroke: none; }
+svg.chart .hit { fill: transparent; cursor: crosshair; }
+svg.chart .crosshair { stroke: var(--soft); stroke-width: 1; visibility: hidden; pointer-events: none; }
+svg.chart .crosshair.on { visibility: visible; }
+svg.chart .cell.empty { fill: var(--empty); }
+svg.chart .cell-text { font-size: 11px; pointer-events: none; }
+.cell-text.on-dark { fill: #fffdf9; } .cell-text.on-light { fill: #2b2420; }
+.seq-1 { fill: var(--seq-1); background: var(--seq-1); } .seq-2 { fill: var(--seq-2); background: var(--seq-2); }
+.seq-3 { fill: var(--seq-3); background: var(--seq-3); } .seq-4 { fill: var(--seq-4); background: var(--seq-4); }
+.seq-5 { fill: var(--seq-5); background: var(--seq-5); } .seq-6 { fill: var(--seq-6); background: var(--seq-6); }
+.legend { display: flex; gap: 14px; align-items: center; margin-bottom: 6px; font-size: 13px; color: var(--soft); }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.legend .sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend .sw.s1 { background: var(--series-1); } .legend .sw.s2 { background: var(--series-2); }
+.legend .sw.s3 { background: var(--series-3); }
+.legend .ramp { display: inline-flex; } .legend .ramp i { width: 18px; height: 10px; display: inline-block; }
+.table-view { margin-top: 6px; font-size: 13px; } .table-view summary { color: var(--soft); cursor: pointer; }
+#viz-tip { position: fixed; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink);
+           padding: 5px 9px; border-radius: 6px; font-size: 12px; z-index: 20; display: none; max-width: 280px; }
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 14px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.tile .k { font-size: 12px; color: var(--soft); }
+.tile .v { font-size: 26px; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile .d { font-size: 12px; color: var(--soft); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.checklist li { margin: 4px 0; }
+svg.chart.heat { width: auto; max-width: 100%; }

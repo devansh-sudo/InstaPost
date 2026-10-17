@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from instapost.db import Item, ItemStatus, audit, get_kv, set_kv, utcnow
 from instapost.models import FactCheckVerdict, Format
 from instapost.pipeline import Result
+from instapost.render.video import probe_duration
 from instapost.schedule import Schedule, candidate_slots, load_schedule, to_local, to_utc_naive
 
 AUTONOMY_LEVELS = ("L0", "L1", "L2")
@@ -58,6 +59,8 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
         hook=draft_hook, caption=(result.folder / "caption.txt").read_text(encoding="utf-8"),
         fact_check=result.fact.verdict.value, for_date=for_date.isoformat(),
         qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
+        duration_s=probe_duration(result.folder / "reel.mp4")
+        if (result.folder / "reel.mp4").exists() else None,
     )
     s.merge(item)
     s.flush()

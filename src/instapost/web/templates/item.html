@@ -65,6 +65,22 @@
       {% else %}<tr><td colspan="4" class="muted">Not published yet.</td></tr>{% endfor %}
     </table>
   </div>
+  <div class="card" style="overflow-x:auto">
+    <h2>Numbers {% if combined.score is not none and combined %}· score {{ combined.score }}{% endif %}</h2>
+    {% if timeline %}
+    <table>
+      <tr><th>Platform</th><th class="num">Age</th><th class="num">Views</th><th class="num">Reach</th>
+        <th class="num">Sends</th><th class="num">Saves</th><th class="num">Watch</th><th class="num">Score</th></tr>
+      {% for snap in timeline %}{% set m = snap.metrics %}
+      <tr><td>{{ snap.platform }}</td><td class="num">{{ snap.age_hours|round|int }} h</td>
+        <td class="num">{{ compact(m.views) }}</td><td class="num">{{ compact(m.reach) }}</td>
+        <td class="num">{{ compact(m.shares) }}</td><td class="num">{{ compact(m.saves) }}</td>
+        <td class="num">{{ '–' if not m.watch_ratio else '%d%%' % (m.watch_ratio * 100) }}</td>
+        <td class="num">{{ score_of(m) or '–' }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Stats are collected 1 h, 3 h, 1 day, 3, 7, 14 and 30 days after posting.</p>{% endif %}
+  </div>
   <div class="card">
     <h2>History</h2>
     <ul class="log">{% for a in history %}

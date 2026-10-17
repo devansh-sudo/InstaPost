@@ -130,6 +130,12 @@ def _check(_args) -> int:
           f"{'' if s.telegram_admin_chat_id else ' (TELEGRAM_ADMIN_CHAT_ID missing)'}")
     print(f"dashboard  {'login set' if s.admin_password_hash else 'run admin-setup'}")
     print(f"media host {s.media_host}")
+
+    from instapost.setup_status import checklist
+    print("\nSetup checklist:")
+    for st in checklist():
+        mark = "done" if st.done else ("TODO" if st.required else "optional")
+        print(f"  [{mark:8}] {st.label}" + ("" if st.done else f"  -> {st.hint}"))
     return 0
 
 

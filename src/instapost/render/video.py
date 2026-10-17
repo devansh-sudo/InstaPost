@@ -118,3 +118,14 @@ def encode(still: Image.Image, brand: Brand, duration: float, out: Path, seed: i
             proc.stdin.close()
         if proc.wait() != 0:
             raise RuntimeError("ffmpeg failed to encode the reel")
+
+
+def probe_duration(path: Path) -> float | None:
+    """Length of a video file in seconds (None if it cannot be read)."""
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                              "-of", "default=nw=1:nk=1", str(path)],
+                             capture_output=True, text=True, timeout=30, check=True)
+        return round(float(out.stdout.strip()), 2)
+    except (subprocess.SubprocessError, ValueError, OSError):
+        return None

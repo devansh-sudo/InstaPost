@@ -2,6 +2,15 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1>Settings</h1>
+<div class="card" style="margin-bottom:14px">
+  <h2>Setup checklist</h2>
+  <ul class="checklist">
+    {% for st in steps %}
+    <li>{{ '✅' if st.done else ('⬜' if st.required else '▫️') }} <b>{{ st.label }}</b>
+      {% if not st.done %}<span class="muted"> · {{ st.hint }}{{ '' if st.required else ' (optional)' }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
 <div class="grid">
   <div class="card">
     <h2>Connected platforms</h2>
