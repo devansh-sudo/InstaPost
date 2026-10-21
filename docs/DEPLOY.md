@@ -29,7 +29,7 @@ Python packages into the folder, creates `.env` (mode 600) and installs the two 
 services pointing at that folder (they wait for the volume to be mounted). It does not start
 anything. Run it again after every `git pull` to update.
 
-(With Docker instead: `cp .env.example .env`, edit it, then `docker compose up -d --build`.)
+**With Docker instead:** see [`DOCKER.md`](DOCKER.md) (`bash deploy/docker.sh deploy`).
 
 In the commands below, `/opt/instapost` means your install folder.
 

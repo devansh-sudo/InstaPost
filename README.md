@@ -92,6 +92,7 @@ $18/month by default) are enforced before every paid call; see `instapost budget
 ## Setup
 
 **Start here:** [`docs/GO_LIVE.md`](docs/GO_LIVE.md), the ordered go-live checklist.
+Running with Docker: [`docs/DOCKER.md`](docs/DOCKER.md).
 
 Full server setup: [`docs/DEPLOY.md`](docs/DEPLOY.md). Platform accounts and tokens:
 [`docs/SETUP_META_YOUTUBE.md`](docs/SETUP_META_YOUTUBE.md).

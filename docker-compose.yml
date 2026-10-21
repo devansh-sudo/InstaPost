@@ -1,17 +1,55 @@
-# docker compose up -d   (reads .env; state, output and secrets live in ./ on the host)
+# Run with deploy/docker.sh (it picks a free port and the right user id). Manual use:
+#   docker compose --env-file deploy/compose.env up -d --build
+#
+# Two containers from one image: "worker" (generation, publishing, stats, Telegram) and "web"
+# (dashboard). All data lives in this folder on the host: state/ output/ secrets/ .env, plus
+# brand.yaml, schedule.yaml and data/ which you can edit without rebuilding (restart only).
+name: instapost
+
+x-app: &app
+  image: instapost:latest
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - ./state:/app/state
+    - ./output:/app/output
+    - ./secrets:/app/secrets
+    - ./brand.yaml:/app/brand.yaml:ro
+    - ./schedule.yaml:/app/schedule.yaml:ro
+    - ./data:/app/data:ro
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
 services:
   worker:
-    build: .
-    command: instapost worker
-    env_file: .env
-    volumes: [./state:/app/state, ./output:/app/output, ./secrets:/app/secrets]
-    restart: unless-stopped
+    <<: *app
+    build:
+      context: .
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    command: ["instapost", "worker"]
+    # Rendering a reel needs about 1 GB for a minute; this protects the other apps.
+    mem_limit: 1500m
+
   web:
-    build: .
-    command: instapost web
-    env_file: .env
-    environment: [WEB_HOST=0.0.0.0]
-    # Only reachable from the VPS itself; Cloudflare Tunnel connects to it.
-    ports: ["127.0.0.1:8800:8800"]
-    volumes: [./state:/app/state, ./output:/app/output, ./secrets:/app/secrets]
-    restart: unless-stopped
+    <<: *app
+    command: ["instapost", "web"]
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: "8800"
+      # The published port below is not reachable from the internet, so the reverse proxy's
+      # X-Forwarded-For header can be trusted for the login rate limit.
+      FORWARDED_ALLOW_IPS: "*"
+    # WEB_BIND=127.0.0.1 (SSH tunnel only) or the docker0 address 172.17.0.1 (reachable by
+    # nginx-proxy-manager, still not from the internet). Never 0.0.0.0.
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT_HOST:-4010}:8800"
+    mem_limit: 400m
+    depends_on: [worker]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8800/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

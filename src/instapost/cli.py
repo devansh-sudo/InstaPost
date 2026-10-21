@@ -61,7 +61,7 @@ def _verses(_args) -> int:
     return 0
 
 
-def _admin_setup(_args) -> int:
+def _admin_setup(args) -> int:
     import getpass
     import secrets
 
@@ -69,16 +69,27 @@ def _admin_setup(_args) -> int:
 
     from instapost.web.auth import hash_password
 
-    pw = getpass.getpass("New dashboard password (min 12 characters): ")
-    if len(pw) < 12 or pw != getpass.getpass("Repeat: "):
-        print("Passwords must match and be at least 12 characters.")
-        return 1
+    if args.password_stdin:  # used by deploy/docker.sh, which asks for the password itself
+        pw = sys.stdin.readline().rstrip("\n")
+        if len(pw) < 12:
+            print("Password must be at least 12 characters.", file=sys.stderr)
+            return 1
+    else:
+        pw = getpass.getpass("New dashboard password (min 12 characters): ")
+        if len(pw) < 12 or pw != getpass.getpass("Repeat: "):
+            print("Passwords must match and be at least 12 characters.")
+            return 1
     totp = pyotp.random_base32()
     uri = pyotp.TOTP(totp).provisioning_uri(name="admin", issuer_name="InstaPost")
+    lines = [f"SESSION_SECRET={secrets.token_urlsafe(48)}",
+             f"ADMIN_PASSWORD_HASH={hash_password(pw)}",
+             f"ADMIN_TOTP_SECRET={totp}"]
+    if args.password_stdin:
+        print("\n".join(lines))
+        print(f"TOTP_URI={uri}")
+        return 0
     print("\nAdd these lines to .env (keep them secret):\n")
-    print(f"SESSION_SECRET={secrets.token_urlsafe(48)}")
-    print(f"ADMIN_PASSWORD_HASH={hash_password(pw)}")
-    print(f"ADMIN_TOTP_SECRET={totp}")
+    print("\n".join(lines))
     print("\nIn Google Authenticator / Authy: add account -> enter setup key:")
     print(f"  {totp}   (or open this link on the phone: {uri})")
     return 0
@@ -91,7 +102,7 @@ def _web(_args) -> int:
 
     s = get_settings()
     uvicorn.run(create_app(), host=s.web_host, port=s.web_port, proxy_headers=True,
-                forwarded_allow_ips="127.0.0.1", log_level="info")
+                forwarded_allow_ips=s.forwarded_allow_ips, log_level="info")
     return 0
 
 
@@ -108,7 +119,7 @@ def _worker(_args) -> int:
 def _youtube_login(args) -> int:
     from instapost.publish import youtube
 
-    youtube.login(args.port)
+    youtube.login(args.port, args.bind)
     print("YouTube connected.")
     return 0
 
@@ -158,11 +169,15 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("budget", help="show spend against the caps").set_defaults(func=_budget)
     sub.add_parser("verses", help="list the verified-verse database").set_defaults(func=_verses)
 
-    sub.add_parser("admin-setup", help="create dashboard login").set_defaults(func=_admin_setup)
+    adm = sub.add_parser("admin-setup", help="create dashboard login")
+    adm.add_argument("--password-stdin", action="store_true",
+                     help="read the password from stdin and print only KEY=VALUE lines")
+    adm.set_defaults(func=_admin_setup)
     sub.add_parser("web", help="run the dashboard").set_defaults(func=_web)
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")
     yt.add_argument("--port", type=int, default=8085)
+    yt.add_argument("--bind", help="address to listen on (0.0.0.0 inside Docker)")
     yt.set_defaults(func=_youtube_login)
     sub.add_parser("check", help="show connected platforms").set_defaults(func=_check)
 

@@ -29,14 +29,17 @@ def is_configured() -> bool:
     return _token_file().exists()
 
 
-def login(port: int = 8085) -> None:
+def login(port: int = 8085, bind_addr: str | None = None) -> None:
     """Run once on the VPS through an SSH tunnel: ssh -L 8085:localhost:8085 <vps>."""
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     if not _client_secret().exists():
         raise PublishError(f"put the OAuth client JSON at {_client_secret()}")
     flow = InstalledAppFlow.from_client_secrets_file(str(_client_secret()), SCOPES)
-    creds = flow.run_local_server(host="localhost", port=port, open_browser=False,
+    # bind_addr 0.0.0.0 inside Docker, so the published port reaches it; the redirect URL
+    # still says localhost, which your browser reaches through the SSH tunnel.
+    creds = flow.run_local_server(host="localhost", bind_addr=bind_addr, port=port,
+                                  open_browser=False,
                                   authorization_prompt_message="Open this link in your browser "
                                   "(with the SSH tunnel running):\n{url}\n")
     path = _token_file()

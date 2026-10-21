@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     admin_totp_secret: str | None = None
     web_host: str = "127.0.0.1"
     web_port: int = 8800
+    # Proxies whose X-Forwarded-For header is trusted (for the real client IP in the login
+    # rate limit). "*" is only safe when the port is not reachable from the internet.
+    forwarded_allow_ips: str = "127.0.0.1"
 
     brand_file: Path = ROOT / "brand.yaml"
     data_dir: Path = ROOT / "data"

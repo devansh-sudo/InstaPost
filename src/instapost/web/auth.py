@@ -23,12 +23,14 @@ _failures: dict[str, list[float]] = defaultdict(list)
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode(), salt=salt, n=2**15, r=8, p=1, maxmem=64 * 2**20)
-    return "scrypt$" + base64.b64encode(salt).decode() + "$" + base64.b64encode(digest).decode()
+    # ":" separators: a "$" would be treated as a variable by Docker Compose when reading .env.
+    return "scrypt:" + base64.b64encode(salt).decode() + ":" + base64.b64encode(digest).decode()
 
 
 def check_password(password: str, stored: str) -> bool:
     try:
-        scheme, salt_b64, digest_b64 = stored.split("$")
+        # "$" was the separator in older hashes; still accepted.
+        scheme, salt_b64, digest_b64 = stored.replace("$", ":").split(":")
     except ValueError:
         return False
     if scheme != "scrypt":
