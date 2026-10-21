@@ -12,7 +12,7 @@ user (who must be in the `docker` group; check with `docker ps`).
 | Settings you edit (restart after editing) | `.env`, `brand.yaml`, `schedule.yaml`, `data/` |
 | Docker image (~1.2 GB) | Docker's own storage, usually the main disk (`/var/lib/docker`) |
 | Containers | `instapost-worker-1` (does all the work), `instapost-web-1` (dashboard) |
-| Dashboard port | first free port from 4010 (saved in `deploy/compose.env`); never public |
+| Dashboard port | first free port from 4010 (saved in `deploy/compose.env`); private unless you choose `--public` |
 
 ## Commands
 
@@ -20,6 +20,8 @@ user (who must be in the `docker` group; check with `docker ps`).
 cd /mnt/HC_Volume_105724104/instapost
 bash deploy/docker.sh deploy            # build + start (first time and after code changes)
 bash deploy/docker.sh deploy --proxy    # same, reachable by nginx-proxy-manager
+bash deploy/docker.sh deploy --public   # same, open on http://<server-ip>:<port> (no HTTPS)
+bash deploy/docker.sh deploy --local    # back to private (SSH tunnel only)
 bash deploy/docker.sh admin-setup       # create the dashboard login (password + 2FA)
 bash deploy/docker.sh status            # containers, port, setup checklist
 bash deploy/docker.sh logs              # live logs (Ctrl+C to leave); "logs worker" / "logs web"
@@ -87,6 +89,20 @@ through short-lived signed links.
 4. In `.env`: `PUBLIC_BASE_URL=https://insta.yourdomain.com` and `MEDIA_HOST=local` →
    `bash deploy/docker.sh restart`.
 
+## Dashboard on the server IP (quick, no HTTPS)
+
+```bash
+bash deploy/docker.sh deploy --public
+bash deploy/docker.sh status        # prints http://<server-ip>:<port>
+```
+- If your provider has a cloud firewall (Hetzner Console → Firewalls), allow inbound TCP on
+  that port. Docker-published ports bypass `ufw`.
+- Plain HTTP: your password and 2FA code travel unencrypted, so anyone on the network path
+  (public Wi-Fi, for example) could read them. 2FA limits the damage, but use the domain +
+  HTTPS setup above as soon as you can. In this mode the login limiter ignores
+  `X-Forwarded-For`, so nobody can fake their IP to get extra password attempts.
+- Back to private: `bash deploy/docker.sh deploy --local`.
+
 ## Low disk (main disk nearly full)
 
 Docker stores images on the main disk by default. Options, safest first:
@@ -110,8 +126,8 @@ Docker stores images on the main disk by default. Options, safest first:
    `sudo mv /var/lib/docker /var/lib/docker.old` while Docker is stopped, if you want a backup).
 
 ## Security notes for this server
-- The dashboard port is bound to `127.0.0.1` (or the Docker bridge with `--proxy`), never to
-  the internet. Ports that Docker publishes on `0.0.0.0` bypass `ufw`.
+- The dashboard port is bound to `127.0.0.1` (or the Docker bridge with `--proxy`), and to
+  the internet only if you choose `--public`. Ports that Docker publishes on `0.0.0.0` bypass `ufw`.
 - Your MongoDB container publishes `0.0.0.0:27017` (open to the internet). Unless something
   outside needs it, change its port mapping to `127.0.0.1:27017:27017` and make sure it has a
   password.

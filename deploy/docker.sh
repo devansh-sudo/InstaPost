@@ -4,6 +4,8 @@
 #
 #   bash deploy/docker.sh deploy            build + start (first time and after changes)
 #   bash deploy/docker.sh deploy --proxy    same, reachable by nginx-proxy-manager (see docs)
+#   bash deploy/docker.sh deploy --public   open on http://<server-ip>:<port> (no HTTPS!)
+#   bash deploy/docker.sh deploy --local    back to private (SSH tunnel only, the default)
 #   bash deploy/docker.sh update            git pull, then deploy
 #   bash deploy/docker.sh status            containers, port, setup checklist
 #   bash deploy/docker.sh logs [worker|web] follow logs
@@ -79,7 +81,7 @@ port_busy() {
 own_port() {
   # The port our own web container already publishes (so a redeploy keeps it).
   docker ps --filter "name=^instapost-web-1$" --format '{{.Ports}}' \
-    | grep -Eo ':[0-9]+->8800' | head -1 | tr -dc '0-9' | head -c 5 || true
+    | grep -Eo ':[0-9]+->8800' | head -1 | sed -E 's/^:([0-9]+)->.*/\1/' || true
 }
 
 choose_port() {
@@ -101,17 +103,21 @@ docker0_ip() {
 }
 
 write_compose_env() {
-  local proxy="$1"
+  local mode="$1"  # keep | local | proxy | public
   # Keep earlier choices unless asked otherwise.
   if [ -f "$COMPOSE_ENV" ]; then
     # shellcheck disable=SC1090
     . "$COMPOSE_ENV"
   fi
-  local bind="${WEB_BIND:-127.0.0.1}"
-  if [ "$proxy" = "yes" ]; then
-    bind="$(docker0_ip)"
-    [ -n "$bind" ] || die "could not find Docker's bridge address (docker network inspect bridge)"
-  fi
+  local bind="${WEB_BIND:-127.0.0.1}" trust="${FORWARDED_ALLOW_IPS:-*}"
+  case "$mode" in
+    local)  bind=127.0.0.1; trust="*" ;;
+    proxy)
+      bind="$(docker0_ip)"; trust="*"
+      [ -n "$bind" ] || die "could not find Docker's bridge address (docker network inspect bridge)"
+      ;;
+    public) bind=0.0.0.0; trust=127.0.0.1 ;;
+  esac
   local port; port="$(choose_port)"
   cat > "$COMPOSE_ENV" <<EOF
 # Written by deploy/docker.sh. Settings for docker compose itself (not the app's keys).
@@ -119,8 +125,13 @@ APP_UID=$(id -u)
 APP_GID=$(id -g)
 WEB_BIND=$bind
 WEB_PORT_HOST=$port
+FORWARDED_ALLOW_IPS=$trust
 EOF
-  WEB_BIND="$bind"; WEB_PORT_HOST="$port"
+  WEB_BIND="$bind"; WEB_PORT_HOST="$port"; FORWARDED_ALLOW_IPS="$trust"
+}
+
+server_ip() {
+  hostname -I 2>/dev/null | awk '{print $1}'
 }
 
 check_disk() {
@@ -200,12 +211,23 @@ cmd_admin_setup() {
 }
 
 cmd_deploy() {
-  local proxy="no"
-  [ "${1:-}" = "--proxy" ] && proxy="yes"
+  local mode="keep"
+  case "${1:-}" in
+    --proxy)  mode=proxy ;;
+    --public) mode=public ;;
+    --local)  mode=local ;;
+    "")       ;;
+    *)        die "unknown option $1 (use --local, --proxy or --public)" ;;
+  esac
   preflight
   take_ownership
   retire_systemd
-  write_compose_env "$proxy"
+  write_compose_env "$mode"
+  if [ "$WEB_BIND" = "0.0.0.0" ]; then
+    echo "WARNING: the dashboard will be open on http://$(server_ip):$WEB_PORT_HOST without HTTPS." >&2
+    echo "         Password, 2FA code and login cookie travel unencrypted. Prefer a domain with" >&2
+    echo "         HTTPS (docs/DOCKER.md); go back with: bash deploy/docker.sh deploy --local" >&2
+  fi
   check_disk
   say "Building the image (first time: 3-6 minutes)"
   compose build
@@ -225,13 +247,16 @@ cmd_status() {
   [ -f "$COMPOSE_ENV" ] && . "$COMPOSE_ENV"
   compose ps
   echo
-  echo "Dashboard: http://${WEB_BIND:-127.0.0.1}:${WEB_PORT_HOST:-?} (not reachable from the internet)"
-  if [ "${WEB_BIND:-127.0.0.1}" = "127.0.0.1" ]; then
-    echo "  From your Mac: ssh -L ${WEB_PORT_HOST:-4010}:127.0.0.1:${WEB_PORT_HOST:-4010} $(id -un)@<server-ip>"
-    echo "  then open http://localhost:${WEB_PORT_HOST:-4010}"
-  else
-    echo "  nginx-proxy-manager: forward to http://${WEB_BIND}:${WEB_PORT_HOST}"
-  fi
+  case "${WEB_BIND:-127.0.0.1}" in
+    127.0.0.1)
+      echo "Dashboard: private (SSH tunnel). From your Mac:"
+      echo "  ssh -L ${WEB_PORT_HOST:-4010}:127.0.0.1:${WEB_PORT_HOST:-4010} $(id -un)@$(server_ip)"
+      echo "  then open http://localhost:${WEB_PORT_HOST:-4010}" ;;
+    0.0.0.0)
+      echo "Dashboard: http://$(server_ip):${WEB_PORT_HOST} (public, no HTTPS)" ;;
+    *)
+      echo "Dashboard: for nginx-proxy-manager, forward to http://${WEB_BIND}:${WEB_PORT_HOST}" ;;
+  esac
   echo
   compose exec -T worker instapost check 2>/dev/null | sed -n '/Setup checklist/,$p' || true
 }
@@ -272,5 +297,5 @@ case "${1:-deploy}" in
   admin-setup) cmd_admin_setup ;;
   youtube-login) cmd_youtube_login ;;
   cli)         shift; cmd_cli "$@" ;;
-  *)           sed -n '2,15p' "$0"; exit 1 ;;
+  *)           sed -n '2,17p' "$0"; exit 1 ;;
 esac
