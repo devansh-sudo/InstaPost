@@ -1,6 +1,8 @@
 [Unit]
 Description=InstaPost dashboard
 After=network-online.target
+# Waits for the disk the app lives on (e.g. a mounted volume).
+RequiresMountsFor=/opt/instapost
 
 [Service]
 User=instapost

@@ -15,17 +15,23 @@ Minimum server: 2 vCPU, 4 GB RAM, 20 GB disk, Ubuntu 22.04/24.04 or Debian 12.
 
 ## 1. Install (systemd, recommended)
 
+Put the app wherever there is space. Everything (code, Python, packages, videos, database,
+secrets) stays inside that one folder, so a mounted volume works well:
+
 ```bash
-sudo apt update && sudo apt install -y git ffmpeg libraqm0
-sudo useradd --system --create-home --home-dir /opt/instapost --shell /usr/sbin/nologin instapost
-sudo -u instapost git clone https://github.com/devansh-sudo/InstaPost /opt/instapost
-cd /opt/instapost
-sudo -u instapost bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh && ~/.local/bin/uv sync --no-dev'
-sudo -u instapost mkdir -p state output secrets && sudo chmod 700 /opt/instapost/secrets
-sudo -u instapost cp .env.example .env && sudo chmod 600 .env
+APP=/mnt/HC_Volume_105724104/instapost      # or /opt/instapost
+sudo git clone -b claude/confident-pascal-icm2cd https://github.com/devansh-sudo/InstaPost "$APP"
+cd "$APP" && sudo bash deploy/install.sh
 ```
 
+The installer adds git, ffmpeg and libraqm, creates the `instapost` service user, installs
+Python packages into the folder, creates `.env` (mode 600) and installs the two systemd
+services pointing at that folder (they wait for the volume to be mounted). It does not start
+anything. Run it again after every `git pull` to update.
+
 (With Docker instead: `cp .env.example .env`, edit it, then `docker compose up -d --build`.)
+
+In the commands below, `/opt/instapost` means your install folder.
 
 ## 2. Fill in `.env`
 

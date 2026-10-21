@@ -39,7 +39,8 @@ few days (Meta and Google screens take the longest).
 
 ## Step 5 — Install on the VPS (≈30 min) · guide: `docs/DEPLOY.md` step 1
 - [ ] Ubuntu 22.04/24.04 or Debian 12, 2 vCPU / 4 GB RAM minimum.
-- [ ] Run the install commands (git, ffmpeg, libraqm0, uv, clone to `/opt/instapost`, `uv sync`).
+- [ ] Clone and run `sudo bash deploy/install.sh` (DEPLOY.md step 1). On a small main disk, install
+      on the mounted volume.
 - [ ] `sudo -u instapost .venv/bin/instapost admin-setup` → paste the 3 printed lines into `.env`
       → add the setup key to Google Authenticator / Authy.
 - [ ] Firewall: only SSH open; SSH keys only (DEPLOY.md step 5, last part).
