@@ -115,13 +115,14 @@ def test_key_report_says_where_and_never_shows_the_key(tmp_path, monkeypatch):
     from instapost.config import key_report
     env = tmp_path / ".env"
     env.write_text("ANTHROPIC_API_KEY=sk-ant-secret123\nANTHROPIC_API_KEY=\n"
-                   "GEMINI_API_KEY=sk-ant-wrongkey\n")
+                   "OPENAI_API_KEY=sk-ant-wrongkey\nGEMINI_API_KEY=AQ.newformat\n")
     assert "line 2: EMPTY" in key_report("ANTHROPIC_API_KEY", env)
-    assert "NOT start with 'AIza'" in key_report("GEMINI_API_KEY", env)
-    assert key_report("OPENAI_API_KEY", env).startswith("not in")
+    assert "NOT start with 'sk-'" in key_report("OPENAI_API_KEY", env)
+    assert key_report("GEMINI_API_KEY", env) == ".env line 4: 12 characters"  # any format
+    assert key_report("UNSPLASH_ACCESS_KEY", env).startswith("not in")
     monkeypatch.setenv("GEMINI_API_KEY", "AIzaFromShell")
     out = key_report("GEMINI_API_KEY", env)
-    assert "shell environment" in out and "looks right" in out
+    assert "shell environment" in out
     assert "secret" not in out and "Shell" not in out
 
 
@@ -159,3 +160,27 @@ def test_rejected_key_is_hopeless(monkeypatch):
         [(400, {"error": {"message": "API key not valid. Please pass a valid API key."}})], calls))
     with pytest.raises(images.QuotaError, match="rejected the API key"):
         images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})
+
+
+
+def test_free_tier_refusal_is_short_remembered_and_not_ready(monkeypatch):
+    from instapost.setup_status import checklist
+    monkeypatch.setenv("GEMINI_API_KEY", "AIza-test")
+    monkeypatch.setenv("IMAGE_FALLBACK", "none")
+    from instapost.config import get_settings
+    get_settings.cache_clear()
+    msg = ("You exceeded your current quota. * Quota exceeded for metric: generate_content_"
+           "free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image * Quota "
+           "exceeded for metric: free_tier_input_token_count, limit: 0, model: "
+           "gemini-2.5-flash-preview-image")
+    monkeypatch.setattr(images.httpx, "post", _fake_post([_quota_429(msg)], []))
+    with pytest.raises(images.QuotaError) as e:
+        images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})
+    assert len(str(e.value)) < 260 and "gemini-2.5-flash-preview-image)" in str(e.value)
+    assert "free tier" in images.recent_refusal("gemini")
+    step = next(st for st in checklist() if st.label.startswith("Image source"))
+    assert not step.done and "none ready" in step.label
+    # A later success clears it.
+    monkeypatch.setattr(images.httpx, "post", _fake_post([(200, {"ok": 1})], []))
+    images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})
+    assert images.recent_refusal("gemini") is None

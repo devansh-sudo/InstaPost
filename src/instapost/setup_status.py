@@ -33,8 +33,11 @@ def checklist() -> list[Step]:
     usable = {"gemini": bool(s.gemini_api_key), "openai": bool(s.openai_api_key),
               "unsplash": bool(s.unsplash_access_key), "placeholder": True,
               "library": bool(lib.files(True)) and bool(lib.files(False))}
+    from instapost.studio.images import recent_refusal
+
     chain = chain_names()
-    image_ok = [n for n in chain if usable.get(n)]
+    # A source refused in the last day (no billing, bad key) does not count as ready.
+    image_ok = [n for n in chain if usable.get(n) and not recent_refusal(n)]
     r2_ok = s.media_host != "r2" or all(
         (s.r2_account_id, s.r2_access_key_id, s.r2_secret_access_key, s.r2_bucket))
     return [

@@ -155,6 +155,10 @@ def _check(_args) -> int:
     for name in names:
         print(f"  {name:19} {key_report(name)}")
     print(f"\nImages: tried in this order: {' -> '.join(chain)}")
+    from instapost.studio.images import recent_refusal
+    for n in chain:
+        if reason := recent_refusal(n):
+            print(f"  {n}: refused in the last 24 h: {reason}")
     if "library" in chain:
         lib = LibraryProvider()
         print(f"  library: {len(lib.files(True))} scenes, {len(lib.files(False))} subjects "

@@ -146,8 +146,8 @@ def env_file_problems(path: Path | None = None) -> list[str]:
     return problems
 
 
-KEY_PREFIXES = {"ANTHROPIC_API_KEY": "sk-ant-", "GEMINI_API_KEY": "AIza", "OPENAI_API_KEY": "sk-",
-                "UNSPLASH_ACCESS_KEY": ""}
+# Gemini and Unsplash keys come in more than one format, so only these two are checked.
+KEY_PREFIXES = {"ANTHROPIC_API_KEY": "sk-ant-", "OPENAI_API_KEY": "sk-"}
 
 
 def key_report(name: str, path: Path | None = None) -> str:
@@ -171,7 +171,9 @@ def key_report(name: str, path: Path | None = None) -> str:
         return f"not in {path}"
     if not value:
         return f"{where}: EMPTY - paste the key right after the = sign and save"
-    prefix = KEY_PREFIXES.get(name, "")
+    prefix = KEY_PREFIXES.get(name)
+    if prefix is None:
+        return f"{where}: {len(value)} characters"
     right = value.startswith(prefix) and not (name != "ANTHROPIC_API_KEY"
                                               and value.startswith("sk-ant-"))
     shape = "looks right" if right else \

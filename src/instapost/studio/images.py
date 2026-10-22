@@ -6,11 +6,13 @@ Two images per piece: a background scene (portrait) and a pencil-sketch illustra
 
 import base64
 import io
+import json
 import math
 import random
 import re
 import sys
 import time
+from datetime import UTC, datetime
 from typing import Protocol
 
 import httpx
@@ -68,13 +70,55 @@ def _hopeless(provider: str, r: httpx.Response, msg: str) -> str | None:
     if r.status_code == 429 and ("limit: 0" in low or "free_tier" in low or "per day" in low
                                  or "billing" in low):
         if provider == "gemini":
-            return ("Gemini refused: this API key has no (or no remaining) image quota. "
-                    "Image models need a paid key: aistudio.google.com -> API keys -> "
-                    "set up billing for the key's project. Google says: " + msg)
+            if "limit: 0" in low or "free_tier" in low:
+                models = sorted(set(re.findall(r"model: ([\w.\-]+)", msg)))
+                return ("Gemini refused: this key is on Google's free tier, which allows 0 "
+                        f"images ({', '.join(models) or 'image model'}). Fix: aistudio.google.com"
+                        " -> API keys -> Set up billing for the key's project.")
+            return ("Gemini refused: the image quota is used up. Check billing and limits at "
+                    "aistudio.google.com. Google says: " + msg[:200])
         return f"{provider} refused for quota or billing. It says: {msg}"
     if provider == "openai" and r.status_code == 429 and "insufficient_quota" in r.text:
         return "OpenAI refused: no credit left (platform.openai.com -> Billing). " + msg
     return None
+
+
+def _status_file():
+    return get_settings().state_dir / "image_sources.json"
+
+
+def _load_status() -> dict:
+    try:
+        return json.loads(_status_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def record_refusal(provider: str, reason: str | None) -> None:
+    """Remember (or clear) a quota/key refusal, so `check` and the dashboard can show it."""
+    status = _load_status()
+    if reason is None and provider not in status:
+        return
+    if reason is None:
+        status.pop(provider)
+    else:
+        status[provider] = {"at": datetime.now(UTC).isoformat(timespec="seconds"),
+                            "reason": reason}
+    try:
+        path = _status_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(status, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def recent_refusal(provider: str, hours: float = 24) -> str | None:
+    """The reason a source was refused within `hours`, else None."""
+    entry = _load_status().get(provider)
+    if not entry:
+        return None
+    age = datetime.now(UTC) - datetime.fromisoformat(entry["at"])
+    return entry["reason"] if age.total_seconds() < hours * 3600 else None
 
 
 def post_with_retry(provider: str, url: str, *, sleep=time.sleep, **kw) -> httpx.Response:
@@ -85,9 +129,11 @@ def post_with_retry(provider: str, url: str, *, sleep=time.sleep, **kw) -> httpx
     for attempt in range(len(RETRY_WAITS) + 1):
         r = httpx.post(url, **kw)
         if r.is_success:
+            record_refusal(provider, None)
             return r
         msg = _api_message(r)
         if reason := _hopeless(provider, r, msg):
+            record_refusal(provider, reason)
             raise QuotaError(reason)
         if r.status_code not in RETRY_STATUSES or attempt == len(RETRY_WAITS):
             raise RuntimeError(f"{provider} image API error {r.status_code}: {msg}")
