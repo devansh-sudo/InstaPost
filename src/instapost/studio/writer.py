@@ -20,8 +20,10 @@ Hook (hook_lines, 1-2 lines, at most 12 words total): a relatable truth or a gen
 question about everyday life (worry, anger, waiting, relationships, failure, comparison).
 It must work on its own in two seconds. Give two different alternative_hooks too.
 
-Body (1-2 short sentences, at most 28 words): explains the hook and gives one practical
-thought. It may say who taught the idea only if that is correct.
+Body (1-2 short sentences): explains the hook and gives one practical thought. It may say
+who taught the idea only if that is correct. For reel_book_pov the reel is at most 12 seconds
+and must be readable in time, so hook_lines and body together have at most 29 words;
+for other formats the body has at most 28 words.
 
 Reference: set reference_id to one id from the verified list in the request, or null.
 Never cite anything that is not in that list, and never write verse text yourself; the
@@ -49,8 +51,15 @@ story_line, poll_question, poll_options: only for format story_line (a one-line 
 night thought plus a two-option poll); otherwise null and an empty list.
 
 The request may contain a "plan" from the weekly planner. Follow it: use its hook_style,
-use its scene as scene_prompt (light variation is fine), and match its length: "short" =
-hook plus a body of at most 12 words, "medium" = up to 20 words, "long" = up to 28 words."""
+use its scene as scene_prompt (light variation is fine), and match its length: hook and body
+together "short" = at most 17 words, "medium" = at most 23 words, "long" = at most 29 words."""
+
+# A reel lasts at most 12 s and needs 1 s more than the reading time (qa.check_reel).
+MAX_REEL_WORDS = int((12.0 - 1.0) * 2.7)  # 29 words at 2.7 words per second
+
+
+def reel_words(draft: Draft) -> int:
+    return sum(len(t.split()) for t in [*draft.hook_lines, draft.body] if t)
 
 
 def write(
@@ -75,7 +84,17 @@ def write(
         "Verified references you may cite (by id):\n" + catalogue_for_prompt()
         + "\n\nRequest:\n" + json.dumps(request, ensure_ascii=False, indent=1)
     )
-    return llm.structured(
-        model=get_settings().writer_model, system=SYSTEM, content=content, schema=Draft,
-        purpose=f"write:{fmt.value}", effort="medium", max_tokens=8000, estimated_usd=0.05,
-    )
+    def ask(text: str) -> Draft:
+        return llm.structured(
+            model=get_settings().writer_model, system=SYSTEM, content=text, schema=Draft,
+            purpose=f"write:{fmt.value}", effort="medium", max_tokens=8000, estimated_usd=0.05,
+        )
+
+    draft = ask(content)
+    if fmt == Format.REEL_BOOK_POV and (n := reel_words(draft)) > MAX_REEL_WORDS:
+        # One rewrite is cheaper than images and a video that the length check would block.
+        draft = ask(content + f"\n\nYour previous draft had {n} words in hook_lines + body. "
+                    f"Rewrite it with at most {MAX_REEL_WORDS} words in hook_lines + body "
+                    "together (keep the same idea; shorten the body first).\nPrevious draft:\n"
+                    + draft.model_dump_json())
+    return draft

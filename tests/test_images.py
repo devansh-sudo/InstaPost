@@ -184,3 +184,25 @@ def test_free_tier_refusal_is_short_remembered_and_not_ready(monkeypatch):
     monkeypatch.setattr(images.httpx, "post", _fake_post([(200, {"ok": 1})], []))
     images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})
     assert images.recent_refusal("gemini") is None
+
+
+def test_writer_rewrites_a_reel_that_is_too_long_to_read(monkeypatch):
+    from instapost.brand import load_brand
+    from instapost.pipeline import load_sample
+    from instapost.render import video
+    from instapost.studio import writer
+
+    long = load_sample(Format.REEL_BOOK_POV).model_copy(update={"body": " ".join(["शब्द"] * 30)})
+    short = load_sample(Format.REEL_BOOK_POV)
+    answers, prompts = [long, short], []
+
+    def fake(**kw):
+        prompts.append(kw["content"])
+        return answers.pop(0)
+
+    monkeypatch.setattr(writer.llm, "structured", fake)
+    out = writer.write(load_brand(), Format.REEL_BOOK_POV, Pillar.GITA, None, [])
+    assert out is short and len(prompts) == 2 and "at most 29 words" in prompts[1]
+    # The limit really fits the video: 29 words read in time within 12 s.
+    read = video.read_time_seconds(" ".join(["x"] * writer.MAX_REEL_WORDS))
+    assert video.reel_duration(read) >= read + 1.0
