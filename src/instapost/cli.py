@@ -22,6 +22,7 @@ from instapost import budget
 from instapost.config import SetupError, get_settings
 from instapost.models import Draft, Format, Pillar
 from instapost.scriptures import load_verses
+from instapost.studio.images import QuotaError
 
 FORMATS = {"reel": Format.REEL_BOOK_POV, "carousel": Format.CAROUSEL_SHLOK,
            "story": Format.STORY_LINE}
@@ -196,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.func(args)
-    except SetupError as e:
+    except (SetupError, QuotaError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
 

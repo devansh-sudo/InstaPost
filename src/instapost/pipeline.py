@@ -46,6 +46,21 @@ def _write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+class _KeepDraftOnQuota:
+    """On a quota refusal, say where the already-paid text is so it can be reused."""
+
+    def __init__(self, provider, folder: Path):
+        self.provider, self.folder, self.name = provider, folder, provider.name
+
+    def generate(self, prompt: str, portrait: bool):
+        try:
+            return self.provider.generate(prompt, portrait)
+        except images.QuotaError as e:
+            raise images.QuotaError(
+                f"{e}\nThe text is saved; reuse it once images work, so you don't pay for it "
+                f"again:  instapost make <format> --draft {self.folder / 'draft.json'}") from None
+
+
 def make(
     fmt: Format,
     pillar: Pillar,
@@ -88,7 +103,8 @@ def make(
         return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
 
     step("generating images")
-    provider = images.get_provider("placeholder" if offline else image_provider)
+    provider = _KeepDraftOnQuota(
+        images.get_provider("placeholder" if offline else image_provider), folder)
     reference = ((fact.reference_label, fact.reference_text)
                  if fact.reference_label and fact.reference_text else None)
 

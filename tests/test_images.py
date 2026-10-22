@@ -122,3 +122,30 @@ def test_key_report_says_where_and_never_shows_the_key(tmp_path, monkeypatch):
     out = key_report("GEMINI_API_KEY", env)
     assert "shell environment" in out and "looks right" in out
     assert "secret" not in out and "Shell" not in out
+
+
+def test_quota_error_in_cli_is_one_line_and_points_to_saved_draft(monkeypatch, capsys):
+    from instapost import cli, pipeline
+    from instapost.models import FactCheckVerdict
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIza-test")
+    from instapost.config import get_settings
+    get_settings.cache_clear()
+    monkeypatch.setattr(pipeline.writer, "write", lambda *a, **k: pipeline.load_sample(
+        Format.REEL_BOOK_POV))
+    real_offline = pipeline.fact_check.offline_fact_check
+
+    def ok_fact(draft):
+        f = real_offline(draft)
+        return f.model_copy(update={"verdict": FactCheckVerdict.PASS, "issues": []})
+
+    monkeypatch.setattr(pipeline.fact_check, "fact_check", ok_fact)
+
+    def refuse(self, prompt, portrait):
+        raise images.QuotaError("Gemini refused: limit: 0")
+
+    monkeypatch.setattr(images.GeminiProvider, "generate", refuse)
+    assert cli.main(["make", "reel", "--pillar", "gita"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("ERROR: Gemini refused") and "--draft" in err and "draft.json" in err
