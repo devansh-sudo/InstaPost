@@ -26,15 +26,23 @@ def checklist() -> list[Step]:
     platforms = publisher.configured_platforms()
     verses = list(load_verses().values())
     reviewed = sum(v.reviewed for v in verses)
-    image_key = {"gemini": s.gemini_api_key, "openai": s.openai_api_key,
-                 "placeholder": "n/a"}.get(s.image_provider)
+    from instapost.studio.free_images import LibraryProvider
+    from instapost.studio.images import chain_names
+
+    lib = LibraryProvider()
+    usable = {"gemini": bool(s.gemini_api_key), "openai": bool(s.openai_api_key),
+              "unsplash": bool(s.unsplash_access_key), "placeholder": True,
+              "library": bool(lib.files(True)) and bool(lib.files(False))}
+    chain = chain_names()
+    image_ok = [n for n in chain if usable.get(n)]
     r2_ok = s.media_host != "r2" or all(
         (s.r2_account_id, s.r2_access_key_id, s.r2_secret_access_key, s.r2_bucket))
     return [
         Step("Claude API key", bool(s.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")),
              "ANTHROPIC_API_KEY in .env (console.anthropic.com)"),
-        Step(f"Image API key ({s.image_provider})", bool(image_key),
-             "GEMINI_API_KEY or OPENAI_API_KEY in .env"),
+        Step(f"Image source ({', '.join(image_ok) or 'none ready'}; order: {' -> '.join(chain)})",
+             bool(image_ok), "GEMINI_API_KEY with billing, UNSPLASH_ACCESS_KEY (free) or pictures "
+             "in data/images/scenes + data/images/subjects (data/images/README.md)"),
         Step("Instagram handle in brand.yaml", load_brand().handle != "@your_handle",
              "edit `handle:` in brand.yaml"),
         Step(f"Verses reviewed ({reviewed}/{len(verses)})", reviewed == len(verses),

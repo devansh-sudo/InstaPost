@@ -22,7 +22,7 @@ from instapost import budget
 from instapost.config import SetupError, get_settings
 from instapost.models import Draft, Format, Pillar
 from instapost.scriptures import load_verses
-from instapost.studio.images import QuotaError
+from instapost.studio.images import PROVIDERS, QuotaError
 
 FORMATS = {"reel": Format.REEL_BOOK_POV, "carousel": Format.CAROUSEL_SHLOK,
            "story": Format.STORY_LINE}
@@ -145,11 +145,20 @@ def _check(_args) -> int:
 
     from instapost.config import IMAGE_KEYS, ROOT, env_file_problems, key_report
     print(f"\nKeys (read from {ROOT / '.env'}):")
-    names = ["ANTHROPIC_API_KEY"]
-    if s.image_provider in IMAGE_KEYS:
-        names.append(IMAGE_KEYS[s.image_provider].upper())
+    from instapost.studio.free_images import LibraryProvider
+    from instapost.studio.images import chain_names
+
+    chain = chain_names()
+    names = ["ANTHROPIC_API_KEY", *(IMAGE_KEYS[n].upper() for n in chain if n in IMAGE_KEYS)]
+    if "unsplash" in chain:
+        names.append("UNSPLASH_ACCESS_KEY")
     for name in names:
-        print(f"  {name:18} {key_report(name)}")
+        print(f"  {name:19} {key_report(name)}")
+    print(f"\nImages: tried in this order: {' -> '.join(chain)}")
+    if "library" in chain:
+        lib = LibraryProvider()
+        print(f"  library: {len(lib.files(True))} scenes, {len(lib.files(False))} subjects "
+              f"in {lib.root}")
     if problems := env_file_problems():
         print("\nProblems in .env:")
         for line in problems:
@@ -174,7 +183,8 @@ def main(argv: list[str] | None = None) -> int:
     make.add_argument("--offline", action="store_true",
                       help="no API calls: sample text and placeholder images")
     make.add_argument("--draft", help="path to a Draft JSON to render instead of writing one")
-    make.add_argument("--image-provider", choices=["gemini", "openai", "placeholder"])
+    make.add_argument("--image-provider", choices=list(PROVIDERS),
+                      help="main image source; IMAGE_FALLBACK sources are tried after it")
     make.add_argument("--vision-qa", action="store_true",
                       help="also check the final image with Claude (about $0.002)")
     make.set_defaults(func=_make)

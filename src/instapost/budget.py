@@ -22,6 +22,8 @@ IMAGE_PRICES = {
     "gemini": 0.039,
     "openai": 0.042,
     "placeholder": 0.0,
+    "unsplash": 0.0,
+    "library": 0.0,
 }
 
 

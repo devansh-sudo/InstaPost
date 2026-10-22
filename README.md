@@ -78,8 +78,11 @@ Every item also gets `caption.txt` (Hindi + one Hinglish line + CTA + 3–5 hash
    claims and politics.
 3. **Fact check** (Claude Sonnet 5.5) checks attribution and meaning. The verse text printed on
    the post always comes from the database, never from the model.
-4. **Images** (paid API, or the free offline placeholder): a background scene and a pencil
-   sketch. The image model never draws text.
+4. **Images**: a background scene and a pencil sketch. Sources are tried in order: the paid
+   API (Gemini/OpenAI), then free ones (`IMAGE_FALLBACK=unsplash,library`): Unsplash search
+   with a free key, and your own pictures in `data/images/` (see
+   [`data/images/README.md`](data/images/README.md)). Photos for the drawing are turned into
+   a pencil sketch automatically. The image model never draws text.
 5. **Render**: our code draws all Hindi text with real fonts and correct conjunct shaping,
    then adds slow zoom, diya flicker, floating dust and an original tanpura-style drone.
 6. **QA gate**: hook ≤ 12 words, text inside Instagram's safe area (clear of the like/share

@@ -47,14 +47,19 @@ def _write_json(path: Path, obj) -> None:
 
 
 class _KeepDraftOnQuota:
-    """On a quota refusal, say where the already-paid text is so it can be reused."""
+    """Saves photo credits next to the post; on a quota refusal, says where the
+    already-paid text is so it can be reused."""
 
     def __init__(self, provider, folder: Path):
         self.provider, self.folder, self.name = provider, folder, provider.name
 
     def generate(self, prompt: str, portrait: bool):
         try:
-            return self.provider.generate(prompt, portrait)
+            img = self.provider.generate(prompt, portrait)
+            if credit := img.info.get("credit"):
+                with open(self.folder / "image_credits.txt", "a", encoding="utf-8") as f:
+                    f.write(f"{'background' if portrait else 'drawing'}: {credit}\n")
+            return img
         except images.QuotaError as e:
             raise images.QuotaError(
                 f"{e}\nThe text is saved; reuse it once images work, so you don't pay for it "
@@ -79,8 +84,10 @@ def make(
     brand = brand or load_brand()
     if not offline:
         # Check every key before the first paid call, not halfway through.
-        provider = image_provider or get_settings().image_provider
-        require("anthropic_api_key", *([IMAGE_KEYS[provider]] if provider in IMAGE_KEYS else []))
+        chain = images.chain_names(image_provider)
+        # With fallbacks, a missing image key just means the next source is used.
+        require("anthropic_api_key",
+                *([IMAGE_KEYS[chain[0]]] if len(chain) == 1 and chain[0] in IMAGE_KEYS else []))
     step("writing")
     if draft is None:
         draft = load_sample(fmt) if offline else writer.write(

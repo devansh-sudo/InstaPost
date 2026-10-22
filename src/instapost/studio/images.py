@@ -9,6 +9,7 @@ import io
 import math
 import random
 import re
+import sys
 import time
 from typing import Protocol
 
@@ -62,6 +63,8 @@ def _retry_after(r: httpx.Response) -> float | None:
 def _hopeless(provider: str, r: httpx.Response, msg: str) -> str | None:
     """Explain a quota/billing refusal that waiting will not fix, else None."""
     low = msg.lower()
+    if r.status_code in (401, 403) or (r.status_code == 400 and "api key" in low):
+        return f"{provider} rejected the API key ({r.status_code}): {msg}"
     if r.status_code == 429 and ("limit: 0" in low or "free_tier" in low or "per day" in low
                                  or "billing" in low):
         if provider == "gemini":
@@ -202,10 +205,70 @@ def _sketch(rng: random.Random) -> Image.Image:
     return img
 
 
-def get_provider(name: str | None = None) -> ImageProvider:
-    name = name or get_settings().image_provider
+# After a quota/billing refusal a source is skipped for this long (the answer won't change soon).
+SKIP_AFTER_QUOTA_S = 3600
+_skip_until: dict[str, float] = {}
+
+
+class FallbackProvider:
+    """Tries each source in turn: e.g. gemini, then unsplash, then your own pictures."""
+
+    def __init__(self, providers: list[ImageProvider], log=None):
+        self.providers = providers
+        self.name = providers[0].name
+        self.used: list[str] = []  # which source made each picture, for the item's records
+        self.log = log or (lambda msg: print(msg, file=sys.stderr))
+
+    def generate(self, prompt: str, portrait: bool) -> Image.Image:
+        from instapost.config import SetupError
+        from instapost.studio.free_images import ImageUnavailable
+
+        reasons = []
+        for p in self.providers:
+            if _skip_until.get(p.name, 0) > time.monotonic():
+                reasons.append(f"{p.name}: skipped after a quota refusal")
+                continue
+            try:
+                img = p.generate(prompt, portrait)
+            except QuotaError as e:
+                _skip_until[p.name] = time.monotonic() + SKIP_AFTER_QUOTA_S
+                reasons.append(f"{p.name}: {e}")
+            except (SetupError, ImageUnavailable, RuntimeError, httpx.HTTPError, OSError) as e:
+                reasons.append(f"{p.name}: {e}")
+            else:
+                if p is not self.providers[0]:
+                    self.log(f"images: used {p.name} ({'; '.join(r[:120] for r in reasons)})")
+                self.used.append(p.name)
+                return img
+        raise QuotaError("No image source worked:\n  " + "\n  ".join(reasons))
+
+
+PROVIDERS = ("gemini", "openai", "unsplash", "library", "placeholder")
+
+
+def _single(name: str) -> ImageProvider:
+    from instapost.studio.free_images import LibraryProvider, UnsplashProvider
+
     providers = {"gemini": GeminiProvider, "openai": OpenAIProvider,
+                 "unsplash": UnsplashProvider, "library": LibraryProvider,
                  "placeholder": PlaceholderProvider}
     if name not in providers:
-        raise ValueError(f"unknown image provider {name!r}; choose from {sorted(providers)}")
+        raise ValueError(f"unknown image provider {name!r}; choose from {list(PROVIDERS)}")
     return providers[name]()
+
+
+def chain_names(name: str | None = None) -> list[str]:
+    """The main source plus IMAGE_FALLBACK, without repeats. Placeholder never falls back."""
+    s = get_settings()
+    name = name or s.image_provider
+    if name == "placeholder":
+        return [name]
+    extra = [n.strip() for n in s.image_fallback.split(",") if n.strip() not in ("", "none")]
+    return list(dict.fromkeys([name, *extra]))
+
+
+def get_provider(name: str | None = None) -> ImageProvider:
+    names = chain_names(name)
+    if len(names) == 1:
+        return _single(names[0])
+    return FallbackProvider([_single(n) for n in names])

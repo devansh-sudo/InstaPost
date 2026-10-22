@@ -57,8 +57,8 @@ def test_gives_up_after_retries_with_api_message(monkeypatch):
 def test_other_errors_are_not_retried(monkeypatch):
     calls = []
     monkeypatch.setattr(images.httpx, "post", _fake_post(
-        [(400, {"error": {"message": "API key not valid"}})], calls))
-    with pytest.raises(RuntimeError, match="400: API key not valid"):
+        [(400, {"error": {"message": "Invalid aspect ratio"}})], calls))
+    with pytest.raises(RuntimeError, match="400: Invalid aspect ratio"):
         images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})
     assert len(calls) == 1
 
@@ -88,6 +88,7 @@ def test_missing_keys_stop_before_any_paid_call(monkeypatch):
         raise AssertionError("writer must not be called without keys")
 
     monkeypatch.setattr(pipeline.writer, "write", boom)
+    monkeypatch.setenv("IMAGE_FALLBACK", "none")
     with pytest.raises(SetupError, match="ANTHROPIC_API_KEY, GEMINI_API_KEY not set"):
         pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA)
 
@@ -130,6 +131,7 @@ def test_quota_error_in_cli_is_one_line_and_points_to_saved_draft(monkeypatch, c
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     monkeypatch.setenv("GEMINI_API_KEY", "AIza-test")
+    monkeypatch.setenv("IMAGE_FALLBACK", "none")
     from instapost.config import get_settings
     get_settings.cache_clear()
     monkeypatch.setattr(pipeline.writer, "write", lambda *a, **k: pipeline.load_sample(
@@ -149,3 +151,11 @@ def test_quota_error_in_cli_is_one_line_and_points_to_saved_draft(monkeypatch, c
     assert cli.main(["make", "reel", "--pillar", "gita"]) == 1
     err = capsys.readouterr().err
     assert err.startswith("ERROR: Gemini refused") and "--draft" in err and "draft.json" in err
+
+
+def test_rejected_key_is_hopeless(monkeypatch):
+    calls = []
+    monkeypatch.setattr(images.httpx, "post", _fake_post(
+        [(400, {"error": {"message": "API key not valid. Please pass a valid API key."}})], calls))
+    with pytest.raises(images.QuotaError, match="rejected the API key"):
+        images.post_with_retry("gemini", URL, sleep=lambda _: None, json={})

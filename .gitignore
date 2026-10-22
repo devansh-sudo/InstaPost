@@ -18,3 +18,10 @@ state/
 # Docker deploy settings written by deploy/docker.sh
 deploy/compose.env
 deploy/.update.lock
+
+# Your own pictures for the library image source (data/images/README.md)
+data/images/**
+!data/images/README.md
+!data/images/scenes/
+!data/images/subjects/
+!data/images/*/.gitkeep

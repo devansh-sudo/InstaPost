@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     gemini_image_model: str = "gemini-2.5-flash-image"
     openai_api_key: str | None = None
     openai_image_model: str = "gpt-image-1"
+    # Used in this order when the main source fails (quota, no key, nothing found).
+    # unsplash needs UNSPLASH_ACCESS_KEY; library uses your pictures in data/images/; "none" = off.
+    image_fallback: str = "unsplash,library"
+    unsplash_access_key: str | None = None
 
     daily_budget_usd: float = 0.60
     monthly_budget_usd: float = 18.00
@@ -142,7 +146,8 @@ def env_file_problems(path: Path | None = None) -> list[str]:
     return problems
 
 
-KEY_PREFIXES = {"ANTHROPIC_API_KEY": "sk-ant-", "GEMINI_API_KEY": "AIza", "OPENAI_API_KEY": "sk-"}
+KEY_PREFIXES = {"ANTHROPIC_API_KEY": "sk-ant-", "GEMINI_API_KEY": "AIza", "OPENAI_API_KEY": "sk-",
+                "UNSPLASH_ACCESS_KEY": ""}
 
 
 def key_report(name: str, path: Path | None = None) -> str:

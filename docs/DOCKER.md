@@ -34,6 +34,15 @@ bash deploy/docker.sh cli check
 bash deploy/docker.sh youtube-login     # connect YouTube once (needs an SSH tunnel; it explains)
 ```
 
+## Your own pictures (free image source)
+
+Copy pictures from your Mac into the server's library (see `data/images/README.md` for naming):
+```bash
+scp ~/Downloads/shiva-*.jpg devansh@46.224.187.54:/mnt/HC_Volume_105724104/instapost/data/images/subjects/
+scp ~/Downloads/diya-*.jpg  devansh@46.224.187.54:/mnt/HC_Volume_105724104/instapost/data/images/scenes/
+```
+No restart needed; `bash deploy/docker.sh cli check` shows how many it found.
+
 ## Updating to the latest code
 
 ```bash
