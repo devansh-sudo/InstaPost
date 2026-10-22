@@ -38,10 +38,10 @@
   </div>
 </div>
 
-<div class="grid" style="margin-top:14px">
+<div class="split-main" style="margin-top:14px">
   <div class="card">
     <h2>Recent jobs</h2>
-    <ul class="log">{% for j in recent_jobs %}
+    <ul class="log scroll">{% for j in recent_jobs %}
       <li><span class="pill {{ {'done':'ok','failed':'bad'}.get(j.status, 'warn') }}">{{ j.status }}</span>
         {{ j.kind }} · {{ j.label }} <span class="muted">{{ j.started_at | local("%d %b %H:%M") }}</span>
         {% if j.error %}<br><span class="muted">{{ j.error[:200] }}</span>{% endif %}</li>
@@ -49,7 +49,7 @@
   </div>
   <div class="card">
     <h2>Activity log</h2>
-    <ul class="log">{% for a in audit %}
+    <ul class="log scroll">{% for a in audit %}
       <li><span class="muted">{{ a.ts | local("%d %b %H:%M") }}</span> <b>{{ a.actor }}</b> {{ a.action }}
         {% if a.item_id %}<a href="/items/{{ a.item_id }}">{{ a.item_id.split("-", 3)[-1] }}</a>{% endif %}</li>
     {% else %}<li class="muted">Nothing yet.</li>{% endfor %}</ul>

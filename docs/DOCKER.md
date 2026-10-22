@@ -26,13 +26,25 @@ bash deploy/docker.sh admin-setup       # create the dashboard login (password +
 bash deploy/docker.sh status            # containers, port, setup checklist
 bash deploy/docker.sh logs              # live logs (Ctrl+C to leave); "logs worker" / "logs web"
 bash deploy/docker.sh restart           # after editing .env, brand.yaml, schedule.yaml, data/
-bash deploy/docker.sh update            # git pull + rebuild + restart
+bash update.sh                          # latest code: backup + rebuild + restart (see below)
 bash deploy/docker.sh stop              # stop everything (data is kept)
 bash deploy/docker.sh cli <command>     # any instapost command, e.g.:
 bash deploy/docker.sh cli make reel --pillar gita --vision-qa
 bash deploy/docker.sh cli check
 bash deploy/docker.sh youtube-login     # connect YouTube once (needs an SSH tunnel; it explains)
 ```
+
+## Updating to the latest code
+
+```bash
+cd /mnt/HC_Volume_105724104/instapost && bash update.sh
+```
+It fetches the new code and lists what changed, backs up the database to `state/backups/`
+(keeps the last 5), rebuilds and restarts, then shows the status. Your edits to
+`brand.yaml`, `schedule.yaml` and `data/` are kept; if the new code changes the same file, it
+stops without touching anything and tells you which file. If the build fails, the running
+version keeps running. Options: `--force` (rebuild without new code), `--public`/`--local`/
+`--proxy` (change how the dashboard is reached).
 
 ## First deployment, step by step
 
