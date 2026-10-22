@@ -8,6 +8,8 @@ import base64
 import io
 import math
 import random
+import re
+import time
 from typing import Protocol
 
 import httpx
@@ -24,6 +26,70 @@ class ImageProvider(Protocol):
     name: str
 
     def generate(self, prompt: str, portrait: bool) -> Image.Image: ...
+
+
+class QuotaError(RuntimeError):
+    """The image API refused because of quota or billing; retrying will not help."""
+
+
+RETRY_STATUSES = {429, 500, 502, 503}
+RETRY_WAITS = (10, 30, 60)  # seconds, used when the API does not say how long to wait
+MAX_WAIT = 90
+
+
+def _api_message(r: httpx.Response) -> str:
+    try:
+        err = r.json().get("error", {})
+    except ValueError:
+        return r.text[:300]
+    msg = err.get("message") if isinstance(err, dict) else str(err)
+    return " ".join(str(msg or r.text[:300]).split())[:500]
+
+
+def _retry_after(r: httpx.Response) -> float | None:
+    """Wait the API asks for: Retry-After header or Google's RetryInfo ("17s")."""
+    if (h := r.headers.get("retry-after", "")).isdigit():
+        return float(h)
+    try:
+        for d in r.json().get("error", {}).get("details", []):
+            if m := re.fullmatch(r"([\d.]+)s", str(d.get("retryDelay", ""))):
+                return float(m.group(1))
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
+def _hopeless(provider: str, r: httpx.Response, msg: str) -> str | None:
+    """Explain a quota/billing refusal that waiting will not fix, else None."""
+    low = msg.lower()
+    if r.status_code == 429 and ("limit: 0" in low or "free_tier" in low or "per day" in low
+                                 or "billing" in low):
+        if provider == "gemini":
+            return ("Gemini refused: this API key has no (or no remaining) image quota. "
+                    "Image models need a paid key: aistudio.google.com -> API keys -> "
+                    "set up billing for the key's project. Google says: " + msg)
+        return f"{provider} refused for quota or billing. It says: {msg}"
+    if provider == "openai" and r.status_code == 429 and "insufficient_quota" in r.text:
+        return "OpenAI refused: no credit left (platform.openai.com -> Billing). " + msg
+    return None
+
+
+def post_with_retry(provider: str, url: str, *, sleep=time.sleep, **kw) -> httpx.Response:
+    """POST with a few patient retries for rate limits and server hiccups.
+
+    Errors carry the API's own explanation (never the key, which is sent in a header).
+    """
+    for attempt in range(len(RETRY_WAITS) + 1):
+        r = httpx.post(url, **kw)
+        if r.is_success:
+            return r
+        msg = _api_message(r)
+        if reason := _hopeless(provider, r, msg):
+            raise QuotaError(reason)
+        if r.status_code not in RETRY_STATUSES or attempt == len(RETRY_WAITS):
+            raise RuntimeError(f"{provider} image API error {r.status_code}: {msg}")
+        sleep(min(_retry_after(r) or RETRY_WAITS[attempt], MAX_WAIT))
+    raise AssertionError("unreachable")
 
 
 def scene_prompt(scene: str) -> str:
@@ -52,9 +118,8 @@ class GeminiProvider:
                 "imageConfig": {"aspectRatio": "9:16" if portrait else "4:3"},
             },
         }
-        r = httpx.post(url, json=body, headers={"x-goog-api-key": s.gemini_api_key},
-                       timeout=120)
-        r.raise_for_status()
+        r = post_with_retry(self.name, url, json=body,
+                            headers={"x-goog-api-key": s.gemini_api_key}, timeout=120)
         budget.record("image", s.gemini_image_model, budget.IMAGE_PRICES[self.name])
         for part in r.json()["candidates"][0]["content"]["parts"]:
             if "inlineData" in part:
@@ -70,14 +135,13 @@ class OpenAIProvider:
         if not s.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not set")
         budget.ensure_room(budget.IMAGE_PRICES[self.name])
-        r = httpx.post(
-            "https://api.openai.com/v1/images/generations",
+        r = post_with_retry(
+            self.name, "https://api.openai.com/v1/images/generations",
             headers={"Authorization": f"Bearer {s.openai_api_key}"},
             json={"model": s.openai_image_model, "prompt": prompt, "quality": "medium",
                   "size": "1024x1536" if portrait else "1536x1024"},
             timeout=180,
         )
-        r.raise_for_status()
         budget.record("image", s.openai_image_model, budget.IMAGE_PRICES[self.name])
         return Image.open(io.BytesIO(base64.b64decode(r.json()["data"][0]["b64_json"])))
 

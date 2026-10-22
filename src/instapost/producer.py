@@ -14,6 +14,7 @@ from instapost.learn import planner
 from instapost.models import Format, Pillar
 from instapost.publish.tokens import redact
 from instapost.schedule import load_schedule
+from instapost.studio.images import QuotaError
 
 EPOCH = date(2026, 1, 1)
 Notify = Callable[[str], None]
@@ -74,6 +75,11 @@ def generate_day(day: date, notify: Notify, on_item: Callable[[str], None],
             item_id = _make_and_register(fmt, pillar, day, "agent", entry_id=entry_id)
         except budget.BudgetExceeded as e:
             notify(f"⛔ Budget cap reached, generation paused: {e}")
+            break
+        except QuotaError as e:
+            # Every other piece would fail the same way after paying for its text.
+            notify(f"⛔ Image API quota problem, generation stopped: {redact(str(e))[:600]}\n"
+                   "Fix it, then use \"Create plan\" on the dashboard's Live page.")
             break
         except Exception as e:  # noqa: BLE001 - one failed piece must not stop the rest
             notify(f"⚠️ Could not create {fmt.value} ({pillar.value}): {redact(str(e))[:300]}")
