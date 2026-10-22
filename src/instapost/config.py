@@ -140,3 +140,35 @@ def env_file_problems(path: Path | None = None) -> list[str]:
               and not value.split()[1].startswith("#")):
             problems.append(f"line {no}: {key} contains a space; keys never do (check the paste)")
     return problems
+
+
+KEY_PREFIXES = {"ANTHROPIC_API_KEY": "sk-ant-", "GEMINI_API_KEY": "AIza", "OPENAI_API_KEY": "sk-"}
+
+
+def key_report(name: str, path: Path | None = None) -> str:
+    """Where a key comes from and whether it looks right. Never prints the key itself."""
+    import os
+    import re
+
+    path = path or ROOT / ".env"
+    found = None  # (line number, value) of the last line naming the key; the last one wins
+    if path.exists():
+        for no, raw in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+            m = re.match(rf"\s*(?:export\s+)?{name}\s*=\s*(.*)$", raw, re.IGNORECASE)
+            if m:
+                found = (no, m.group(1).split(" #")[0].strip().strip("\"'"))
+    env_value = os.environ.get(name, "").strip()
+    if env_value:
+        where, value = "your shell environment (overrides .env)", env_value
+    elif found:
+        where, value = f".env line {found[0]}", found[1]
+    else:
+        return f"not in {path}"
+    if not value:
+        return f"{where}: EMPTY - paste the key right after the = sign and save"
+    prefix = KEY_PREFIXES.get(name, "")
+    right = value.startswith(prefix) and not (name != "ANTHROPIC_API_KEY"
+                                              and value.startswith("sk-ant-"))
+    shape = "looks right" if right else \
+        f"does NOT start with {prefix!r}; check it is the right key"
+    return f"{where}: {len(value)} characters, {shape}"

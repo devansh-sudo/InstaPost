@@ -142,7 +142,13 @@ def _check(_args) -> int:
     print(f"dashboard  {'login set' if s.admin_password_hash else 'run admin-setup'}")
     print(f"media host {s.media_host}")
 
-    from instapost.config import env_file_problems
+    from instapost.config import IMAGE_KEYS, ROOT, env_file_problems, key_report
+    print(f"\nKeys (read from {ROOT / '.env'}):")
+    names = ["ANTHROPIC_API_KEY"]
+    if s.image_provider in IMAGE_KEYS:
+        names.append(IMAGE_KEYS[s.image_provider].upper())
+    for name in names:
+        print(f"  {name:18} {key_report(name)}")
     if problems := env_file_problems():
         print("\nProblems in .env:")
         for line in problems:

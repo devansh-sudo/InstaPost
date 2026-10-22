@@ -108,3 +108,17 @@ def test_env_file_problems_names_lines_never_values(tmp_path):
     assert "line 4: ANTHROPIC_API_KEY also on line 1" in out and "empty" in out
     assert "secret" not in out and "other" not in out
     assert "GEMINI" not in out and "DEMO_MODE" not in out
+
+
+def test_key_report_says_where_and_never_shows_the_key(tmp_path, monkeypatch):
+    from instapost.config import key_report
+    env = tmp_path / ".env"
+    env.write_text("ANTHROPIC_API_KEY=sk-ant-secret123\nANTHROPIC_API_KEY=\n"
+                   "GEMINI_API_KEY=sk-ant-wrongkey\n")
+    assert "line 2: EMPTY" in key_report("ANTHROPIC_API_KEY", env)
+    assert "NOT start with 'AIza'" in key_report("GEMINI_API_KEY", env)
+    assert key_report("OPENAI_API_KEY", env).startswith("not in")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaFromShell")
+    out = key_report("GEMINI_API_KEY", env)
+    assert "shell environment" in out and "looks right" in out
+    assert "secret" not in out and "Shell" not in out
