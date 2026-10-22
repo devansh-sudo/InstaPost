@@ -6,7 +6,7 @@
 #   bash deploy/docker.sh deploy --proxy    same, reachable by nginx-proxy-manager (see docs)
 #   bash deploy/docker.sh deploy --public   open on http://<server-ip>:<port> (no HTTPS!)
 #   bash deploy/docker.sh deploy --local    back to private (SSH tunnel only, the default)
-#   bash deploy/docker.sh update            git pull, then deploy
+#   bash deploy/docker.sh update            latest code + rebuild (same as: bash update.sh)
 #   bash deploy/docker.sh status            containers, port, setup checklist
 #   bash deploy/docker.sh logs [worker|web] follow logs
 #   bash deploy/docker.sh restart           after editing .env, brand.yaml, schedule.yaml, data/
@@ -262,10 +262,8 @@ cmd_status() {
 }
 
 cmd_update() {
-  preflight
-  say "Fetching the latest code"
-  git -c safe.directory="$APP_DIR" pull --ff-only
-  cmd_deploy "$@"
+  # update.sh replaces this script during the update, so hand over instead of continuing here.
+  exec bash "$APP_DIR/update.sh" "$@"
 }
 
 cmd_cli() {

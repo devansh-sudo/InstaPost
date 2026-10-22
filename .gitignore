@@ -17,3 +17,4 @@ state/
 
 # Docker deploy settings written by deploy/docker.sh
 deploy/compose.env
+deploy/.update.lock
