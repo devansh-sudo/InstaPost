@@ -9,6 +9,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from instapost import history, llm
+from instapost.brand import Brand
 from instapost.config import get_settings
 from instapost.models import Draft, FactCheckResult, FactCheckVerdict, QACheck, QAReport
 from instapost.render import text
@@ -94,10 +95,12 @@ class VisionVerdict(BaseModel):
 VISION_SYSTEM = """You check finished Instagram images before they are posted.
 Report problems only: text that is hard to read, cut off or overlapping, misspelled or broken
 Hindi characters, distorted hands, faces or anatomy, disrespectful depiction of a deity,
-any stray letters or watermarks inside the illustration or background."""
+any stray letters or watermarks inside the illustration or background.
+The request lists text that belongs on the design (page header, page number, the page's own
+handle, divider symbol); never report those as watermarks or stray text."""
 
 
-def check_vision(image: Image.Image) -> QACheck:
+def check_vision(image: Image.Image, brand: Brand | None = None) -> QACheck:
     buf = io.BytesIO()
     image.convert("RGB").resize((540, 960)).save(buf, "JPEG", quality=85)
     data = base64.standard_b64encode(buf.getvalue()).decode()
@@ -105,12 +108,22 @@ def check_vision(image: Image.Image) -> QACheck:
         model=get_settings().qa_model, system=VISION_SYSTEM,
         content=[{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": data}},
-                 {"type": "text", "text": "Check this image."}],
+                 {"type": "text", "text": "Check this image." + _intended_text(brand)}],
         schema=VisionVerdict, purpose="vision_qa", effort="low", max_tokens=2000,
         estimated_usd=0.005,
     )
     return QACheck(name="vision", passed=verdict.readable and not verdict.problems,
                    detail="; ".join(verdict.problems))
+
+
+def _intended_text(brand: Brand | None) -> str:
+    if brand is None:
+        return ""
+    parts = [f"page header {brand.header_text!r}", "the page number",
+             f"divider symbol {brand.divider_symbol!r}"]
+    if brand.printed_handle:
+        parts.append(f"the page's own Instagram handle {brand.printed_handle!r} in the footer")
+    return " Intended text on the design (not problems): " + "; ".join(parts) + "."
 
 
 def caption_text(draft: Draft) -> str:

@@ -206,3 +206,24 @@ def test_writer_rewrites_a_reel_that_is_too_long_to_read(monkeypatch):
     # The limit really fits the video: 29 words read in time within 12 s.
     read = video.read_time_seconds(" ".join(["x"] * writer.MAX_REEL_WORDS))
     assert video.reel_duration(read) >= read + 1.0
+
+
+def test_placeholder_handle_is_not_printed_and_real_handle_is_not_a_watermark(monkeypatch):
+    from PIL import Image
+
+    from instapost import qa
+    from instapost.brand import load_brand
+
+    brand = load_brand()
+    assert brand.model_copy(update={"handle": "@your_handle"}).printed_handle == ""
+    real = brand.model_copy(update={"handle": "@jeevan.sutra"})
+    assert real.printed_handle == "@jeevan.sutra"
+    seen = {}
+
+    def fake(**kw):
+        seen["text"] = kw["content"][1]["text"]
+        return qa.VisionVerdict(readable=True, problems=[])
+
+    monkeypatch.setattr(qa.llm, "structured", fake)
+    assert qa.check_vision(Image.new("RGB", (1080, 1920)), real).passed
+    assert "'@jeevan.sutra'" in seen["text"] and "not problems" in seen["text"]

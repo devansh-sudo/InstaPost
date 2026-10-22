@@ -125,7 +125,7 @@ def make(
         page = render_page(brand, PageContent(
             header=brand.header_text, page_number=page_no, hook_lines=draft.hook_lines,
             body=draft.body, reference_label=fact.reference_label,
-            reference_text=fact.reference_text, footer=brand.handle, illustration=illus,
+            reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
         ), seed)
         still, _, text_boxes = compose(brand, scene, page, seed)
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
@@ -133,7 +133,7 @@ def make(
         checks += qa.check_reel(draft, motion, text_boxes)
         still.save(folder / "cover.jpg", quality=92)
         if vision_qa:
-            checks.append(qa.check_vision(still))
+            checks.append(qa.check_vision(still, brand))
         if all(c.passed for c in checks):
             step("encoding video")
             video.encode(still, brand, duration, folder / "reel.mp4", seed)
@@ -148,7 +148,7 @@ def make(
         checks.append(qa.QACheck(name="slide_count", passed=3 <= len(slides) <= 10,
                                  detail=f"{len(slides)} slides"))
         if vision_qa:
-            checks.append(qa.check_vision(slides[0]))
+            checks.append(qa.check_vision(slides[0], brand))
 
     elif fmt == Format.STORY_LINE:
         line = draft.story_line or draft.hook_lines[0]
@@ -160,7 +160,7 @@ def make(
             "Add this as a poll sticker in the Instagram app (the API cannot add stickers):\n"
             + poll + "\n", encoding="utf-8")
         if vision_qa:
-            checks.append(qa.check_vision(story))
+            checks.append(qa.check_vision(story, brand))
 
     return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
 

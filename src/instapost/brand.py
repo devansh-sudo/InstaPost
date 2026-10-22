@@ -26,6 +26,9 @@ class BrandColors(BaseModel):
     glow: str
 
 
+PLACEHOLDER_HANDLE = "@your_handle"
+
+
 class Brand(BaseModel):
     page_name: str
     handle: str
@@ -36,6 +39,12 @@ class Brand(BaseModel):
     scene_presets: list[str]
     illustration_style: str
     glow_position: tuple[float, float]
+
+    @property
+    def printed_handle(self) -> str:
+        """The handle to print on posts; nothing while brand.yaml still has the placeholder."""
+        h = self.handle.strip()
+        return "" if h in ("", "@", PLACEHOLDER_HANDLE) else h
 
     def font_path(self, role: str) -> Path:
         return get_settings().assets_dir / "fonts" / getattr(self.fonts, role)

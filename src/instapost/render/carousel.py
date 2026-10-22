@@ -28,7 +28,7 @@ def _base(brand: Brand, w: int, h: int, seed: int, index: int, total: int) -> Im
     head = font(brand.font_path("header"), 34)
     draw_centered(d, [brand.header_text], head, w / 2, 60, ink_soft)
     foot = font(brand.font_path("footer"), 26)
-    d.text((70, h - 80), brand.handle, font=foot, fill=ink_soft)
+    d.text((70, h - 80), brand.printed_handle, font=foot, fill=ink_soft)
     counter = f"{index + 1}/{total}"
     d.text((w - 70 - text_width(foot, counter), h - 80), counter, font=foot, fill=ink_soft)
     return img
@@ -106,7 +106,8 @@ def render_story(brand: Brand, scene: Image.Image, line: str, seed: int = 0) -> 
     draw_centered(d, lines, f, card_w / 2, (card_h - block) / 2, hex_rgb(brand.colors.ink),
                   line_gap=1.45)
     foot = font(brand.font_path("footer"), 24)
-    draw_centered(d, [brand.handle], foot, card_w / 2, card_h - 60, hex_rgb(brand.colors.ink_soft))
+    draw_centered(d, [brand.printed_handle], foot, card_w / 2, card_h - 60,
+                  hex_rgb(brand.colors.ink_soft))
     x, y = (STORY_W - card_w) // 2, 420
     shadow = Image.new("L", bg.size, 0)
     ImageDraw.Draw(shadow).rectangle([x, y + 20, x + card_w, y + card_h + 20], fill=150)
