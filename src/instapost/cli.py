@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 from instapost import budget
-from instapost.config import get_settings
+from instapost.config import SetupError, get_settings
 from instapost.models import Draft, Format, Pillar
 from instapost.scriptures import load_verses
 
@@ -182,7 +182,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("check", help="show connected platforms").set_defaults(func=_check)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except SetupError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

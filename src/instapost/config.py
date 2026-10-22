@@ -6,6 +6,22 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[2]
+IMAGE_KEYS = {"gemini": "gemini_api_key", "openai": "openai_api_key"}
+
+
+class SetupError(RuntimeError):
+    """A required setting is missing; the message says what to set and where."""
+
+
+def require(*names: str) -> None:
+    """Raise SetupError naming every missing setting (e.g. "anthropic_api_key")."""
+    s = get_settings()
+    missing = [n.upper() for n in names if not getattr(s, n)]
+    if missing:
+        them = "it" if len(missing) == 1 else "them"
+        raise SetupError(f"{', '.join(missing)} not set. Add {them} to"
+                         f" {ROOT / '.env'} (KEY=value, no spaces or quotes), then run again. "
+                         "For a free test without keys use --offline.")
 
 
 class Settings(BaseSettings):

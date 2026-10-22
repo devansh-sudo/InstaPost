@@ -16,7 +16,7 @@ import httpx
 from PIL import Image, ImageDraw, ImageFilter
 
 from instapost import budget
-from instapost.config import get_settings
+from instapost.config import get_settings, require
 
 NO_TEXT = ("Absolutely no text, letters, numbers, captions, watermarks or logos anywhere "
            "in the image.")
@@ -106,8 +106,7 @@ class GeminiProvider:
 
     def generate(self, prompt: str, portrait: bool) -> Image.Image:
         s = get_settings()
-        if not s.gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY is not set")
+        require("gemini_api_key")
         budget.ensure_room(budget.IMAGE_PRICES[self.name])
         url = ("https://generativelanguage.googleapis.com/v1beta/models/"
                f"{s.gemini_image_model}:generateContent")
@@ -132,8 +131,7 @@ class OpenAIProvider:
 
     def generate(self, prompt: str, portrait: bool) -> Image.Image:
         s = get_settings()
-        if not s.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+        require("openai_api_key")
         budget.ensure_room(budget.IMAGE_PRICES[self.name])
         r = post_with_retry(
             self.name, "https://api.openai.com/v1/images/generations",

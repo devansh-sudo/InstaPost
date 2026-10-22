@@ -78,3 +78,21 @@ def test_generate_day_stops_on_quota_error(monkeypatch):
     assert producer.generate_day(date(2026, 10, 23), messages.append, lambda _: None) == []
     assert len(attempts) == 1
     assert "quota" in messages[0]
+
+
+def test_missing_keys_stop_before_any_paid_call(monkeypatch):
+    from instapost import pipeline
+    from instapost.config import SetupError
+
+    def boom(*a, **k):
+        raise AssertionError("writer must not be called without keys")
+
+    monkeypatch.setattr(pipeline.writer, "write", boom)
+    with pytest.raises(SetupError, match="ANTHROPIC_API_KEY, GEMINI_API_KEY not set"):
+        pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA)
+
+
+def test_cli_prints_setup_error_without_traceback(capsys):
+    from instapost import cli
+    assert cli.main(["make", "reel", "--pillar", "gita"]) == 1
+    assert capsys.readouterr().err.startswith("ERROR: ANTHROPIC_API_KEY")

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from instapost import history, qa
 from instapost.brand import Brand, load_brand
-from instapost.config import get_settings
+from instapost.config import IMAGE_KEYS, get_settings, require
 from instapost.models import Draft, FactCheckResult, FactCheckVerdict, Format, Pillar, QAReport
 from instapost.render import carousel, video
 from instapost.render.page import PageContent, render_page
@@ -62,6 +62,10 @@ def make(
     """`on_step` receives a short label for each stage, for live progress on the dashboard."""
     step = on_step or (lambda _label: None)
     brand = brand or load_brand()
+    if not offline:
+        # Check every key before the first paid call, not halfway through.
+        provider = image_provider or get_settings().image_provider
+        require("anthropic_api_key", *([IMAGE_KEYS[provider]] if provider in IMAGE_KEYS else []))
     step("writing")
     if draft is None:
         draft = load_sample(fmt) if offline else writer.write(
