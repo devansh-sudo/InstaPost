@@ -97,3 +97,46 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+# Names people often use for the keys InstaPost expects.
+ALIASES = {"CLAUDE_API_KEY": "ANTHROPIC_API_KEY", "CLAUDE_KEY": "ANTHROPIC_API_KEY",
+           "ANTHROPIC_KEY": "ANTHROPIC_API_KEY", "GOOGLE_API_KEY": "GEMINI_API_KEY",
+           "GEMINI_KEY": "GEMINI_API_KEY", "GOOGLE_AI_API_KEY": "GEMINI_API_KEY"}
+
+
+def env_file_problems(path: Path | None = None) -> list[str]:
+    """Lines in .env that will not do what was meant. Names and line numbers only, never values."""
+    import difflib
+    import re
+
+    path = path or ROOT / ".env"
+    if not path.exists():
+        return [f"{path} does not exist (copy .env.example to .env)"]
+    known = {name.upper() for name in Settings.model_fields}
+    seen: dict[str, int] = {}
+    problems = []
+    for no, raw in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
+        if not m:
+            problems.append(f"line {no}: not KEY=value, ignored")
+            continue
+        key, value = m.group(1), m.group(2).strip()
+        if key.upper() not in known:
+            close = [ALIASES[key.upper()]] if key.upper() in ALIASES else \
+                difflib.get_close_matches(key.upper(), known, n=1, cutoff=0.6)
+            hint = f" (did you mean {close[0]}?)" if close else ""
+            problems.append(f"line {no}: {key} is not a setting InstaPost uses{hint}")
+        if key.upper() in seen:
+            problems.append(f"line {no}: {key.upper()} also on line {seen[key.upper()]}; "
+                            "the last one wins" + (" and it is empty" if not value else ""))
+        seen[key.upper()] = no
+        if value and value[0] in "\"'" and (len(value) < 2 or value[-1] != value[0]):
+            problems.append(f"line {no}: {key} has an unclosed quote")
+        elif (value and " " in value and value[0] not in "\"'"
+              and not value.split()[1].startswith("#")):
+            problems.append(f"line {no}: {key} contains a space; keys never do (check the paste)")
+    return problems

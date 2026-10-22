@@ -96,3 +96,15 @@ def test_cli_prints_setup_error_without_traceback(capsys):
     from instapost import cli
     assert cli.main(["make", "reel", "--pillar", "gita"]) == 1
     assert capsys.readouterr().err.startswith("ERROR: ANTHROPIC_API_KEY")
+
+
+def test_env_file_problems_names_lines_never_values(tmp_path):
+    from instapost.config import env_file_problems
+    env = tmp_path / ".env"
+    env.write_text("ANTHROPIC_API_KEY=sk-ant-secret\nCLAUDE_API_KEY=sk-ant-other\n"
+                   "GEMINI_API_KEY=abc\nANTHROPIC_API_KEY=\n# ok\nDEMO_MODE=false\n")
+    out = "\n".join(env_file_problems(env))
+    assert "line 2: CLAUDE_API_KEY" in out and "did you mean ANTHROPIC_API_KEY" in out
+    assert "line 4: ANTHROPIC_API_KEY also on line 1" in out and "empty" in out
+    assert "secret" not in out and "other" not in out
+    assert "GEMINI" not in out and "DEMO_MODE" not in out
