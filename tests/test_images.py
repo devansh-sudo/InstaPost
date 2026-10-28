@@ -349,3 +349,30 @@ def test_video_hosting_step_needs_https_for_local(monkeypatch):
     assert not step().done
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://thoughtory.duckdns.org")
     assert step().done
+
+
+def test_logs_never_show_the_telegram_token(monkeypatch, capsys):
+    import logging
+
+    from instapost.publish import tokens
+
+    root = logging.getLogger()
+    old_handlers, old_level = root.handlers[:], root.level
+    root.handlers = []
+    try:
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "8885195839:AAG-secretSECRET_123")
+        from instapost.config import get_settings
+        get_settings.cache_clear()
+        tokens.setup_logging()
+        url = "https://api.telegram.org/bot8885195839:AAG-secretSECRET_123/getUpdates"
+        logging.getLogger("httpx").info("HTTP Request: POST %s", url)  # silenced
+        logging.getLogger("instapost.worker").warning("telegram failed for %s", url)
+        err = capsys.readouterr().err
+        assert "AAG-secret" not in err and "8885195839:" not in err
+        assert "telegram failed for https://api.telegram.org/bot[redacted]/getUpdates" in err
+        assert "HTTP Request" not in err
+    finally:
+        for h in root.handlers:
+            root.removeHandler(h)
+        root.handlers, root.level = old_handlers, old_level
+        logging.getLogger("httpx").setLevel(logging.NOTSET)

@@ -165,11 +165,10 @@ def _web(_args) -> int:
 
 
 def _worker(_args) -> int:
-    import logging
-
+    from instapost.publish.tokens import setup_logging
     from instapost.worker import Worker
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    setup_logging()
     Worker().run_forever()
     return 0
 

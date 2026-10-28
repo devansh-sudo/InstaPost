@@ -271,7 +271,8 @@ class FallbackProvider:
 
         reasons = []
         for p in self.providers:
-            if _skip_until.get(p.name, 0) > time.monotonic():
+            # Also remembered across restarts (state/image_sources.json), for an hour.
+            if _skip_until.get(p.name, 0) > time.monotonic() or recent_refusal(p.name, 1):
                 reasons.append(f"{p.name}: skipped after a quota refusal")
                 continue
             try:

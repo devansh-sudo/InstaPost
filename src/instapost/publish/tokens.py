@@ -4,6 +4,7 @@ The value from .env is the starting point; once refreshed, the stored token wins
 """
 
 import json
+import logging
 import os
 import re
 from datetime import UTC, datetime
@@ -49,7 +50,31 @@ _SECRET_PATTERNS = [
     re.compile(r"(access_token=)[^&\s\"']+"),
     re.compile(r"(Bearer |OAuth )[A-Za-z0-9._\-|]+"),
     re.compile(r"(X-Amz-Signature=)[^&\s\"']+"),
+    re.compile(r"(/bot)\d+:[A-Za-z0-9_\-]+"),  # Telegram puts the bot token in the URL path
+    re.compile(r"(Client-ID )[A-Za-z0-9_\-]+"),
+    re.compile(r"(key=)[A-Za-z0-9_\-.]{20,}"),
 ]
+
+
+class RedactingFilter(logging.Filter):
+    """Runs every log line through redact(), whichever library wrote it."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        clean = redact(message)
+        if clean != message:
+            record.msg, record.args = clean, ()
+        return True
+
+
+def setup_logging(level: int = logging.INFO) -> None:
+    """Logging for the worker and web processes: no request URLs, no secrets."""
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
+    # httpx logs every request URL at INFO; Telegram's contain the bot token.
+    for noisy in ("httpx", "httpcore", "googleapiclient.discovery_cache"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(RedactingFilter())
 
 
 def redact(text: str) -> str:
