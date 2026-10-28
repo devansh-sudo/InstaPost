@@ -52,3 +52,44 @@ def post_now(s: Session, item: Item, actor: str) -> Item:
                                    "approval or approved can be posted now")
     audit(s, actor, "post_now", item.id)
     return item
+
+
+def trending(s: Session, item: Item, actor: str) -> list[str]:
+    """You post this reel on Instagram yourself (to add a trending song from Instagram's
+    licensed library); every other connected platform is published now. Returns those."""
+    from instapost.publish import publisher
+
+    if item.format != Format.REEL_BOOK_POV:
+        raise approvals.QueueError("trending songs are for reels only")
+    if item.status not in (ItemStatus.NEEDS_REVIEW, ItemStatus.APPROVED):
+        raise approvals.QueueError(f"{item.id} is {item.status}")
+    item.manual_platforms = sorted(set(item.manual_platforms or []) | {"instagram"})
+    others = publisher.targets_for(item)
+    if item.status == ItemStatus.NEEDS_REVIEW:
+        approvals.approve(s, item, actor, when=utcnow())
+    item.scheduled_at = utcnow() if others else None  # None: waits for your /posted
+    audit(s, actor, "manual_instagram", item.id, others=others)
+    return others
+
+
+def record_manual_post(s: Session, item: Item, permalink: str, actor: str) -> str:
+    """Link a reel you posted in the Instagram app, so its numbers are collected too."""
+    from instapost.db import Publication
+    from instapost.publish.instagram import Instagram, shortcode
+
+    if not shortcode(permalink):
+        raise approvals.QueueError("that is not an Instagram post link (instagram.com/reel/...)")
+    media = Instagram().find_media(permalink)
+    pub = next((p for p in item.publications if p.platform == "instagram"), None)
+    if pub is None:
+        pub = Publication(item_id=item.id, platform="instagram", attempts=0)
+        item.publications.append(pub)
+    pub.status, pub.permalink, pub.published_at = "published", permalink, utcnow()
+    pub.remote_id = media["id"] if media else None
+    if item.status == ItemStatus.APPROVED and item.scheduled_at is None:
+        item.status = ItemStatus.PUBLISHED
+    audit(s, actor, "manual_posted", item.id, platform="instagram", permalink=permalink)
+    if media:
+        return "✅ Linked. Its views, saves and shares are collected like the others."
+    return ("✅ Saved the link, but Instagram didn't list this post for your account yet, so its "
+            "numbers can't be collected. Try /posted again in a few minutes.")

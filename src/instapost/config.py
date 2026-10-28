@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Used in this order when the main source fails (quota, no key, nothing found).
     # unsplash needs UNSPLASH_ACCESS_KEY; library uses your pictures in data/images/; "none" = off.
     image_fallback: str = "unsplash,library"
+    # Reel soundtrack: "library" = a track from data/music/ that fits the pillar (falls back to
+    # the built-in tanpura ambience when the folder is empty), "ambience" = always the ambience.
+    music_mode: str = "library"
     unsplash_access_key: str | None = None
 
     daily_budget_usd: float = 0.60

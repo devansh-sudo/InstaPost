@@ -42,7 +42,8 @@ def configured_platforms() -> set[str]:
 def targets_for(item: Item) -> list[str]:
     wanted = load_schedule().targets.get(Format(item.format), [])
     available = configured_platforms()
-    return [p for p in wanted if p in available]
+    manual = set(item.manual_platforms or [])
+    return [p for p in wanted if p in available and p not in manual]
 
 
 def published_today(s: Session, platform: str) -> int:

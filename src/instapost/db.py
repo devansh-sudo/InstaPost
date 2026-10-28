@@ -75,6 +75,8 @@ class Item(Base):
     preferred_slot: Mapped[str | None] = mapped_column(String(5))  # "HH:MM" from the plan
     # What the learner tracks: pillar, hook_style, scene, length (slot comes from publishing).
     features: Mapped[dict | None] = mapped_column(JSON)
+    # Platforms you post by hand (e.g. Instagram with a trending song from its app library).
+    manual_platforms: Mapped[list | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

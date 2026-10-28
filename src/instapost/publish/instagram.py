@@ -5,6 +5,7 @@ processed it, then publish the container. The token is sent in the Authorization
 in the URL, so it cannot leak through error messages or proxy logs.
 """
 
+import re
 import time
 from dataclasses import dataclass
 
@@ -12,6 +13,12 @@ import httpx
 
 from instapost.config import get_settings
 from instapost.publish import tokens
+
+
+def shortcode(url: str) -> str | None:
+    """The post code in an Instagram link: instagram.com/reel/<code>/ or /p/<code>/."""
+    m = re.search(r"instagram\.com/(?:[^/]+/)?(?:reels?|p|tv)/([A-Za-z0-9_-]+)", url or "")
+    return m.group(1) if m else None
 
 
 class PublishError(RuntimeError):
@@ -121,6 +128,15 @@ class Instagram:
         data = self._call("GET", f"{self.user_id}/content_publishing_limit",
                           fields="quota_usage,config").get("data", [{}])
         return data[0] if data else {}
+
+    def find_media(self, permalink: str) -> dict | None:
+        """Our recent post whose link matches (for reels you posted in the app yourself)."""
+        code = shortcode(permalink)
+        if not code:
+            return None
+        data = self._call("GET", f"{self.user_id}/media", fields="id,permalink,timestamp",
+                          limit=50).get("data", [])
+        return next((m for m in data if shortcode(m.get("permalink", "")) == code), None)
 
     def me(self) -> dict:
         return self._call("GET", "me", fields="user_id,username,account_type,followers_count")

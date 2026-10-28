@@ -22,6 +22,7 @@ Recommended, in the same BotFather chat:
 ```
 new - create one now, e.g. /new reel gita गुस्सा
 postnow - publish an item right away, e.g. /postnow <id>
+posted - link a reel you posted in the Instagram app, e.g. /posted <id> <link>
 queue - items waiting for approval
 approve_next - approve the next N items, e.g. /approve_next 3
 approve_tomorrow - approve everything planned for tomorrow
@@ -74,7 +75,7 @@ piece now) or wait for the evening run (`generate_at` in `schedule.yaml`, 20:30)
 
 | You get | What to do |
 |---|---|
-| 🎬 Reel / 🖼 Carousel / 📱 Story with buttons | 🚀 post now (all platforms at once), ✅ approve (posts at its slot), ❌ reject, 🔁 regenerate |
+| 🎬 Reel / 🖼 Carousel / 📱 Story with buttons | 🚀 post now (all platforms at once), ✅ approve (posts at its slot), 📲 trending song (reels: you post it on Instagram with a song from its app, the rest goes out now), ❌ reject, 🔁 regenerate |
 | "📅 Approve all <date>" button | approves the whole day at once |
 | 🚀 Published, with links | nothing; check the post if you like |
 | 09:00 report | followers, yesterday's posts, best of the week, spend |

@@ -22,6 +22,8 @@ class Step:
 
 
 def checklist() -> list[Step]:
+    from instapost.render import music
+
     s = get_settings()
     platforms = publisher.configured_platforms()
     verses = list(load_verses().values())
@@ -69,6 +71,9 @@ def checklist() -> list[Step]:
              "(docs/DOCKER.md, nginx-proxy-manager) or R2_* values (docs/DEPLOY.md 2.5)"),
         Step("Dashboard on HTTPS", https,
              "PUBLIC_BASE_URL=https://your-domain after the proxy is set up (docs/DOCKER.md)"),
+        Step(f"Music library ({len(music.tracks())} tracks)", bool(music.tracks()),
+             "royalty-free tracks in data/music/ (data/music/README.md); without them reels "
+             "use the built-in tanpura ambience", required=False),
         Step("Demo mode off", not s.demo_mode, "DEMO_MODE=false before going live"),
         Step("Festival dates confirmed", _festivals_confirmed(),
              "check data/calendar/festivals.yaml against a panchang, set confirmed: true",

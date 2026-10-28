@@ -58,3 +58,43 @@ def test_bad_draft_is_blocked_before_images():
     result = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, draft=draft)
     assert result.status == "blocked"
     assert not (result.folder / "cover.jpg").exists()
+
+
+def test_reel_reveals_body_after_the_hook_and_loops():
+    from instapost.render.scene import compose_reel
+
+    brand = load_brand()
+    draft = pipeline.load_sample(Format.REEL_BOOK_POV)
+    provider = PlaceholderProvider()
+    page = render_page(brand, PageContent(
+        header=brand.header_text, page_number=108, hook_lines=draft.hook_lines, body=draft.body,
+        reference_label="श्रीमद्भगवद्गीता 2.48", reference_text="योगस्थः कुरु कर्माणि।",
+        footer=brand.handle, illustration=provider.generate("x", portrait=False)))
+    comp = compose_reel(brand, provider.generate("y", portrait=True), page)
+    assert len(comp.layers) >= 3  # body line(s), divider, reference
+    d = 10.0
+    motion = video.Motion(comp.still, brand, d, comp=comp)
+    first, mid = motion.frame_at(0).astype(np.int16), motion.frame_at(d / 2).astype(np.int16)
+    last = motion.frame_at(d - 1 / 30).astype(np.int16)
+    body = comp.layers[0]
+    h, w = body.alpha.shape[:2]
+    rows, cols = slice(body.y, body.y + h), slice(body.x, body.x + w)
+    # The hook region is the same at the start; the body region changes as the line appears.
+    assert np.abs(mid[rows, cols] - first[rows, cols]).mean() > 8
+    assert np.abs(first - last).mean() < 1.5  # seamless loop
+    # Opacity runs 0 -> 1 -> 0 across the reel.
+    assert video.reveal_state(0, 4, 0, d)[0] == 0
+    assert video.reveal_state(3, 4, d * 0.5, d)[0] == 1
+    assert video.reveal_state(3, 4, d, d)[0] == 0
+
+
+def test_balanced_wrap_has_no_orphan():
+    from instapost.render.text import font, text_width, wrap, wrap_balanced
+
+    brand = load_brand()
+    f = font(brand.font_path("body"), 38)
+    text = "जो हाथ में है उसे पूरे मन से करें, बाकी को शांत मन से स्वीकार करें। यही समता है।"
+    greedy, balanced = wrap(f, text, 760), wrap_balanced(f, text, 760)
+    assert len(balanced) == len(greedy) == 2
+    widths = [text_width(f, ln) for ln in balanced]
+    assert min(widths) / max(widths) > 0.7

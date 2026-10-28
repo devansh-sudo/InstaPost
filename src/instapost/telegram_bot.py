@@ -17,12 +17,14 @@ from instapost import approvals, budget, producer, quick
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, get_kv, session, set_kv
 from instapost.publish import publisher
+from instapost.publish.instagram import PublishError
 from instapost.publish.tokens import redact
 from instapost.schedule import load_schedule
 
 HELP = """Commands
 /new reel gita गुस्सा – create one now (format, pillar and topic optional); arrives here
 /postnow <id> – publish an approved or waiting item right away
+/posted <id> <link> – link a reel you posted in the Instagram app
 /queue – items waiting for approval
 /approve_next 3 – approve the next N items
 /approve_tomorrow – approve everything planned for tomorrow
@@ -96,6 +98,8 @@ class Bot:
         return {"inline_keyboard": [
             [{"text": "✅ Approve", "callback_data": f"ap:{item.id}"},
              {"text": "🚀 Post now", "callback_data": f"pn:{item.id}"}],
+            *([[{"text": "📲 Trending song (I post it on Instagram)",
+                 "callback_data": f"ts:{item.id}"}]] if item.format == "reel_book_pov" else []),
             [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},
@@ -169,6 +173,15 @@ class Bot:
         actor = "telegram"
         try:
             with session() as s:
+                if action == "ts":
+                    item = s.get(Item, arg)
+                    if item is None:
+                        return "That item no longer exists."
+                    others = quick.trending(s, item, actor)
+                    item_id, folder, caption = item.id, item.folder, item.caption
+                    s.commit()
+                    self.pool.submit(self._send_for_app, item_id, folder, caption, others)
+                    return "📲 Sending you the video for the Instagram app…"
                 if action in ("ap", "rj", "pn"):
                     item = s.get(Item, arg)
                     if item is None:
@@ -199,6 +212,33 @@ class Bot:
             return f"Not done: {e}"
         return "Unknown button."
 
+    def _send_for_app(self, item_id: str, folder: str, caption: str,
+                      others: list[str]) -> None:
+        """The reel without background music + the caption, for posting in the app."""
+        from pathlib import Path
+
+        video = Path(folder) / "reel_for_app.mp4"
+        if not video.exists():
+            video = Path(folder) / "reel.mp4"
+        try:
+            with open(video, "rb") as f:
+                self.call("sendDocument", files={"document": (f"{item_id}.mp4", f)},
+                          chat_id=self.admin,
+                          caption="Post this on Instagram with a trending song:")
+            self.send(caption)
+            self.send(
+                "How to post it:\n"
+                "1. Save the video above (⋮ → Save to Gallery).\n"
+                "2. Instagram → + → Reel → choose it.\n"
+                "3. Tap ♫ Audio → search a trending devotional sound (e.g. \"Shiv\", "
+                "\"Krishna flute\", \"Hanuman\") → set its start → Done.\n"
+                "4. Volume: Original audio low (about 10–20%), the song about 70%.\n"
+                "5. Paste the caption above → Share.\n"
+                f"6. Then send me: /posted {item_id} <link of the reel>\n"
+                + (f"\nAlready posting automatically to: {', '.join(others)}." if others else ""))
+        except (OSError, TelegramError) as e:
+            self.send(f"⚠️ Could not send the video: {redact(str(e))[:200]}")
+
     def _regenerate(self, item_id: str) -> None:
         try:
             new_id = producer.regenerate(item_id, "telegram")
@@ -227,6 +267,16 @@ class Bot:
                         + (f" · {topic}" if topic else "")
                         + ". It arrives here in 2–4 minutes; tap 🚀 Post now to publish it.\n"
                         + quick.USAGE)
+            if cmd == "/posted":
+                if len(args) < 2:
+                    return "Use /posted <id> <instagram reel link>."
+                item = s.get(Item, args[0])
+                if item is None:
+                    return "No item with that id."
+                try:
+                    return quick.record_manual_post(s, item, args[1], actor)
+                except (approvals.QueueError, PublishError) as e:
+                    return f"Not done: {redact(str(e))[:300]}"
             if cmd == "/postnow":
                 if not args:
                     return "Use /postnow <id> (the id is at the bottom of each item message)."

@@ -25,3 +25,8 @@ data/images/**
 !data/images/scenes/
 !data/images/subjects/
 !data/images/*/.gitkeep
+
+# Your own music tracks (data/music/README.md)
+data/music/**
+!data/music/README.md
+!data/music/.gitkeep

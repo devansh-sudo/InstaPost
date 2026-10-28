@@ -59,6 +59,23 @@ def wrap(f: ImageFont.FreeTypeFont, text: str, max_width: float) -> list[str]:
     return [line for line in lines if line]
 
 
+def wrap_balanced(f: ImageFont.FreeTypeFont, text: str, max_width: float) -> list[str]:
+    """Same number of lines as `wrap`, but evenly filled (no single word left on a line)."""
+    lines = wrap(f, text, max_width)
+    if len(lines) < 2:
+        return lines
+    lo, hi = max_width * 0.4, max_width
+    best = lines
+    for _ in range(14):  # binary search the narrowest width that keeps the line count
+        mid = (lo + hi) / 2
+        trial = wrap(f, text, mid)
+        if len(trial) <= len(lines):
+            best, hi = trial, mid
+        else:
+            lo = mid
+    return best
+
+
 @dataclass
 class Box:
     x0: float

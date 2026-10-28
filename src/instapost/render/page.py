@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 from instapost.brand import Brand
-from instapost.render.text import Box, draw_centered, font, text_width, wrap
+from instapost.render.text import Box, draw_centered, font, text_width, wrap, wrap_balanced
 
 PAGE_W, PAGE_H = 940, 1400
 MARGIN_X = 80
@@ -26,10 +26,21 @@ class PageContent:
 
 
 @dataclass
+class RevealLayer:
+    """Text that fades in during the reel: an RGBA crop and where it sits on the page."""
+    image: Image.Image
+    x: int
+    y: int
+    order: int  # 0, 1, 2 ... in the order it appears
+
+
+@dataclass
 class RenderedPage:
-    image: Image.Image  # RGBA
+    image: Image.Image  # RGBA, everything visible (cover, carousel, QA)
     hook_boxes: list[Box] = field(default_factory=list)
     text_boxes: list[Box] = field(default_factory=list)
+    base: Image.Image | None = None  # RGBA, without the reveal layers (first reel frame)
+    reveal: list[RevealLayer] = field(default_factory=list)
 
 
 def hex_rgb(value: str) -> tuple[int, int, int]:
@@ -70,16 +81,29 @@ def _place_illustration(page: Image.Image, illus: Image.Image, box: tuple[int, i
 
 
 def _highlight(layer: Image.Image, box: Box, brand: Brand, rng: random.Random):
-    """Marker-style highlight with slightly uneven edges behind one hook line."""
+    """Marker-style band behind one hook line: even padding, soft rounded ends."""
     d = ImageDraw.Draw(layer)
     r, g, b = hex_rgb(brand.colors.highlight)
     alpha = int(255 * brand.colors.highlight_alpha)
-    pad_x, pad_top, pad_bottom = 18, 6, 10
+    pad_x, pad_top, pad_bottom = 22, 4, 12
     x0, x1 = box.x0 - pad_x, box.x1 + pad_x
     y0, y1 = box.y0 - pad_top, box.y1 + pad_bottom
-    top = [(x, y0 + rng.uniform(-3, 3)) for x in np.linspace(x0, x1, 9)]
-    bottom = [(x, y1 + rng.uniform(-3, 3)) for x in np.linspace(x1, x0, 9)]
-    d.polygon(top + bottom, fill=(r, g, b, alpha))
+    tilt = rng.uniform(-1.5, 1.5)  # a hand-drawn marker is never perfectly level
+    d.rounded_rectangle([x0, y0 + tilt, x1, y1 - tilt], radius=(y1 - y0) * 0.28,
+                        fill=(r, g, b, alpha))
+
+
+def _layer_from(draw_fn, size: tuple[int, int], order: int) -> RevealLayer | None:
+    """Draw onto a transparent page-sized layer, keep only the painted part."""
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(layer))
+    bbox = layer.getbbox()
+    if bbox is None:
+        return None
+    x0, y0, x1, y1 = bbox
+    x0, y0 = max(0, x0 - 4), max(0, y0 - 4)
+    x1, y1 = min(size[0], x1 + 4), min(size[1], y1 + 4)
+    return RevealLayer(layer.crop((x0, y0, x1, y1)), x0, y0, order)
 
 
 def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
@@ -98,17 +122,16 @@ def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
     num = str(c.page_number)
     d.text((PAGE_W - MARGIN_X + 20 - text_width(num_f, num), 50), num, font=num_f, fill=ink_soft)
 
-    if c.illustration is not None:
-        _place_illustration(page, c.illustration, (MARGIN_X, 120, PAGE_W - MARGIN_X, 600))
-
-    # Auto-fit the text block (hook, body, divider, reference) into the space below.
-    top, bottom = 640, PAGE_H - 90
-    for scale in (1.0, 0.92, 0.85, 0.78, 0.72, 0.66):
-        hook_f = font(brand.font_path("hook"), int(56 * scale))
+    # Fit the text block; the drawing takes what is left above it, so there is no empty gap.
+    top, bottom = 130, PAGE_H - 100
+    illus_min = 300 if c.illustration is not None else 0
+    gap_illus, gap_body, gap_div, gap_ref = 56, 28, 34, 26
+    for scale in (1.0, 0.94, 0.88, 0.82, 0.76, 0.7, 0.64):
+        hook_f = font(brand.font_path("hook"), int(58 * scale))
         body_f = font(brand.font_path("body"), int(38 * scale))
-        ref_f = font(brand.font_path("reference"), int(30 * scale))
-        hook = [ln for line in c.hook_lines for ln in wrap(hook_f, line, max_w - 40)]
-        body = wrap(body_f, c.body, max_w)
+        ref_f = font(brand.font_path("reference"), int(29 * scale))
+        hook = [ln for line in c.hook_lines for ln in wrap_balanced(hook_f, line, max_w - 40)]
+        body = wrap_balanced(body_f, c.body, max_w - 20)
         ref_lines = []
         if c.reference_label:
             ref_lines = [f"संदर्भ: {c.reference_label}"]
@@ -116,15 +139,27 @@ def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
                 # One shloka half per line: split after the danda.
                 halves = c.reference_text.replace("। ", "।\n")
                 ref_lines += wrap(ref_f, halves, max_w)
-        height = (len(hook) * hook_f.size * 1.45 + 24 + len(body) * body_f.size * 1.4
-                  + 90 + len(ref_lines) * ref_f.size * 1.4)
-        if height <= bottom - top:
+        divider_h = 44 if ref_lines else 0
+        text_h = (len(hook) * hook_f.size * 1.45 + gap_body + len(body) * body_f.size * 1.42
+                  + (gap_div + divider_h + gap_ref + len(ref_lines) * ref_f.size * 1.42
+                     if ref_lines else 0))
+        if text_h + illus_min + (gap_illus if illus_min else 0) <= bottom - top:
             break
     else:
         raise ValueError("text does not fit on the page even at the smallest size")
 
-    y = top + (bottom - top - height) / 2
-    # Measure hook boxes first so the highlight goes underneath the text.
+    if c.illustration is not None:
+        # The drawing gets the free space (up to 520 px), and the group is centred.
+        illus_h = min(520, bottom - top - text_h - gap_illus)
+        group_h = illus_h + gap_illus + text_h
+        y_illus = top + (bottom - top - group_h) / 2
+        _place_illustration(page, c.illustration,
+                            (MARGIN_X, int(y_illus), PAGE_W - MARGIN_X, int(y_illus + illus_h)))
+        y = y_illus + illus_h + gap_illus
+    else:
+        y = top + (bottom - top - text_h) / 2
+
+    # Hook: highlight underneath, then the text. Visible from the first frame.
     probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     hook_boxes = []
     yy = y
@@ -135,29 +170,68 @@ def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
     hl = Image.new("RGBA", page.size, (0, 0, 0, 0))
     for box in hook_boxes:
         _highlight(hl, box, brand, rng)
-    hl = hl.filter(ImageFilter.GaussianBlur(1.2))
+    hl = hl.filter(ImageFilter.GaussianBlur(0.8))
     page = Image.alpha_composite(page.convert("RGBA"), hl)
     d = ImageDraw.Draw(page)
-
     y, _ = draw_centered(d, hook, hook_f, cx, y, ink, line_gap=1.45)
-    y += 24
-    y, body_boxes = draw_centered(d, body, body_f, cx, y, ink, line_gap=1.4)
+    y += gap_body
 
-    # Divider: line - symbol - line.
-    y += 30
-    sym_f = font(brand.font_path("header"), 40)
-    sym_w = text_width(sym_f, brand.divider_symbol)
-    d.text((cx - sym_w / 2, y - 6), brand.divider_symbol, font=sym_f, fill=ink, language="hi")
-    mid = y + sym_f.size * 0.55
-    d.line([(cx - sym_w / 2 - 170, mid), (cx - sym_w / 2 - 20, mid)], fill=ink_soft, width=2)
-    d.line([(cx + sym_w / 2 + 20, mid), (cx + sym_w / 2 + 170, mid)], fill=ink_soft, width=2)
-    y += 60
+    # Everything below the hook goes on reveal layers (animated in the reel).
+    reveal: list[RevealLayer] = []
+    body_boxes, ref_boxes = [], []
+    order = 0
+    for line in body:
+        line_y = y
 
-    _, ref_boxes = draw_centered(d, ref_lines, ref_f, cx, y, ink_soft, line_gap=1.4)
+        def draw_body(dd, line=line, line_y=line_y):
+            _, boxes = draw_centered(dd, [line], body_f, cx, line_y, ink)
+            body_boxes.extend(boxes)
+
+        if layer := _layer_from(draw_body, page.size, order):
+            reveal.append(layer)
+            order += 1
+        y += body_f.size * 1.42
+
+    if ref_lines:
+        y += gap_div
+        div_y = y
+
+        def draw_divider(dd):
+            sym_f = font(brand.font_path("header"), 40)
+            sym_w = text_width(sym_f, brand.divider_symbol)
+            dd.text((cx - sym_w / 2, div_y - 6), brand.divider_symbol, font=sym_f, fill=ink,
+                    language="hi")
+            mid = div_y + sym_f.size * 0.55
+            dd.line([(cx - sym_w / 2 - 150, mid), (cx - sym_w / 2 - 22, mid)], fill=ink_soft,
+                    width=2)
+            dd.line([(cx + sym_w / 2 + 22, mid), (cx + sym_w / 2 + 150, mid)], fill=ink_soft,
+                    width=2)
+
+        if layer := _layer_from(draw_divider, page.size, order):
+            reveal.append(layer)
+            order += 1
+        y += divider_h + gap_ref
+        for line in ref_lines:
+            line_y = y
+
+            def draw_ref(dd, line=line, line_y=line_y):
+                _, boxes = draw_centered(dd, [line], ref_f, cx, line_y, ink_soft)
+                ref_boxes.extend(boxes)
+
+            if layer := _layer_from(draw_ref, page.size, order):
+                reveal.append(layer)
+                order += 1
+            y += ref_f.size * 1.42
 
     foot_f = font(brand.font_path("footer"), 22)
-    d.text((PAGE_W - MARGIN_X - text_width(foot_f, c.footer), PAGE_H - 58), c.footer,
-           font=foot_f, fill=ink_soft)
+    if c.footer:
+        d.text((PAGE_W - MARGIN_X - text_width(foot_f, c.footer), PAGE_H - 58), c.footer,
+               font=foot_f, fill=ink_soft)
 
-    return RenderedPage(image=page, hook_boxes=hook_boxes,
-                        text_boxes=hook_boxes + body_boxes + ref_boxes)
+    base = page.copy()
+    full = page.copy()
+    for layer in reveal:
+        full.alpha_composite(layer.image, (layer.x, layer.y))
+    return RenderedPage(image=full, hook_boxes=hook_boxes,
+                        text_boxes=hook_boxes + body_boxes + ref_boxes, base=base,
+                        reveal=reveal)

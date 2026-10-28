@@ -1,6 +1,7 @@
 """Places the rendered book page into the background scene (1080x1920 frame)."""
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
@@ -25,7 +26,7 @@ def _background(scene: Image.Image) -> Image.Image:
     return Image.fromarray((np.asarray(bg, np.float32) * v[..., None]).astype(np.uint8))
 
 
-def _book_layer(brand: Brand, page: RenderedPage, seed: int) -> Image.Image:
+def _book_layer(brand: Brand, page_image: Image.Image, seed: int) -> Image.Image:
     """Right-hand page plus a sliver of the facing page, page edges and a soft shadow."""
     layer = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
     edge = hex_rgb(brand.colors.paper_edge)
@@ -44,14 +45,22 @@ def _book_layer(brand: Brand, page: RenderedPage, seed: int) -> Image.Image:
         d.rectangle([PAGE_X - 60, PAGE_Y + 6, PAGE_X + PAGE_W + i * 2, PAGE_Y + PAGE_H + i * 3],
                     fill=(*shade, 255))
 
-    # Facing (left) page sliver with a dark gutter.
-    facing = paper_texture(brand, 160, PAGE_H, seed + 1).convert("RGBA")
-    g = np.linspace(1.0, 0.62, 160, dtype=np.float32)
+    # Facing (left) page: paper curving down into the gutter, not a flat slab.
+    fw = 120
+    facing = paper_texture(brand, fw, PAGE_H, seed + 1).convert("RGBA")
+    x = np.linspace(0, 1, fw, dtype=np.float32)
+    g = 0.97 - 0.40 * x ** 2.2  # light at the outer edge, darker into the gutter
     arr = np.asarray(facing, np.float32)
     arr[..., :3] *= g[None, :, None]
-    layer.alpha_composite(Image.fromarray(arr.astype(np.uint8)), (PAGE_X - 150, PAGE_Y))
+    layer.alpha_composite(Image.fromarray(arr.astype(np.uint8)), (PAGE_X - fw + 8, PAGE_Y + 4))
 
-    layer.alpha_composite(page.image, (PAGE_X, PAGE_Y))
+    # Gutter shadow falling onto the right page.
+    page_img = page_image.copy()
+    gw = 70
+    shade = np.zeros((PAGE_H, PAGE_W, 4), np.uint8)
+    shade[:, :gw, 3] = (np.linspace(95, 0, gw) ** 1.0).astype(np.uint8)[None, :]
+    page_img.alpha_composite(Image.fromarray(shade, "RGBA"))
+    layer.alpha_composite(page_img, (PAGE_X, PAGE_Y))
     return layer.rotate(TILT_DEG, resample=Image.Resampling.BICUBIC,
                         center=(FRAME_W / 2, FRAME_H / 2))
 
@@ -73,6 +82,47 @@ def compose(brand: Brand, scene: Image.Image, page: RenderedPage,
             seed: int = 0) -> tuple[Image.Image, list[Box], list[Box]]:
     """Return the still frame plus hook and text boxes in frame coordinates."""
     frame = _background(scene).convert("RGBA")
-    frame.alpha_composite(_book_layer(brand, page, seed))
+    frame.alpha_composite(_book_layer(brand, page.image, seed))
     return (frame.convert("RGB"), [_rotate_box(b) for b in page.hook_boxes],
             [_rotate_box(b) for b in page.text_boxes])
+
+
+@dataclass
+class FrameLayer:
+    """A reveal layer in frame coordinates (already tilted like the book)."""
+    rgb: np.ndarray    # (h, w, 3) float32
+    alpha: np.ndarray  # (h, w, 1) float32, 0..1
+    x: int
+    y: int
+    order: int
+
+
+@dataclass
+class Composition:
+    still: Image.Image   # everything visible: cover, QA, carousel-style uses
+    base: Image.Image    # first reel frame: hook visible, the rest still to appear
+    layers: list[FrameLayer]
+    hook_boxes: list[Box]
+    text_boxes: list[Box]
+
+
+def compose_reel(brand: Brand, scene: Image.Image, page: RenderedPage,
+                 seed: int = 0) -> Composition:
+    still, hook_boxes, text_boxes = compose(brand, scene, page, seed)
+    if page.base is None or not page.reveal:
+        return Composition(still, still, [], hook_boxes, text_boxes)
+    frame = _background(scene).convert("RGBA")
+    frame.alpha_composite(_book_layer(brand, page.base, seed))
+    layers = []
+    for rv in page.reveal:
+        canvas = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
+        canvas.alpha_composite(rv.image, (PAGE_X + rv.x, PAGE_Y + rv.y))
+        canvas = canvas.rotate(TILT_DEG, resample=Image.Resampling.BICUBIC,
+                               center=(FRAME_W / 2, FRAME_H / 2))
+        bbox = canvas.getbbox()
+        if bbox is None:
+            continue
+        crop = np.asarray(canvas.crop(bbox), np.float32)
+        layers.append(FrameLayer(crop[..., :3], crop[..., 3:] / 255.0, bbox[0], bbox[1],
+                                 rv.order))
+    return Composition(still, frame.convert("RGB"), layers, hook_boxes, text_boxes)

@@ -17,9 +17,9 @@ from instapost import history, qa
 from instapost.brand import Brand, load_brand
 from instapost.config import IMAGE_KEYS, get_settings, require
 from instapost.models import Draft, FactCheckResult, FactCheckVerdict, Format, Pillar, QAReport
-from instapost.render import carousel, video
+from instapost.render import carousel, music, video
 from instapost.render.page import PageContent, render_page
-from instapost.render.scene import compose
+from instapost.render.scene import compose_reel
 from instapost.studio import fact_check, images, safety, writer
 
 
@@ -127,16 +127,21 @@ def make(
             body=draft.body, reference_label=fact.reference_label,
             reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
         ), seed)
-        still, _, text_boxes = compose(brand, scene, page, seed)
+        comp = compose_reel(brand, scene, page, seed)
+        still, text_boxes = comp.still, comp.text_boxes
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
-        motion = video.Motion(still, brand, duration, seed)
+        motion = video.Motion(still, brand, duration, seed, comp)
         checks += qa.check_reel(draft, motion, text_boxes)
         still.save(folder / "cover.jpg", quality=92)
         if vision_qa:
             checks.append(qa.check_vision(still, brand))
         if all(c.passed for c in checks):
             step("encoding video")
-            video.encode(still, brand, duration, folder / "reel.mp4", seed)
+            track = music.pick(pillar)
+            video.encode(still, brand, duration, folder / "reel.mp4", seed, comp, music=track,
+                         app_copy=folder / "reel_for_app.mp4")
+            if track is not None:
+                (folder / "music.txt").write_text(track.name + "\n", encoding="utf-8")
 
     elif fmt == Format.CAROUSEL_SHLOK:
         illus = provider.generate(

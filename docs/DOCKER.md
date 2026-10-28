@@ -43,6 +43,13 @@ scp ~/Downloads/diya-*.jpg  devansh@46.224.187.54:/mnt/HC_Volume_105724104/insta
 ```
 No restart needed; `bash deploy/docker.sh cli check` shows how many it found.
 
+## Music for reels (royalty-free)
+
+```bash
+scp ~/Downloads/krishna-bansuri-*.mp3 devansh@46.224.187.54:/mnt/HC_Volume_105724104/instapost/data/music/
+```
+Naming and where to get tracks you may use: `data/music/README.md`. No restart needed.
+
 ## Updating to the latest code
 
 ```bash
