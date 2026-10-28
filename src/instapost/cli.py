@@ -122,7 +122,13 @@ def _youtube_login(args) -> int:
     from instapost.publish import youtube
 
     youtube.login(args.port, args.bind, paste=not args.tunnel)
-    print("YouTube connected:", youtube.channel())
+    try:
+        print("YouTube connected:", youtube.channel())
+    except Exception as e:  # noqa: BLE001 - the login itself is saved; report what blocks use
+        print("Login saved, but the channel could not be read yet:\n  "
+              + redact(str(e))[:400] + "\nFix that (e.g. enable the API it names), then run "
+              "`instapost check`; no need to log in again.")
+        return 1
     return 0
 
 
