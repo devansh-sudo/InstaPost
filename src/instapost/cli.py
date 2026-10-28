@@ -57,9 +57,65 @@ def _budget(_args) -> int:
     return 0
 
 
-def _verses(_args) -> int:
-    for v in load_verses().values():
-        print(f"{v.review_status:9} {v.id:28} {v.label}")
+REVIEW_SOURCES = {
+    "श्रीमद्भगवद्गीता": "Gita Press Gorakhpur edition, or gitasupersite.iitk.ac.in (IIT Kanpur)",
+    "संत कबीर": "a Kabir edition such as कबीर ग्रंथावली (नागरी प्रचारिणी सभा); wording varies "
+                "between editions, so a common, well-attested version is fine",
+    "शिव मंत्र": "a printed stotra/mantra book (e.g. Gita Press), and the named source "
+                 "(ऋग्वेद 7.59.12 for the Mahamrityunjaya mantra)",
+}
+
+
+def _verses(args) -> int:
+    from instapost import scriptures
+
+    if args.action == "set":
+        if not (args.id and args.status):
+            print("usage: instapost verses set <id> <pending|reviewed|rejected>")
+            return 1
+        path = scriptures.set_status(args.id, args.status)
+        print(f"{args.id}: {args.status} ({path.name})")
+        return 0
+    verses = list(load_verses().values())
+    if args.action == "list":
+        for v in verses:
+            print(f"{v.review_status:9} {v.id:28} {v.label}")
+        done = sum(v.reviewed for v in verses)
+        print(f"\n{done}/{len(verses)} reviewed. Review them with: instapost verses review")
+        return 0
+    todo = [v for v in verses if v.review_status == "pending" or args.all]
+    if not todo:
+        print("Nothing pending. (Use --all to go through every verse again.)")
+        return 0
+    print(f"{len(todo)} to review. For each: compare the text, number and speaker with a "
+          "printed edition.\nAnswer  c = correct   w = wrong (never cited until fixed)   "
+          "s = skip   q = quit\n")
+    for n, v in enumerate(todo, 1):
+        path, line = scriptures.verse_file(v.id)
+        print(f"── {n}/{len(todo)}  {v.id}  ({path.name}, line {line}) " + "─" * 20)
+        print(f"  label:    {v.label}")
+        print(f"  speaker:  {v.speaker or '-'}")
+        print(f"  text:     {v.text}")
+        print(f"  meaning:  {v.meaning}")
+        print(f"  check with: {REVIEW_SOURCES.get(v.source, 'a trusted printed edition')}")
+        print("  checks: every letter, matra, halant (्) and danda (। ॥) of the text; the "
+              "number/source in the label; who speaks; the meaning says no more than the text")
+        while True:
+            answer = input("  c/w/s/q? ").strip().lower()
+            if answer in ("c", "w", "s", "q"):
+                break
+        if answer == "q":
+            break
+        if answer == "s":
+            continue
+        status = "reviewed" if answer == "c" else "rejected"
+        scriptures.set_status(v.id, status)
+        print(f"  saved: {status}" + ("" if answer == "c" else
+              f". To fix it: edit {path} line {line}, then "
+              f"`instapost verses set {v.id} reviewed`"))
+        print()
+    verses = list(load_verses().values())
+    print(f"{sum(v.reviewed for v in verses)}/{len(verses)} reviewed.")
     return 0
 
 
@@ -228,7 +284,12 @@ def main(argv: list[str] | None = None) -> int:
     make.set_defaults(func=_make)
 
     sub.add_parser("budget", help="show spend against the caps").set_defaults(func=_budget)
-    sub.add_parser("verses", help="list the verified-verse database").set_defaults(func=_verses)
+    vs = sub.add_parser("verses", help="list or review the verified-verse database")
+    vs.add_argument("action", nargs="?", default="list", choices=["list", "review", "set"])
+    vs.add_argument("id", nargs="?")
+    vs.add_argument("status", nargs="?", choices=["pending", "reviewed", "rejected"])
+    vs.add_argument("--all", action="store_true", help="review: also already-reviewed verses")
+    vs.set_defaults(func=_verses)
 
     adm = sub.add_parser("admin-setup", help="create dashboard login")
     adm.add_argument("--password-stdin", action="store_true",

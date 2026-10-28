@@ -53,7 +53,7 @@ def checklist() -> list[Step]:
         Step("Instagram handle in brand.yaml", load_brand().handle != "@your_handle",
              "edit `handle:` in brand.yaml"),
         Step(f"Verses reviewed ({reviewed}/{len(verses)})", reviewed == len(verses),
-             "compare data/scriptures/*.yaml with a printed edition, set review_status: reviewed"),
+             "bash deploy/docker.sh verses review (docs/VERSES.md)"),
         Step("Dashboard login", bool(s.admin_password_hash and s.admin_totp_secret
                                      and s.session_secret), "run `instapost admin-setup`"),
         Step("Telegram bot", bool(s.telegram_bot_token and s.telegram_admin_chat_id),

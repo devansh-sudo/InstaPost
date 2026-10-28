@@ -14,6 +14,7 @@
 #   bash deploy/docker.sh admin-setup       create the dashboard login
 #   bash deploy/docker.sh youtube-login     connect YouTube once (needs an SSH tunnel, see output)
 #   bash deploy/docker.sh cli <args>        any instapost command, e.g. cli make reel --pillar gita
+#   bash deploy/docker.sh verses review     go through the verses and mark them correct or wrong
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -282,6 +283,18 @@ $APP_DIR/secrets/youtube_client_secret.json first (docs/SETUP_META_YOUTUBE.md B2
   compose run --rm worker instapost youtube-login
 }
 
+cmd_verses() {
+  preflight
+  [ -f "$COMPOSE_ENV" ] || die "run 'bash deploy/docker.sh deploy' first"
+  # data/ is read-only in the containers; only this command may change the verse files.
+  compose run --rm -v "$APP_DIR/data/scriptures:/app/data/scriptures" worker \
+    instapost verses "$@"
+  case "${1:-list}" in
+    review|set) say "Restarting the worker so it uses the updated verses"
+                compose up -d --force-recreate worker ;;
+  esac
+}
+
 case "${1:-deploy}" in
   deploy)      shift || true; cmd_deploy "$@" ;;
   update)      shift; cmd_update "$@" ;;
@@ -292,5 +305,6 @@ case "${1:-deploy}" in
   admin-setup) cmd_admin_setup ;;
   youtube-login) cmd_youtube_login ;;
   cli)         shift; cmd_cli "$@" ;;
-  *)           sed -n '2,17p' "$0"; exit 1 ;;
+  verses)      shift; cmd_verses "$@" ;;
+  *)           sed -n '2,18p' "$0"; exit 1 ;;
 esac

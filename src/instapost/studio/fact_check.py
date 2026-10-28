@@ -33,6 +33,9 @@ def fact_check(draft: Draft) -> FactCheckResult:
         if verse is None:
             return FactCheckResult(verdict=FactCheckVerdict.FAIL,
                                    issues=[f"unknown reference_id {draft.reference_id!r}"])
+        if verse.rejected:
+            return FactCheckResult(verdict=FactCheckVerdict.FAIL,
+                                   issues=[f"{verse.id} was marked wrong in the verse review"])
         if not verse.reviewed:
             issues.append(f"{verse.id}: verse text not yet reviewed by a human")
 
