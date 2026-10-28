@@ -23,6 +23,12 @@ class Facebook:
         self.poll_seconds = poll_seconds
         self.max_wait = max_wait_seconds
 
+    def page(self) -> dict:
+        """The Page this token can act for (a cheap live check of ID and token)."""
+        return self._check(self.http.get(
+            f"{self.base}/{self.page_id}", params={"fields": "id,name,followers_count"},
+            headers={"Authorization": f"OAuth {self.token}"}), "page")
+
     def _check(self, r: httpx.Response, what: str) -> dict:
         try:
             body = r.json()

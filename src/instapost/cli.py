@@ -132,16 +132,31 @@ def _check(_args) -> int:
     ok = publisher.configured_platforms()
     for p in ("instagram", "facebook", "youtube"):
         print(f"{p:10} {'connected' if p in ok else 'not set up'}")
+    from instapost.publish.instagram import PublishError
+
+    # "connected" above only means the settings are present; these calls test them for real.
     if "instagram" in ok:
         from instapost.publish.instagram import Instagram
 
-        ig = Instagram()
-        me = ig.me()
-        print("  account:", me)
-        if me.get("user_id") and str(me["user_id"]) != str(s.ig_user_id):
-            print(f"  ! IG_USER_ID in .env is {s.ig_user_id}, but this token belongs to "
-                  f"user_id {me['user_id']}. Set IG_USER_ID={me['user_id']} and restart.")
-        print("  publishing limit:", ig.publishing_limit())
+        try:
+            ig = Instagram()
+            me = ig.me()
+            print("  instagram account:", me)
+            if me.get("user_id") and str(me["user_id"]) != str(s.ig_user_id):
+                print(f"  ! IG_USER_ID in .env is {s.ig_user_id}, but this token belongs to "
+                      f"user_id {me['user_id']}. Set IG_USER_ID={me['user_id']} and restart.")
+            else:
+                print("  instagram publishing limit:", ig.publishing_limit())
+        except PublishError as e:
+            print(f"  ! instagram test failed: {e}")
+    if "facebook" in ok:
+        from instapost.publish.facebook import Facebook
+
+        try:
+            print("  facebook page:", Facebook().page())
+        except PublishError as e:
+            print(f"  ! facebook test failed: {e} (check FB_PAGE_ID and that FB_PAGE_TOKEN "
+                  "is the Page token from me/accounts)")
     print(f"telegram   {'set' if s.telegram_bot_token else 'not set'}"
           f"{'' if s.telegram_admin_chat_id else ' (TELEGRAM_ADMIN_CHAT_ID missing)'}")
     print(f"dashboard  {'login set' if s.admin_password_hash else 'run admin-setup'}")

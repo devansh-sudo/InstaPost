@@ -227,3 +227,26 @@ def test_placeholder_handle_is_not_printed_and_real_handle_is_not_a_watermark(mo
     monkeypatch.setattr(qa.llm, "structured", fake)
     assert qa.check_vision(Image.new("RGB", (1080, 1920)), real).passed
     assert "'@jeevan.sutra'" in seen["text"] and "not problems" in seen["text"]
+
+
+def test_check_reports_bad_ig_user_id_without_crashing(monkeypatch, capsys):
+    from instapost import cli
+    from instapost.publish import instagram
+
+    monkeypatch.setenv("IG_USER_ID", "thou.ghtory")
+    monkeypatch.setenv("IG_ACCESS_TOKEN", "IGAAtest")
+    from instapost.config import get_settings
+    get_settings.cache_clear()
+    monkeypatch.setattr(instagram.Instagram, "me", lambda self: {"user_id": "1784"})
+
+    def boom(self):
+        raise instagram.PublishError("Instagram 400: Unsupported get request")
+
+    monkeypatch.setattr(instagram.Instagram, "publishing_limit", boom)
+    assert cli.main(["check"]) == 0
+    out = capsys.readouterr().out
+    assert "Set IG_USER_ID=1784" in out
+    monkeypatch.setenv("IG_USER_ID", "1784")
+    get_settings.cache_clear()
+    assert cli.main(["check"]) == 0
+    assert "! instagram test failed: Instagram 400" in capsys.readouterr().out
