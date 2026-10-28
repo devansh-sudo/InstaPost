@@ -325,3 +325,27 @@ def test_youtube_paste_login_rejects_wrong_paste(monkeypatch):
         youtube.login(paste=True, read=lambda _: "https://accounts.google.com/o/oauth2/auth?x")
     with pytest.raises(PublishError, match="access_denied"):
         youtube.login(paste=True, read=lambda _: "http://localhost:8085/?error=access_denied&code=")
+
+
+def test_key_report_same_value_from_docker_env_names_the_line(tmp_path, monkeypatch):
+    from instapost.config import key_report
+    env = tmp_path / ".env"
+    env.write_text("GEMINI_API_KEY=AIzaSame\n")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSame")
+    assert key_report("GEMINI_API_KEY", env) == ".env line 1: 8 characters"
+
+
+def test_video_hosting_step_needs_https_for_local(monkeypatch):
+    from instapost.config import get_settings
+    from instapost.setup_status import checklist
+
+    def step():
+        get_settings.cache_clear()
+        return next(s for s in checklist() if s.label.startswith("Video hosting"))
+
+    monkeypatch.setenv("MEDIA_HOST", "local")
+    assert not step().done
+    monkeypatch.setenv("PUBLIC_BASE_URL", "http://46.224.187.54:4010")
+    assert not step().done
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://thoughtory.duckdns.org")
+    assert step().done

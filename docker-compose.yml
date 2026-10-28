@@ -17,6 +17,9 @@ x-app: &app
     - ./brand.yaml:/app/brand.yaml:ro
     - ./schedule.yaml:/app/schedule.yaml:ro
     - ./data:/app/data:ro
+    # Read-only, only so `instapost check` can point at problems in the file itself;
+    # the values reach the app through env_file above.
+    - ./.env:/app/.env:ro
   logging:
     driver: json-file
     options: {max-size: "10m", max-file: "3"}

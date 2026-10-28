@@ -163,6 +163,8 @@ def key_report(name: str, path: Path | None = None) -> str:
             if m:
                 found = (no, m.group(1).split(" #")[0].strip().strip("\"'"))
     env_value = os.environ.get(name, "").strip()
+    if env_value and found and env_value == found[1]:
+        env_value = ""  # Docker passes .env as environment; same value, so name the line
     if env_value:
         where, value = "your shell environment (overrides .env)", env_value
     elif found:

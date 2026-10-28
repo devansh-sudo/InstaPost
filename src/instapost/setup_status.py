@@ -38,8 +38,12 @@ def checklist() -> list[Step]:
     chain = chain_names()
     # A source refused in the last day (no billing, bad key) does not count as ready.
     image_ok = [n for n in chain if usable.get(n) and not recent_refusal(n)]
-    r2_ok = s.media_host != "r2" or all(
-        (s.r2_account_id, s.r2_access_key_id, s.r2_secret_access_key, s.r2_bucket))
+    https = (s.public_base_url or "").startswith("https://")
+    if s.media_host == "r2":
+        media_ok = all((s.r2_account_id, s.r2_access_key_id, s.r2_secret_access_key,
+                        s.r2_bucket))
+    else:  # local: Instagram fetches the videos from this server's /media route
+        media_ok = https
     return [
         Step("Claude API key", bool(s.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")),
              "ANTHROPIC_API_KEY in .env (console.anthropic.com)"),
@@ -60,9 +64,11 @@ def checklist() -> list[Step]:
              "FB_PAGE_ID + FB_PAGE_TOKEN (docs/SETUP_META_YOUTUBE.md A4)", required=False),
         Step("YouTube connected", "youtube" in platforms,
              "client JSON in secrets/ + `instapost youtube-login`", required=False),
-        Step("Media hosting (R2)", r2_ok, "R2_* values in .env (docs/DEPLOY.md step 2.5)"),
-        Step("Dashboard behind Cloudflare (HTTPS)", bool(s.public_base_url),
-             "PUBLIC_BASE_URL after the tunnel is set up (docs/DEPLOY.md step 5)"),
+        Step(f"Video hosting ({s.media_host})", media_ok,
+             "a domain with HTTPS, then MEDIA_HOST=local + PUBLIC_BASE_URL=https://... "
+             "(docs/DOCKER.md, nginx-proxy-manager) or R2_* values (docs/DEPLOY.md 2.5)"),
+        Step("Dashboard on HTTPS", https,
+             "PUBLIC_BASE_URL=https://your-domain after the proxy is set up (docs/DOCKER.md)"),
         Step("Demo mode off", not s.demo_mode, "DEMO_MODE=false before going live"),
         Step("Festival dates confirmed", _festivals_confirmed(),
              "check data/calendar/festivals.yaml against a panchang, set confirmed: true",
