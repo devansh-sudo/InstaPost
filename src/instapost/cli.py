@@ -136,7 +136,11 @@ def _check(_args) -> int:
         from instapost.publish.instagram import Instagram
 
         ig = Instagram()
-        print("  account:", ig.me())
+        me = ig.me()
+        print("  account:", me)
+        if me.get("user_id") and str(me["user_id"]) != str(s.ig_user_id):
+            print(f"  ! IG_USER_ID in .env is {s.ig_user_id}, but this token belongs to "
+                  f"user_id {me['user_id']}. Set IG_USER_ID={me['user_id']} and restart.")
         print("  publishing limit:", ig.publishing_limit())
     print(f"telegram   {'set' if s.telegram_bot_token else 'not set'}"
           f"{'' if s.telegram_admin_chat_id else ' (TELEGRAM_ADMIN_CHAT_ID missing)'}")

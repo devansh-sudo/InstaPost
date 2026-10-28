@@ -56,7 +56,8 @@
    **long-lived token (~60 days)**. The agent refreshes it automatically before it expires.
    → `.env`: `IG_ACCESS_TOKEN`
 5. The same screen shows the **Instagram user ID** (a long number).
-   → `.env`: `IG_USER_ID`
+   → `.env`: `IG_USER_ID`. If you're unsure which number it is, put any of them: `instapost
+   check` asks Instagram for the real `user_id` of the token and tells you if it differs.
 6. You can skip "Configure webhooks" and "Set up Instagram business login" for now.
 
 ### A4. Facebook Page token for Facebook Reels (about 10 min)
@@ -77,8 +78,10 @@
 
 ### A5. What goes in `.env` from Meta
 ```
+# Optional (not used for publishing; keep for reference):
 META_APP_ID=...
 META_APP_SECRET=...
+# Required for Instagram:
 IG_USER_ID=...
 IG_ACCESS_TOKEN=...
 FB_PAGE_ID=...
