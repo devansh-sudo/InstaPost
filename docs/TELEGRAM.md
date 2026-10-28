@@ -20,6 +20,8 @@ Recommended, in the same BotFather chat:
 - `/setcommands` → choose your bot → paste the list below (gives you a tap-able menu):
 
 ```
+new - create one now, e.g. /new reel gita गुस्सा
+postnow - publish an item right away, e.g. /postnow <id>
 queue - items waiting for approval
 approve_next - approve the next N items, e.g. /approve_next 3
 approve_tomorrow - approve everything planned for tomorrow
@@ -72,11 +74,15 @@ piece now) or wait for the evening run (`generate_at` in `schedule.yaml`, 20:30)
 
 | You get | What to do |
 |---|---|
-| 🎬 Reel / 🖼 Carousel / 📱 Story with buttons | ✅ approve (posts at its slot), ❌ reject, 🔁 regenerate |
+| 🎬 Reel / 🖼 Carousel / 📱 Story with buttons | 🚀 post now (all platforms at once), ✅ approve (posts at its slot), ❌ reject, 🔁 regenerate |
 | "📅 Approve all <date>" button | approves the whole day at once |
 | 🚀 Published, with links | nothing; check the post if you like |
 | 09:00 report | followers, yesterday's posts, best of the week, spend |
 | ⚠️ / ⛔ messages | something failed or a cap was reached; the message says what |
+
+Make something now: `/new` (a reel in today's pillar), `/new reel gita गुस्सा`,
+`/new story shiv`, `/new carousel kabir`. On the server the same is
+`bash deploy/docker.sh post reel gita गुस्सा`. It arrives here in 2–4 minutes.
 
 Emergency: `/kill` stops all publishing at once; `/resume` allows it again.
 

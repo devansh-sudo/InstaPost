@@ -13,13 +13,16 @@ from pathlib import Path
 
 import httpx
 
-from instapost import approvals, budget, producer
+from instapost import approvals, budget, producer, quick
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, get_kv, session, set_kv
+from instapost.publish import publisher
 from instapost.publish.tokens import redact
 from instapost.schedule import load_schedule
 
 HELP = """Commands
+/new reel gita गुस्सा – create one now (format, pillar and topic optional); arrives here
+/postnow <id> – publish an approved or waiting item right away
 /queue – items waiting for approval
 /approve_next 3 – approve the next N items
 /approve_tomorrow – approve everything planned for tomorrow
@@ -92,7 +95,8 @@ class Bot:
             return None
         return {"inline_keyboard": [
             [{"text": "✅ Approve", "callback_data": f"ap:{item.id}"},
-             {"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
+             {"text": "🚀 Post now", "callback_data": f"pn:{item.id}"}],
+            [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},
              {"text": f"📅 Approve all {item.for_date}", "callback_data": f"ad:{item.for_date}"}],
@@ -165,10 +169,18 @@ class Bot:
         actor = "telegram"
         try:
             with session() as s:
-                if action in ("ap", "rj"):
+                if action in ("ap", "rj", "pn"):
                     item = s.get(Item, arg)
                     if item is None:
                         return "That item no longer exists."
+                    if action == "pn":
+                        targets = publisher.targets_for(item)
+                        if not targets:
+                            return ("Not posted: no platform for this format is connected "
+                                    "(see /setup).")
+                        quick.post_now(s, item, actor)
+                        return (f"🚀 Posting now to {', '.join(targets)}. "
+                                "The links arrive here in a few minutes.")
                     if action == "ap":
                         approvals.approve(s, item, actor)
                         return f"✅ Approved. Posts {approvals.local_time_label(item)}."
@@ -208,6 +220,26 @@ class Bot:
         with session() as s:
             if cmd in ("/start", "/help"):
                 return HELP
+            if cmd == "/new":
+                fmt, pillar, topic = quick.parse(args)
+                quick.request_new(fmt, pillar, topic, actor)
+                return (f"🛠 Creating {FORMAT_LABEL.get(fmt.value, fmt.value)} · {pillar.value}"
+                        + (f" · {topic}" if topic else "")
+                        + ". It arrives here in 2–4 minutes; tap 🚀 Post now to publish it.\n"
+                        + quick.USAGE)
+            if cmd == "/postnow":
+                if not args:
+                    return "Use /postnow <id> (the id is at the bottom of each item message)."
+                item = s.get(Item, args[0])
+                if item is None:
+                    return "No item with that id."
+                if not publisher.targets_for(item):
+                    return "Not posted: no platform for this format is connected (see /setup)."
+                try:
+                    quick.post_now(s, item, actor)
+                except approvals.QueueError as e:
+                    return f"Not done: {e}"
+                return "🚀 Posting now. The links arrive here in a few minutes."
             if cmd == "/queue":
                 items = approvals.pending_review(s)
                 if not items:

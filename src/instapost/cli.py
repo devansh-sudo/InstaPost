@@ -153,6 +153,20 @@ def _admin_setup(args) -> int:
     return 0
 
 
+def _new(args) -> int:
+    from instapost import quick
+    from instapost.telegram_bot import FORMAT_LABEL
+
+    fmt, pillar, topic = quick.parse(args.words)
+    job = quick.request_new(fmt, pillar, topic, "cli")
+    print(f"Queued job {job}: {FORMAT_LABEL.get(fmt.value, fmt.value)} · {pillar.value}"
+          + (f" · {topic}" if topic else ""))
+    print("The worker makes it now (2–4 minutes) and sends it to Telegram.\n"
+          "Tap 🚀 Post now there to publish to all platforms at once, or ✅ Approve to post "
+          "at the next time slot.")
+    return 0
+
+
 def _web(_args) -> int:
     import uvicorn
 
@@ -294,6 +308,10 @@ def main(argv: list[str] | None = None) -> int:
     adm.add_argument("--password-stdin", action="store_true",
                      help="read the password from stdin and print only KEY=VALUE lines")
     adm.set_defaults(func=_admin_setup)
+    new = sub.add_parser("new", help="create one piece now via the worker; it arrives in "
+                         "Telegram with 🚀 Post now")
+    new.add_argument("words", nargs="*", help="[reel|carousel|story] [pillar] [topic ...]")
+    new.set_defaults(func=_new)
     sub.add_parser("web", help="run the dashboard").set_defaults(func=_web)
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")

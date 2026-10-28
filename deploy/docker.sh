@@ -15,6 +15,7 @@
 #   bash deploy/docker.sh youtube-login     connect YouTube once (needs an SSH tunnel, see output)
 #   bash deploy/docker.sh cli <args>        any instapost command, e.g. cli make reel --pillar gita
 #   bash deploy/docker.sh verses review     go through the verses and mark them correct or wrong
+#   bash deploy/docker.sh post [reel|carousel|story] [pillar] [topic]   make one now -> Telegram
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -306,5 +307,6 @@ case "${1:-deploy}" in
   youtube-login) cmd_youtube_login ;;
   cli)         shift; cmd_cli "$@" ;;
   verses)      shift; cmd_verses "$@" ;;
-  *)           sed -n '2,18p' "$0"; exit 1 ;;
+  post)        shift; cmd_cli new "$@" ;;
+  *)           sed -n '2,19p' "$0"; exit 1 ;;
 esac
