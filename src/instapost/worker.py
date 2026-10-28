@@ -14,7 +14,7 @@ import logging
 import time
 from datetime import UTC, date, datetime, timedelta
 
-from instapost import approvals, jobs, producer
+from instapost import approvals, jobs, producer, quick
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, audit, get_kv, session, set_kv, utcnow
 from instapost.jobs import track
@@ -61,6 +61,18 @@ class Worker:
             with track("publish", item_id) as job, session() as s:
                 item = s.get(Item, item_id)
                 if item.status != ItemStatus.APPROVED or approvals.kill_switch_on(s):
+                    continue
+                if "instagram" in (item.manual_platforms or []) \
+                        and not quick.app_package_sent(s, item_id):
+                    # You post this reel in the Instagram app (trending sound): send it now.
+                    audit(s, "agent", "app_package_sent", item_id)
+                    package = (item.id, item.folder, item.caption, publisher.targets_for(item),
+                               quick.sound_suggestions(s, item))
+                    s.commit()
+                    if self.bot:
+                        self.bot._send_for_app(*package)
+                if not publisher.targets_for(item):
+                    item.scheduled_at = None  # nothing automatic left: waits for /posted
                     continue
                 job.step("publishing")
                 try:

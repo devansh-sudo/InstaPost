@@ -179,6 +179,7 @@ class PlanEntry(Base):
     length: Mapped[str | None] = mapped_column(String(10))  # reels: short / medium / long
     topic: Mapped[str | None] = mapped_column(Text)
     experiment: Mapped[str | None] = mapped_column(Text)  # what is being tested, if anything
+    audio: Mapped[str | None] = mapped_column(Text)  # music mood, e.g. "bansuri, calm"
     reason: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="planned")  # planned/used/skipped
     edited_by: Mapped[str | None] = mapped_column(String(40))

@@ -36,3 +36,21 @@ published with your library track, and you get the reel (without music) plus the
 post on Instagram with the trending sound. Then send `/posted <id> <link>`.
 
 Files in this folder stay on your machine: git ignores everything except this README.
+
+### Reels on Instagram always by hand (`INSTAGRAM_REELS=app`)
+Put `INSTAGRAM_REELS=app` in `.env` and every approved reel works like that: at its time slot
+Facebook and YouTube are published automatically and Telegram sends you the Instagram package
+(video without music, caption, steps and **which sounds to search**). The reel waits for your
+`/posted <id> <link>`. Stories and carousels still post automatically.
+
+### Keep a list of what is trending (`trending.yaml`)
+Copy `trending.example.yaml` to `trending.yaml` here and update it once a week:
+1. Instagram app → your profile → **Professional dashboard → Trending audio** (or open Reels,
+   tap a sound and look for the **↗** arrow: that sound is trending now).
+2. Search "shiv", "mahadev", "krishna", "radhe", "bhajan", "flute" in ♫ Audio and note the
+   sounds with the ↗ arrow or many reels (tap the sound to see the count).
+3. Write their name, search words, mood and pillars into `trending.yaml`.
+
+The bot then suggests the best match for each reel (its pillar and the mood the month plan
+gave it). Without the file it suggests search words per pillar. Use a trending sound in the
+first 24–72 h of its rise; older ones help less.

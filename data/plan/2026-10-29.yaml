@@ -1,0 +1,267 @@
+# Content plan: 29 October – 27 November 2026 (30 days), loaded with
+#   bash deploy/docker.sh plan-month data/plan/2026-10-29.yaml
+#
+# Each evening (generate_at, 20:30) the writer turns the next day's entries into finished posts
+# and sends them to Telegram for approval, so you always see and approve every post.
+#
+# Per entry: pillar, topic (Hindi: subject — the angle the writer should take; "श्लोक:" names
+# the verse to cite from data/scriptures), and for reels an audio mood (used to suggest a
+# trending sound and to pick a library track). Stories: `topic` is the line itself.
+#
+# Festival dates (marked ⚠️) are estimates for 2026 and NOT checked against a panchang. Check
+# them on drikpanchang.com; if one is wrong, move that day's festival entry before it is
+# generated (the evening before), or edit it on the dashboard's Plan page.
+#
+# Volume follows schedule.yaml: Monday 2 reels, other days 1; carousels Tue/Thu/Sat; 2 stories
+# a day. Slots, hook style, background scene and reel length are still chosen by the learner.
+
+start: 2026-10-29
+days:
+  "2026-10-29":   # Thursday · ⚠️ Karva Chauth (estimate)
+    note: "करवा चौथ (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "soft flute, devotional", topic: "करवा चौथ: रिश्ता व्रत से नहीं, रोज़ के धैर्य और सम्मान से गहरा होता है"}
+    carousel_shlok:
+      - {pillar: gita, topic: "कर्म पर अधिकार, फल पर नहीं — काम की चिंता से कैसे निकलें (श्लोक: gita-2.47)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज किसी अपने को बिना वजह धन्यवाद कहिए।"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज किस बात ने आपको सबसे ज़्यादा शांति दी?"}
+
+  "2026-10-30":   # Friday
+    reel_book_pov:
+      - {pillar: kabir, audio: "ektara folk, calm", topic: "धीरे-धीरे रे मना — जल्दी परिणाम चाहने वाले मन के लिए धैर्य (श्लोक: kabir-dheere-dheere)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज का संकल्प: एक काम पूरा, बिना फ़ोन देखे।"}
+      - {pillar: life_lesson, topic: "जो बीत गया, उसे आज की नींद मत चुराने दीजिए।"}
+
+  "2026-10-31":   # Saturday
+    reel_book_pov:
+      - {pillar: gita, audio: "bansuri, meditative", topic: "मन बहुत भटकता है? अभ्यास और वैराग्य से वह भी थमता है (श्लोक: gita-6.35)"}
+    carousel_shlok:
+      - {pillar: kabir, topic: "बुरा जो देखन मैं चला — दूसरों से पहले खुद को देखने की कला (श्लोक: kabir-bura-jo-dekhan)"}
+    story_line:
+      - {pillar: life_lesson, topic: "शनिवार: हफ़्ते की एक अच्छी बात याद कीजिए।"}
+      - {pillar: jeevan_sutra, topic: "कल के लिए एक छोटी-सी तैयारी आज कर लीजिए।"}
+
+  "2026-11-01":   # Sunday
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "piano, hopeful", topic: "तुलना चोरी है: किसी और की रफ़्तार से अपनी यात्रा मत नापिए"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "रविवार: आज खुद से थोड़ा नरमी से बात कीजिए।"}
+      - {pillar: life_lesson, topic: "इस हफ़्ते आप किस बात के लिए आभारी हैं?"}
+
+  "2026-11-02":   # Monday · Somvar
+    reel_book_pov:
+      - {pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: शिव की तरह स्थिर रहना — तूफ़ान में भी भीतर शांत (श्लोक: shiv-panchakshari)"}
+      - {pillar: jeevan_sutra, audio: "morning flute", topic: "सुबह के पहले पाँच मिनट: फ़ोन नहीं, तीन गहरी साँसें और एक संकल्प"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — आज का दिन शांति से शुरू।"}
+      - {pillar: life_lesson, topic: "आज एक बात छोड़ दीजिए जो आपके बस में नहीं।"}
+
+  "2026-11-03":   # Tuesday
+    reel_book_pov:
+      - {pillar: gita, audio: "veena, steady", topic: "अपना रास्ता अधूरा भी हो तो दूसरे की नकल से श्रेष्ठ है (श्लोक: gita-3.35)"}
+    carousel_shlok:
+      - {pillar: gita, topic: "आप ही अपने मित्र, आप ही अपने शत्रु — खुद को ऊपर उठाने के 3 तरीके (श्लोक: gita-6.5)"}
+    story_line:
+      - {pillar: life_lesson, topic: "गुस्सा आए तो जवाब देने से पहले दस तक गिनिए।"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज आपने किसकी मदद की?"}
+
+  "2026-11-04":   # Wednesday
+    reel_book_pov:
+      - {pillar: kabir, audio: "sitar, gentle", topic: "ऐसी वाणी बोलिए — शब्द जो दूसरे को भी ठंडक दें और खुद को भी (श्लोक: kabir-aisi-vani)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज की बात: कम बोलें, मीठा बोलें।"}
+      - {pillar: life_lesson, topic: "जिसे माफ़ करना है, उसे आज मन ही मन माफ़ कर दीजिए।"}
+
+  "2026-11-05":   # Thursday
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "soft piano", topic: "माता-पिता के साथ बिताया एक घंटा — वह निवेश जो कभी घाटा नहीं देता"}
+    carousel_shlok:
+      - {pillar: kabir, topic: "काल करे सो आज कर — टालने की आदत से निकलने के छोटे कदम (श्लोक: kabir-kaal-kare)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज कौन-सा काम कल पर नहीं टालेंगे?"}
+      - {pillar: jeevan_sutra, topic: "दिवाली से पहले मन की सफ़ाई भी ज़रूरी है।"}
+
+  "2026-11-06":   # Friday · ⚠️ Dhanteras (estimate)
+    note: "धनतेरस (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "festive diya, soft bells", topic: "धनतेरस: असली धन — संतोष, स्वास्थ्य और परिवार का साथ"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "धनतेरस की शुभकामनाएँ — आज सेहत को सबसे बड़ा धन मानिए।"}
+      - {pillar: life_lesson, topic: "आपके जीवन का सबसे बड़ा धन कौन है?"}
+
+  "2026-11-07":   # Saturday · ⚠️ Choti Diwali / Narak Chaturdashi (estimate)
+    note: "छोटी दिवाली (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: jeevan_sutra, audio: "festive flute", topic: "छोटी दिवाली: एक बुरी आदत को आज विदा कीजिए, घर के साथ मन भी रोशन हो"}
+    carousel_shlok:
+      - {pillar: gita, topic: "जब-जब धर्म की हानि होती है — अंधकार पर प्रकाश की जीत का अर्थ (श्लोक: gita-4.7)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज एक दीया उनके नाम जलाइए जो अब साथ नहीं हैं।"}
+      - {pillar: life_lesson, topic: "कल दिवाली: किस बात का दीया अपने भीतर जलाएँगे?"}
+
+  "2026-11-08":   # Sunday · ⚠️ Diwali (estimate)
+    note: "दीपावली (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: jeevan_sutra, audio: "diwali devotional, aarti bells", topic: "दीपावली: बाहर लाख दीये, पर असली प्रकाश भीतर का दीया जलाने से आता है"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "शुभ दीपावली 🪔 आपके घर और मन दोनों रोशन रहें।"}
+      - {pillar: life_lesson, topic: "आज की रात: किसे दिल से शुभकामना भेजेंगे?"}
+
+  "2026-11-09":   # Monday · Somvar · ⚠️ Govardhan Puja (estimate)
+    note: "गोवर्धन पूजा (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: gita, audio: "krishna bansuri", topic: "गोवर्धन: जब कृष्ण ने पर्वत उठाया — शरण में आने वाले को डर नहीं (श्लोक: gita-18.66)"}
+      - {pillar: shiv_dhyan, audio: "om chant, calm", topic: "सोमवार: त्योहार की थकान के बाद शिव-ध्यान के दो मिनट"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "गोवर्धन पूजा की शुभकामनाएँ — आज प्रकृति को धन्यवाद कहिए।"}
+      - {pillar: life_lesson, topic: "त्योहार के बाद: खुद को आराम देना भी पूजा है।"}
+
+  "2026-11-10":   # Tuesday
+    reel_book_pov:
+      - {pillar: shiv_dhyan, audio: "rudra, deep drone", topic: "महामृत्युंजय मंत्र: डर नहीं, भीतर की स्थिरता का मंत्र (श्लोक: shiv-mahamrityunjaya)"}
+    carousel_shlok:
+      - {pillar: gita, topic: "सुख-दुःख आते-जाते हैं — सहना कमज़ोरी नहीं, समझदारी है (श्लोक: gita-2.14)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज की सोच: यह समय भी बीत जाएगा।"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज किस डर को आपने छोटा होते देखा?"}
+
+  "2026-11-11":   # Wednesday · ⚠️ Bhai Dooj (estimate; may be 10 Nov)
+    note: "भाई दूज (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "warm flute", topic: "भाई दूज: भाई-बहन का रिश्ता — बिना शर्त साथ खड़े रहने का वादा"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "भाई दूज की शुभकामनाएँ — आज अपने भाई/बहन को एक संदेश भेजिए।"}
+      - {pillar: life_lesson, topic: "बचपन की कौन-सी याद आज भी मुस्कान देती है?"}
+
+  "2026-11-12":   # Thursday
+    reel_book_pov:
+      - {pillar: kabir, audio: "bhajan instrumental", topic: "दुख में सुमिरन सब करें — सुख के दिनों में भी कृतज्ञ रहना (श्लोक: kabir-dukh-mein-sumiran)"}
+    carousel_shlok:
+      - {pillar: gita, topic: "समत्व योग: सफलता और असफलता में एक-सा रहना (श्लोक: gita-2.48)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज बिना शिकायत का दिन — कोशिश करेंगे?"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज की एक छोटी जीत लिखिए।"}
+
+  "2026-11-13":   # Friday
+    reel_book_pov:
+      - {pillar: gita, audio: "veena, focus", topic: "योगः कर्मसु कौशलम् — जो भी करें, पूरे मन और कुशलता से (श्लोक: gita-2.50)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज का संकल्प: एक काम, पूरा ध्यान।"}
+      - {pillar: life_lesson, topic: "कभी-कभी 'ना' कहना भी आत्म-सम्मान है।"}
+
+  "2026-11-14":   # Saturday
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "calm piano", topic: "हर बात पर लड़ना ज़रूरी नहीं — शांति चुनना हार नहीं"}
+    carousel_shlok:
+      - {pillar: kabir, topic: "पोथी पढ़ि पढ़ि जग मुआ — किताबों से बड़ा प्रेम का ढाई आखर (श्लोक: kabir-pothi-padhi)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज किसी पुराने दोस्त का हाल पूछिए।"}
+      - {pillar: jeevan_sutra, topic: "कल छठ: सूर्य को अर्घ्य, कृतज्ञता का पर्व।"}
+
+  "2026-11-15":   # Sunday · ⚠️ Chhath Puja (estimate)
+    note: "छठ पूजा (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "folk devotional, river", topic: "छठ: डूबते सूरज को भी अर्घ्य — जीवन के हर चरण का सम्मान"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "छठ पूजा की शुभकामनाएँ ☀️"}
+      - {pillar: life_lesson, topic: "आज सूरज ढलते समय दो मिनट शांत बैठिए।"}
+
+  "2026-11-16":   # Monday · Somvar
+    reel_book_pov:
+      - {pillar: shiv_dhyan, audio: "om chant, damru soft", topic: "सोमवार: शिव का नीलकंठ रूप — कड़वाहट पी लेना, पर फैलाना नहीं"}
+      - {pillar: gita, audio: "bansuri", topic: "जो बदल नहीं सकते, उसे स्वीकार करना — गीता की समता (श्लोक: gita-2.48)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — इस हफ़्ते की शुरुआत शांत मन से।"}
+      - {pillar: life_lesson, topic: "किसी की कड़वी बात को आज दिल पर मत लीजिए।"}
+
+  "2026-11-17":   # Tuesday
+    reel_book_pov:
+      - {pillar: jeevan_sutra, audio: "soft sitar", topic: "अकेलापन बुरा नहीं — कभी-कभी खुद से मिलने का समय होता है"}
+    carousel_shlok:
+      - {pillar: gita, topic: "मन को कैसे साधें: अभ्यास के 5 छोटे कदम (श्लोक: gita-6.35)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज दस मिनट बिना फ़ोन, बस खुद के साथ।"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज मन किस बात पर अटका रहा?"}
+
+  "2026-11-18":   # Wednesday
+    reel_book_pov:
+      - {pillar: kabir, audio: "ektara folk", topic: "बुरा जो देखन मैं चला — आलोचना से पहले आत्म-निरीक्षण (श्लोक: kabir-bura-jo-dekhan)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज किसी की तारीफ़ दिल से कीजिए।"}
+      - {pillar: life_lesson, topic: "गलती मान लेना सबसे बहादुर काम है।"}
+
+  "2026-11-19":   # Thursday
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "hopeful piano", topic: "असफलता अंत नहीं, अगली कोशिश का पहला कदम है"}
+    carousel_shlok:
+      - {pillar: gita, topic: "कर्म करो, फल छोड़ो: परीक्षा और नौकरी के तनाव के लिए गीता (श्लोक: gita-2.47)"}
+    story_line:
+      - {pillar: life_lesson, topic: "पिछली असफलता ने आपको क्या सिखाया?"}
+      - {pillar: jeevan_sutra, topic: "कल देवउठनी एकादशी: नई शुरुआत का दिन।"}
+
+  "2026-11-20":   # Friday · ⚠️ Dev Uthani Ekadashi (estimate)
+    note: "देवउठनी एकादशी (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: gita, audio: "vishnu bhajan instrumental", topic: "देवउठनी एकादशी: भीतर सोई हुई अच्छाई को जगाने का दिन (श्लोक: gita-6.5)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "देवउठनी एकादशी की शुभकामनाएँ 🙏"}
+      - {pillar: life_lesson, topic: "आज कौन-सा अच्छा काम शुरू करेंगे?"}
+
+  "2026-11-21":   # Saturday
+    reel_book_pov:
+      - {pillar: jeevan_sutra, audio: "calm flute", topic: "चिंता कल की है, साँस आज की — वर्तमान में लौटने का तरीका"}
+    carousel_shlok:
+      - {pillar: kabir, topic: "ऐसी वाणी बोलिए: रिश्तों को बचाने वाले शब्द (श्लोक: kabir-aisi-vani)"}
+    story_line:
+      - {pillar: life_lesson, topic: "शनिवार: हफ़्ते की सबसे अच्छी बातचीत कौन-सी थी?"}
+      - {pillar: jeevan_sutra, topic: "आज की रात: तीन बातें जिनके लिए आप आभारी हैं।"}
+
+  "2026-11-22":   # Sunday
+    reel_book_pov:
+      - {pillar: life_lesson, audio: "soft piano", topic: "माँ की वह बात जो तब समझ नहीं आई, अब हर दिन काम आती है"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "रविवार: परिवार के साथ एक भोजन, बिना फ़ोन।"}
+      - {pillar: life_lesson, topic: "आपकी माँ की कौन-सी सीख आज भी साथ है?"}
+
+  "2026-11-23":   # Monday · Somvar
+    reel_book_pov:
+      - {pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: ध्यान में बैठे शिव — मौन भी एक उत्तर है (श्लोक: shiv-panchakshari)"}
+      - {pillar: kabir, audio: "bhajan instrumental", topic: "काल करे सो आज कर — जो कहना है, आज कह दीजिए (श्लोक: kabir-kaal-kare)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — आज कम बोलें, ज़्यादा सुनें।"}
+      - {pillar: life_lesson, topic: "कल कार्तिक पूर्णिमा: दीपदान और प्रकाश का पर्व।"}
+
+  "2026-11-24":   # Tuesday · ⚠️ Kartik Purnima / Dev Deepawali / Guru Nanak Jayanti (estimate)
+    note: "कार्तिक पूर्णिमा, देव दीपावली, गुरु नानक जयंती (अनुमानित तिथि)"
+    reel_book_pov:
+      - {pillar: shiv_dhyan, audio: "aarti bells, ganga", topic: "देव दीपावली: काशी के घाटों पर दीये — शिव की नगरी का प्रकाश"}
+    carousel_shlok:
+      - {pillar: shiv_dhyan, topic: "महामृत्युंजय मंत्र का अर्थ, पंक्ति दर पंक्ति (श्लोक: shiv-mahamrityunjaya)"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "कार्तिक पूर्णिमा और देव दीपावली की शुभकामनाएँ 🪔"}
+      - {pillar: life_lesson, topic: "गुरु नानक देव जी: नाम जपो, किरत करो, वंड छको।"}
+
+  "2026-11-25":   # Wednesday
+    reel_book_pov:
+      - {pillar: gita, audio: "bansuri, calm", topic: "सुख-दुःख मौसम की तरह हैं — आते-जाते रहेंगे, आप टिके रहिए (श्लोक: gita-2.14)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज जो भी हो, एक बार मुस्कुराइए।"}
+      - {pillar: jeevan_sutra, topic: "रात की बात: आज किस बात को आपने सहजता से लिया?"}
+
+  "2026-11-26":   # Thursday
+    reel_book_pov:
+      - {pillar: kabir, audio: "sitar, gentle", topic: "पोथी पढ़ि पढ़ि — ज्ञान से बड़ा प्रेम और व्यवहार (श्लोक: kabir-pothi-padhi)"}
+    carousel_shlok:
+      - {pillar: gita, topic: "शरणागति: जब सब छूटता दिखे, तब भी आप अकेले नहीं (श्लोक: gita-18.66)"}
+    story_line:
+      - {pillar: life_lesson, topic: "आज किसी को बिना माँगे मदद कीजिए।"}
+      - {pillar: jeevan_sutra, topic: "इस महीने की कौन-सी सीख आपके साथ रहेगी?"}
+
+  "2026-11-27":   # Friday
+    reel_book_pov:
+      - {pillar: jeevan_sutra, audio: "hopeful flute", topic: "एक महीना, एक आदत: छोटा-सा बदलाव जो पूरा जीवन बदल दे"}
+    story_line:
+      - {pillar: jeevan_sutra, topic: "आज का संकल्प: अगले 30 दिन एक अच्छी आदत।"}
+      - {pillar: life_lesson, topic: "आप इस हफ़्ते खुद पर किस बात के लिए गर्व करते हैं?"}

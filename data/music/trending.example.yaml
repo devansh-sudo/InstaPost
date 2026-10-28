@@ -1,0 +1,33 @@
+# Copy to data/music/trending.yaml and keep it fresh (5 minutes, once a week).
+# These are sounds you saw trending in the Instagram app. Nothing is downloaded: the bot only
+# tells you which one to pick when you post a reel in the app.
+#
+# name:    what you see in Instagram's audio list
+# search:  the words that find it in ♫ Audio search
+# mood:    a few words (matched against the planned mood of each reel)
+# pillars: shiv_dhyan, gita, kabir, jeevan_sutra, life_lesson (empty = any)
+sounds:
+  - name: "Om Namah Shivaya (slowed)"
+    search: "om namah shivaya slowed"
+    mood: "deep calm chant"
+    pillars: [shiv_dhyan]
+  - name: "Har Har Mahadev"
+    search: "har har mahadev"
+    mood: "powerful drums energy"
+    pillars: [shiv_dhyan]
+  - name: "Krishna flute (bansuri)"
+    search: "krishna flute"
+    mood: "soft flute calm morning"
+    pillars: [gita, jeevan_sutra]
+  - name: "Radhe Radhe"
+    search: "radhe radhe"
+    mood: "sweet bhakti love"
+    pillars: [gita]
+  - name: "Kabir bhajan (ektara)"
+    search: "kabir bhajan"
+    mood: "folk soulful"
+    pillars: [kabir]
+  - name: "Peaceful piano"
+    search: "peaceful piano"
+    mood: "soft emotional hope"
+    pillars: [life_lesson, jeevan_sutra]

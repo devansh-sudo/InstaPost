@@ -72,6 +72,37 @@ def trending(s: Session, item: Item, actor: str) -> list[str]:
     return others
 
 
+def sound_suggestions(s: Session, item: Item) -> list[str]:
+    """What to search in Instagram's audio library for this reel: the sounds you noted as
+    trending (data/music/trending.yaml) that fit its pillar and planned mood, else hints."""
+    from sqlalchemy import select
+
+    from instapost.db import PlanEntry
+    from instapost.render import music
+
+    entry = s.scalars(select(PlanEntry).where(PlanEntry.item_id == item.id)).first()
+    mood = entry.audio if entry else None
+    lines = [f"• {t['name']}" + (f" — search \"{t['search']}\"" if t.get("search") else "")
+             for t in music.suggest_trending(item.pillar, mood)]
+    if not lines:
+        hints = music.SEARCH_HINTS.get(Pillar(item.pillar), ["devotional"])
+        lines = ["• search: " + ", ".join(f'"{h}"' for h in hints)
+                 + " — pick one with the ↗ trending arrow"]
+    if mood:
+        lines.append(f"Mood for this reel: {mood}")
+    return lines
+
+
+def app_package_sent(s: Session, item_id: str) -> bool:
+    from sqlalchemy import select
+
+    from instapost.db import AuditLog
+
+    return s.scalars(select(AuditLog.id).where(
+        AuditLog.item_id == item_id,
+        AuditLog.action.in_(("app_package_sent", "manual_instagram")))).first() is not None
+
+
 def record_manual_post(s: Session, item: Item, permalink: str, actor: str) -> str:
     """Link a reel you posted in the Instagram app, so its numbers are collected too."""
     from instapost.db import Publication

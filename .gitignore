@@ -30,3 +30,4 @@ data/images/**
 data/music/**
 !data/music/README.md
 !data/music/.gitkeep
+!data/music/trending.example.yaml

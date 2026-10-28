@@ -158,3 +158,73 @@ def entries_for_day(s: Session, day: date) -> list[PlanEntry]:
 def week_entries(s: Session, week_start: date) -> list[PlanEntry]:
     return list(s.scalars(select(PlanEntry).where(PlanEntry.week_start == week_start.isoformat())
                           .order_by(PlanEntry.day, PlanEntry.slot, PlanEntry.position)))
+
+
+MONTH_PLAN_ACTOR = "month plan"
+
+
+def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
+    """Apply a hand-written plan file (see data/plan/*.yaml) on top of the weekly plans.
+
+    The learner still fills slot, hook style, scene and length; the file sets pillar, topic and
+    audio mood for each entry. Entries are marked as edited, so weekly rebuilds keep them.
+    """
+    from pathlib import Path
+
+    from instapost.models import Pillar
+
+    doc = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    days = {date.fromisoformat(str(d)): spec or {} for d, spec in (doc.get("days") or {}).items()}
+    if not days:
+        raise ValueError(f"{path}: no days")
+    start = min(days)
+    sched = load_schedule()
+    weeks = sorted({week_start_of(d) for d in days})
+    for ws in weeks:
+        build_week(s, ws, actor=actor)
+    # Days of those weeks before the plan starts are past or today: nothing to plan there.
+    week_keys = [w.isoformat() for w in weeks]
+    for e in s.scalars(select(PlanEntry).where(PlanEntry.week_start.in_(week_keys),
+                                               PlanEntry.day < start.isoformat(),
+                                               PlanEntry.status == "planned")):
+        s.delete(e)
+    s.flush()
+
+    summary = {"days": len(days), "entries": 0, "warnings": []}
+    for day, spec in sorted(days.items()):
+        for fmt in Format:
+            wanted = spec.get(fmt.value) or []
+            entries = list(s.scalars(select(PlanEntry).where(
+                PlanEntry.day == day.isoformat(), PlanEntry.format == fmt.value,
+                PlanEntry.status == "planned").order_by(PlanEntry.position)))
+            expected = sched.daily_plan[WEEKDAYS[day.weekday()]].get(fmt, 0)
+            if len(wanted) != expected:
+                summary["warnings"].append(
+                    f"{day} {fmt.value}: {len(wanted)} in the file, schedule.yaml says {expected}")
+            slots = sched.slots.get(fmt, [])
+            for pos, item in enumerate(wanted):
+                pillar = Pillar(item["pillar"]).value  # raises on a typo
+                if pos < len(entries):
+                    e = entries[pos]
+                else:  # more than the learner planned: add one in the next free slot
+                    used = {x.slot for x in entries}
+                    slot = next((sl for sl in slots if sl not in used), slots[pos % len(slots)])
+                    e = PlanEntry(week_start=week_start_of(day).isoformat(), day=day.isoformat(),
+                                  position=pos, format=fmt.value, pillar=pillar,
+                                  hook_style="statement", scene=0, slot=slot,
+                                  length="medium" if fmt == Format.REEL_BOOK_POV else None,
+                                  status="planned")
+                    s.add(e)
+                    entries.append(e)
+                e.pillar, e.topic = pillar, str(item["topic"]).strip()
+                e.audio = item.get("audio")
+                e.edited_by = actor
+                e.experiment = None  # the content is fixed by the plan; slots etc. still learn
+                note = spec.get("note")
+                e.reason = "month plan" + (f" · {note}" if note else "")
+                summary["entries"] += 1
+            for extra in entries[len(wanted):]:
+                extra.status, extra.edited_by = "skipped", actor
+    audit(s, actor, "month_plan_loaded", start=start.isoformat(), end=max(days).isoformat(),
+          entries=summary["entries"])
+    return summary

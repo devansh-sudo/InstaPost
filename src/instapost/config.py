@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # Reel soundtrack: "library" = a track from data/music/ that fits the pillar (falls back to
     # the built-in tanpura ambience when the folder is empty), "ambience" = always the ambience.
     music_mode: str = "library"
+    # Reels on Instagram: "auto" = published by the agent with library music; "app" = you post
+    # them in the Instagram app with a trending sound (the agent sends you the video, caption
+    # and sound ideas at the slot time); Facebook and YouTube stay automatic either way.
+    instagram_reels: str = "auto"
     unsplash_access_key: str | None = None
 
     daily_budget_usd: float = 0.60

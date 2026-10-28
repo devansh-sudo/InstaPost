@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, audit, get_kv, set_kv, utcnow
 from instapost.learn.bandit import item_features
 from instapost.models import FactCheckVerdict, Format
@@ -119,6 +120,8 @@ def approve(s: Session, item: Item, actor: str, when: datetime | None = None) ->
     item.status = ItemStatus.APPROVED
     item.approved_by = actor
     item.approved_at = utcnow()
+    if item.format == Format.REEL_BOOK_POV and get_settings().instagram_reels == "app":
+        item.manual_platforms = sorted(set(item.manual_platforms or []) | {"instagram"})
     audit(s, actor, "approved", item.id, scheduled_at=item.scheduled_at.isoformat())
     return item
 

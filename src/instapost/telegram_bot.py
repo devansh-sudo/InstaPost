@@ -178,9 +178,11 @@ class Bot:
                     if item is None:
                         return "That item no longer exists."
                     others = quick.trending(s, item, actor)
+                    sounds = quick.sound_suggestions(s, item)
                     item_id, folder, caption = item.id, item.folder, item.caption
                     s.commit()
-                    self.pool.submit(self._send_for_app, item_id, folder, caption, others)
+                    self.pool.submit(self._send_for_app, item_id, folder, caption, others,
+                                     sounds)
                     return "📲 Sending you the video for the Instagram app…"
                 if action in ("ap", "rj", "pn"):
                     item = s.get(Item, arg)
@@ -213,7 +215,7 @@ class Bot:
         return "Unknown button."
 
     def _send_for_app(self, item_id: str, folder: str, caption: str,
-                      others: list[str]) -> None:
+                      others: list[str], sounds: list[str] | None = None) -> None:
         """The reel without background music + the caption, for posting in the app."""
         from pathlib import Path
 
@@ -230,11 +232,12 @@ class Bot:
                 "How to post it:\n"
                 "1. Save the video above (⋮ → Save to Gallery).\n"
                 "2. Instagram → + → Reel → choose it.\n"
-                "3. Tap ♫ Audio → search a trending devotional sound (e.g. \"Shiv\", "
-                "\"Krishna flute\", \"Hanuman\") → set its start → Done.\n"
+                "3. Tap ♫ Audio → search one of the sounds below (prefer ones with the ↗ "
+                "trending arrow) → set its start → Done.\n"
                 "4. Volume: Original audio low (about 10–20%), the song about 70%.\n"
                 "5. Paste the caption above → Share.\n"
                 f"6. Then send me: /posted {item_id} <link of the reel>\n"
+                + ("\nSounds for this reel:\n" + "\n".join(sounds) + "\n" if sounds else "")
                 + (f"\nAlready posting automatically to: {', '.join(others)}." if others else ""))
         except (OSError, TelegramError) as e:
             self.send(f"⚠️ Could not send the video: {redact(str(e))[:200]}")

@@ -82,3 +82,41 @@ def mix(ambience_wav: Path, track: Path, duration: float, out_wav: Path) -> None
            "-filter_complex", graph, "-map", "[out]", "-ar", "44100", "-ac", "2", str(out_wav)]
     if subprocess.run(cmd, capture_output=True).returncode != 0:
         raise RuntimeError(f"could not mix the music track {track.name}")
+
+
+# --- trending sounds (posted in the Instagram app; never downloaded) ------------------------
+
+TRENDING_FILE = "trending.yaml"
+
+# Search words that find fitting sounds in Instagram's audio library, per pillar.
+SEARCH_HINTS = {
+    Pillar.SHIV_DHYAN: ["Shiv", "Om Namah Shivaya", "Mahadev", "Har Har Mahadev"],
+    Pillar.GITA: ["Krishna flute", "Radhe Krishna", "Hare Krishna", "bansuri"],
+    Pillar.KABIR: ["bhajan", "Kabir", "sufi", "ektara"],
+    Pillar.JEEVAN_SUTRA: ["peaceful flute", "meditation", "spiritual"],
+    Pillar.LIFE_LESSON: ["peaceful", "soft piano", "emotional flute"],
+}
+
+
+def trending_list() -> list[dict]:
+    """Sounds you noted as trending (data/music/trending.yaml; see trending.example.yaml)."""
+    import yaml
+
+    path = library_dir() / TRENDING_FILE
+    if not path.exists():
+        return []
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return [t for t in doc.get("sounds", []) if t.get("name")]
+
+
+def suggest_trending(pillar: Pillar | str, mood: str | None = None, n: int = 3) -> list[dict]:
+    """Best matching trending sounds for a reel: same pillar first, then mood words."""
+    pillar = Pillar(pillar)
+    mood_words = set(keywords(mood or ""))
+
+    def rank(t: dict) -> tuple:
+        pillars = {str(p) for p in t.get("pillars") or []}
+        words = set(keywords(" ".join([t.get("mood", ""), t.get("name", "")])))
+        return (pillar.value in pillars or not pillars, len(mood_words & words))
+
+    return sorted(trending_list(), key=rank, reverse=True)[:n]

@@ -16,6 +16,8 @@
 #   bash deploy/docker.sh cli <args>        any instapost command, e.g. cli make reel --pillar gita
 #   bash deploy/docker.sh verses review     go through the verses and mark them correct or wrong
 #   bash deploy/docker.sh post [reel|carousel|story] [pillar] [topic]   make one now -> Telegram
+#   bash deploy/docker.sh reset             clear test data (backed up first) to start fresh
+#   bash deploy/docker.sh plan-month <file> load a month plan, e.g. data/plan/2026-10-29.yaml
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -296,6 +298,40 @@ cmd_verses() {
   esac
 }
 
+cmd_reset() {
+  # Start fresh for production: posts, plans, stats, approvals, activity and generated files
+  # go; keys (.env), tokens (secrets/), brand.yaml, schedule.yaml, data/ (verses, music,
+  # pictures) and the spend log (real money, so the caps stay honest) stay.
+  preflight
+  [ -f "$COMPOSE_ENV" ] || die "run 'bash deploy/docker.sh deploy' first"
+  echo "This deletes every post, plan, approval, stat and generated file from InstaPost."
+  echo "Kept: .env, secrets/ (logins), brand.yaml, schedule.yaml, data/, state/spend.jsonl."
+  echo "Posts already published on Instagram/Facebook/YouTube are NOT deleted there."
+  read -rp "Type RESET to continue: " answer
+  [ "$answer" = "RESET" ] || die "cancelled, nothing changed"
+  say "Stopping the containers"
+  compose stop
+  local stamp backup
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "${APP_DIR:?}/state/backups"
+  backup="${APP_DIR:?}/state/backups/before-reset-$stamp.tgz"
+  say "Backing up to $backup"
+  tar -czf "$backup" -C "${APP_DIR:?}" --exclude=state/backups state output
+  say "Clearing test data"
+  rm -f "${APP_DIR:?}"/state/instapost.db "${APP_DIR:?}"/state/instapost.db-wal \
+        "${APP_DIR:?}"/state/instapost.db-shm "${APP_DIR:?}"/state/instapost.db-journal \
+        "${APP_DIR:?}"/state/history.jsonl "${APP_DIR:?}"/state/image_sources.json
+  find "${APP_DIR:?}/output" -mindepth 1 -delete 2>/dev/null || true
+  # Only the dashboard starts: the worker would otherwise create tomorrow's posts right away
+  # (after 20:30) before a new plan is loaded. `restart` starts both.
+  say "Starting the dashboard (the worker stays stopped until you run: bash deploy/docker.sh restart)"
+  compose up -d web
+  wait_healthy
+  echo "Done. Next: load a plan if you have one (bash deploy/docker.sh plan-month <file>),"
+  echo "then: bash deploy/docker.sh restart && bash deploy/docker.sh cli check"
+  echo "Undo: bash deploy/docker.sh stop && tar -xzf $backup -C ${APP_DIR:?} && bash deploy/docker.sh restart"
+}
+
 case "${1:-deploy}" in
   deploy)      shift || true; cmd_deploy "$@" ;;
   update)      shift; cmd_update "$@" ;;
@@ -308,5 +344,7 @@ case "${1:-deploy}" in
   cli)         shift; cmd_cli "$@" ;;
   verses)      shift; cmd_verses "$@" ;;
   post)        shift; cmd_cli new "$@" ;;
-  *)           sed -n '2,19p' "$0"; exit 1 ;;
+  reset)       cmd_reset ;;
+  plan-month)  shift; cmd_cli plan-month "$@" ;;
+  *)           sed -n '2,21p' "$0"; exit 1 ;;
 esac

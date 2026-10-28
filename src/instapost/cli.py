@@ -167,6 +167,20 @@ def _new(args) -> int:
     return 0
 
 
+def _plan_month(args) -> int:
+    from instapost.db import session
+    from instapost.learn import planner
+
+    with session() as s:
+        summary = planner.load_month(s, args.file)
+    print(f"Loaded {summary['entries']} planned posts over {summary['days']} days.")
+    for w in summary["warnings"]:
+        print("  note:", w)
+    print("Each evening at the schedule's generate_at time, the next day's posts are created "
+          "and sent to you for approval. See and edit them on the dashboard's Plan page.")
+    return 0
+
+
 def _web(_args) -> int:
     import uvicorn
 
@@ -312,6 +326,9 @@ def main(argv: list[str] | None = None) -> int:
                          "Telegram with 🚀 Post now")
     new.add_argument("words", nargs="*", help="[reel|carousel|story] [pillar] [topic ...]")
     new.set_defaults(func=_new)
+    pm = sub.add_parser("plan-month", help="load a hand-written plan file (data/plan/*.yaml)")
+    pm.add_argument("file")
+    pm.set_defaults(func=_plan_month)
     sub.add_parser("web", help="run the dashboard").set_defaults(func=_web)
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")
