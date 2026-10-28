@@ -53,7 +53,7 @@ def checklist() -> list[Step]:
         Step("Dashboard login", bool(s.admin_password_hash and s.admin_totp_secret
                                      and s.session_secret), "run `instapost admin-setup`"),
         Step("Telegram bot", bool(s.telegram_bot_token and s.telegram_admin_chat_id),
-             "TELEGRAM_BOT_TOKEN + TELEGRAM_ADMIN_CHAT_ID (docs/DEPLOY.md step 2.4)"),
+             "TELEGRAM_BOT_TOKEN + TELEGRAM_ADMIN_CHAT_ID (docs/TELEGRAM.md)"),
         Step("Instagram connected", "instagram" in platforms,
              "IG_USER_ID + IG_ACCESS_TOKEN (docs/SETUP_META_YOUTUBE.md A3)"),
         Step("Facebook Page connected", "facebook" in platforms,

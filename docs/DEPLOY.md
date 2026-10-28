@@ -42,7 +42,7 @@ Edit with `sudo -u instapost nano /opt/instapost/.env`. Never paste these values
    them into `.env`. Add the setup key to Google Authenticator or Authy on your phone.
 2. **Claude + images:** `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (and/or `OPENAI_API_KEY`).
 3. **Meta + YouTube:** follow `docs/SETUP_META_YOUTUBE.md`.
-4. **Telegram:**
+4. **Telegram** (full guide: `docs/TELEGRAM.md`):
    - In Telegram, open **@BotFather** → `/newbot` → pick a name → copy the token into `TELEGRAM_BOT_TOKEN`.
    - Start the worker once (step 4) and send your bot any message. It replies with your chat ID.
    - Put that number in `TELEGRAM_ADMIN_CHAT_ID` and restart the worker. The bot ignores everyone else.
