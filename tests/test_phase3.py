@@ -160,12 +160,17 @@ def test_report_mentions_followers_and_best_posts():
 
 def test_stats_and_reports_pages_render(web):  # noqa: F811
     _login(web)
-    empty = web.get("/stats")
+    empty = web.get("/analytics")
     assert empty.status_code == 200 and "No follower data yet" in empty.text
     _seed_stats()
-    page = web.get("/stats?days=7&sort=score")
+    page = web.get("/analytics?days=7&sort=score")
     assert page.status_code == 200
     assert "<svg" in page.text and "data-tip" in page.text and "Table" in page.text
+    assert "Platforms side by side" in page.text
+    one = web.get("/analytics?days=7&platform=instagram")
+    assert one.status_code == 200 and "Platforms side by side" not in one.text
+    home = web.get("/")
+    assert "Top posts" in home.text and "Views per day" in home.text
     assert web.get("/reports").status_code == 200
     settings = web.get("/settings")
     assert "Setup checklist" in settings.text and "Claude API key" in settings.text

@@ -1,0 +1,39 @@
+{% macro icon(name, cls="") %}<svg class="i {{ cls }}" aria-hidden="true"><use href="#i-{{ name }}"/></svg>{% endmacro %}
+
+{% macro pf(platform, size="") %}<span class="pf {{ platform }} {{ size }}" title="{{ platform|title }}">{{ icon(platform) }}</span>{% endmacro %}
+
+{% macro delta(kpi, pct=True, suffix="") %}
+  {%- set ch = kpi.change if pct else None -%}
+  {%- if ch is not none -%}
+    <span class="delta {{ 'up' if ch > 0.005 else ('down' if ch < -0.005 else 'flat') }}">{{ '▲' if ch > 0.005 else ('▼' if ch < -0.005 else '■') }} {{ '%.0f' % (ch * 100)|abs }}%</span>{% if suffix %} <span>{{ suffix }}</span>{% endif %}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro change(n, suffix="") %}
+  {%- if n is not none -%}<span class="delta {{ 'up' if n > 0 else ('down' if n < 0 else 'flat') }}">{{ '+' if n > 0 }}{{ n }}</span> {{ suffix }}{%- endif -%}
+{% endmacro %}
+
+{% macro status(st) %}
+  {%- set cls = {"published": "ok", "approved": "info", "needs_review": "accent", "publishing": "info",
+                 "failed": "bad", "partial": "warn", "blocked": "bad", "rejected": ""}.get(st, "") -%}
+  {%- set label = {"needs_review": "waiting for you", "partial": "partly published"}.get(st, st) -%}
+  <span class="pill {{ cls }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro thumb(item, size="") %}
+  {%- set folder = item.folder -%}
+  <img class="thumb {{ size }}" loading="lazy" alt="" src="/thumb/{{ item.id }}">
+{%- endmacro %}
+
+{% macro fmt_label(f) %}{{ {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story"}.get(f, f) }}{% endmacro %}
+
+{% macro note(n) %}
+  <div class="nt {{ 'unread' if n.unread }}">
+    <span class="lvl {{ n.level }}">{{ icon({"ok": "check", "info": "info", "warn": "alert", "bad": "alert"}[n.level]) }}</span>
+    <div class="grow">
+      <div class="t">{% if n.link %}<a href="{{ n.link }}" {% if n.link.startswith('http') %}target="_blank" rel="noopener"{% endif %}>{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}</div>
+      {% if n.detail %}<div class="s">{{ n.detail }}</div>{% endif %}
+      {% if n.at %}<div class="tiny">{{ n.at | local("%d %b, %H:%M") }}</div>{% endif %}
+    </div>
+  </div>
+{% endmacro %}

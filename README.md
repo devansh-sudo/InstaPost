@@ -29,6 +29,19 @@ Kabir, life lessons) on Instagram, Facebook Reels and YouTube Shorts.
   entry on the **Plan** page; the **Learning** page shows what it believes and how sure it is.
   How many posts go out per day stays your setting in `schedule.yaml`.
 
+### The dashboard
+
+| Page | What it is for |
+|---|---|
+| **Home** | Alerts, KPIs vs the previous period (followers, views, sends+saves, watch, score, posts, spend), what needs your approval, what's coming up, one card per platform with profile and analytics links, views per day, follower growth, top posts |
+| **Inbox** | Everything waiting for you: approve, post now, redo, reject; approve the next N or a whole day |
+| **Calendar** | The next 14 days: scheduled posts and what the plan will still create |
+| **Create** | One post now, or a full day from the plan |
+| **Library** | Every post with status and links to where it was published |
+| **Analytics** | 7/30/90 days, all platforms or one; all KPIs with change, platforms side by side, views per day, followers, score by pillar/format, best posting times, every post with its numbers |
+| **Learning / Reports / Weekly plan** | What works and how sure it is; daily reports; next week's plan, editable |
+| **Activity / Notifications / Settings** | Live jobs and the full log; alerts and events (bell icon, unread count); kill switch, autonomy, budget, connections, setup checklist |
+
 ### Phase 4 at a glance
 
 | Piece | What it does |

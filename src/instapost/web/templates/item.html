@@ -1,91 +1,91 @@
 {% extends "base.html" %}
-{% block title %}{{ item.hook[:30] }}{% endblock %}
+{% from "_macros.html" import icon, pf, status, fmt_label %}
+{% block title %}{{ item.hook[:40] }}{% endblock %}
+{% block heading %}{{ item.hook[:80] }}{% endblock %}
+{% block subtitle %}{{ fmt_label(item.format) }} · {{ item.pillar }} · for {{ item.for_date or '–' }}{% if item.scheduled_at %} · scheduled {{ item.scheduled_at | local }}{% endif %}{% endblock %}
 {% block content %}
-<h1>{{ item.hook }}</h1>
-<div class="grid">
-  <div class="card">
-    {% include "_media.html" %}
-  </div>
-  <div class="card">
-    <div class="row"><span class="pill">{{ item.status }}</span><span class="pill">{{ item.format }}</span>
-      <span class="pill">{{ item.pillar }}</span></div>
-    <p class="muted">Planned for {{ item.for_date }} · scheduled {{ item.scheduled_at | local }}
-      {% if item.approved_by %}· approved by {{ item.approved_by }}{% endif %}</p>
-
-    <div class="row">
+<div class="cols c-1-1">
+  <div class="card">{% include "_media.html" %}</div>
+  <div class="stack">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">{{ status(item.status) }}
+        {% if item.fact_check == 'pass' %}<span class="pill ok">facts ok</span>{% elif item.fact_check == 'fail' %}<span class="pill bad">facts failed</span>{% else %}<span class="pill warn">check facts</span>{% endif %}
+        {% if item.approved_by %}<span class="tiny">approved by {{ item.approved_by }}</span>{% endif %}</div>
       {% if item.status == 'needs_review' %}
-        {% set actions = [("approve","✅ Approve","primary"),("reject","❌ Reject",""),("regenerate","🔁 Regenerate",""),("publish-now","🚀 Post now","")] %}
+        {% set actions = [("approve", "check", "Approve", ""), ("publish-now", "rocket", "Post now", "primary"), ("regenerate", "refresh", "Redo", "ghost"), ("reject", "x", "Reject", "ghost")] %}
       {% elif item.status == 'approved' %}
-        {% set actions = [("publish-now","🚀 Post now","primary"),("unapprove","↩ Back to queue",""),("reject","❌ Cancel","")] %}
+        {% set actions = [("publish-now", "rocket", "Post now", "primary"), ("unapprove", "inbox", "Back to inbox", ""), ("reject", "x", "Cancel", "ghost")] %}
       {% elif item.status in ('failed', 'partial') %}
-        {% set actions = [("retry","🔁 Retry publishing","primary")] %}
+        {% set actions = [("retry", "refresh", "Retry publishing", "primary")] %}
       {% elif item.status == 'blocked' %}
-        {% set actions = [("regenerate","🔁 Regenerate","primary"),("reject","❌ Discard","")] %}
+        {% set actions = [("regenerate", "refresh", "Make a new version", "primary"), ("reject", "x", "Discard", "ghost")] %}
       {% else %}{% set actions = [] %}{% endif %}
-      {% for action, label, cls in actions %}
-      <form method="post" action="/items/{{ item.id }}/{{ action }}" class="inline">
-        <input type="hidden" name="token" value="{{ csrf }}"><button class="{{ cls }}">{{ label }}</button>
+      <div class="row">
+        {% for action, ico, label, cls in actions %}
+        <form method="post" action="/items/{{ item.id }}/{{ action }}" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+          <button class="{{ cls }}">{{ icon(ico, "sm") }} {{ label }}</button></form>
+        {% endfor %}
+      </div>
+      {% if item.status == 'approved' %}
+      <form method="post" action="/items/{{ item.id }}/reschedule" class="row" style="margin-top:10px">
+        <input type="hidden" name="token" value="{{ csrf }}">
+        <input type="datetime-local" name="when" value="{{ now_local.strftime('%Y-%m-%dT%H:%M') }}">
+        <button>{{ icon("clock", "sm") }} Reschedule</button><span class="tiny">at least 10 minutes ahead</span>
       </form>
-      {% endfor %}
+      {% endif %}
+      <h3 style="margin-top:16px">Caption</h3>
+      <pre class="caption">{{ item.caption }}</pre>
+      {% if draft.alternative_hooks %}<p class="tiny">Other hooks: {{ draft.alternative_hooks | join(" · ") }}</p>{% endif %}
     </div>
-    {% if item.status == 'approved' %}
-    <form method="post" action="/items/{{ item.id }}/reschedule" class="row" style="margin-top:8px">
-      <input type="hidden" name="token" value="{{ csrf }}">
-      <input type="datetime-local" name="when" value="{{ now_local.strftime('%Y-%m-%dT%H:%M') }}">
-      <button>Reschedule</button>
-    </form>
-    {% endif %}
 
-    <h2 style="margin-top:14px">Caption</h2>
-    <pre class="caption">{{ item.caption }}</pre>
-    {% if draft.alternative_hooks %}
-      <p class="muted">Other hooks: {{ draft.alternative_hooks | join(" · ") }}</p>
-    {% endif %}
-
-    <h2>Fact check: {{ fact.verdict }}</h2>
-    {% if fact.reference_label %}<p><b>{{ fact.reference_label }}</b><br>{{ fact.reference_text }}</p>{% endif %}
-    <ul>{% for i in fact.issues %}<li>{{ i }}</li>{% endfor %}</ul>
-
-    <h2>Quality checks</h2>
-    <table>{% for c in qa.checks %}
-      <tr><td>{{ '✅' if c.passed else '❌' }}</td><td>{{ c.name }}</td><td class="muted">{{ c.detail }}</td></tr>
-    {% endfor %}</table>
+    <div class="card">
+      <div class="card-head">{{ icon("rocket") }}<h2>Where it's published</h2></div>
+      <div class="list">
+        {% for p in pubs %}
+        <div class="li">{{ pf(p.platform) }}<div class="grow"><div class="t">{{ labels.get(p.platform, p.platform) }}</div>
+            <div class="s">{{ p.status }}{% if p.attempts %} · {{ p.attempts }} tr{{ 'y' if p.attempts == 1 else 'ies' }}{% endif %}{% if p.error %} · {{ p.error[:160] }}{% endif %}</div></div>
+          {% if p.permalink %}<a class="btn sm" href="{{ p.permalink }}" target="_blank" rel="noopener">Open {{ icon("external", "sm") }}</a>{% endif %}</div>
+        {% else %}<div class="empty">Not published yet.</div>{% endfor %}
+        {% for p in (item.manual_platforms or []) if p not in pubs|map(attribute="platform")|list %}
+        <div class="li">{{ pf(p) }}<div class="grow"><div class="t">{{ labels.get(p, p) }}</div><div class="s">you post this one in the app, then /posted {{ item.id }} &lt;link&gt;</div></div></div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="grid" style="margin-top:14px">
-  <div class="card">
-    <h2>Publishing</h2>
-    <table>
-      <tr><th>Platform</th><th>Status</th><th>Tries</th><th>Link / error</th></tr>
-      {% for p in pubs %}
-      <tr><td>{{ p.platform }}</td><td>{{ p.status }}</td><td>{{ p.attempts }}</td>
-        <td>{% if p.permalink %}<a href="{{ p.permalink }}" rel="noopener noreferrer" target="_blank">open</a>{% endif %}
-          <span class="muted">{{ p.error or '' }}</span></td></tr>
-      {% else %}<tr><td colspan="4" class="muted">Not published yet.</td></tr>{% endfor %}
-    </table>
-  </div>
+<div class="cols c-1-1 section">
   <div class="card" style="overflow-x:auto">
-    <h2>Numbers {% if combined.score is not none and combined %}· score {{ combined.score }}{% endif %}</h2>
+    <div class="card-head">{{ icon("chart") }}<h2>Numbers</h2>{% if combined.score is not none and combined %}<span class="pill accent">score {{ combined.score }}</span>{% endif %}</div>
     {% if timeline %}
     <table>
-      <tr><th>Platform</th><th class="num">Age</th><th class="num">Views</th><th class="num">Reach</th>
+      <tr><th>Platform</th><th class="num">Age</th><th class="num">Views</th><th class="num">Reach</th><th class="num">Likes</th>
         <th class="num">Sends</th><th class="num">Saves</th><th class="num">Watch</th><th class="num">Score</th></tr>
       {% for snap in timeline %}{% set m = snap.metrics %}
-      <tr><td>{{ snap.platform }}</td><td class="num">{{ snap.age_hours|round|int }} h</td>
-        <td class="num">{{ compact(m.views) }}</td><td class="num">{{ compact(m.reach) }}</td>
+      <tr><td>{{ pf(snap.platform, "sm") }}</td><td class="num">{{ snap.age_hours|round|int }} h</td>
+        <td class="num">{{ compact(m.views) }}</td><td class="num">{{ compact(m.reach) }}</td><td class="num">{{ compact(m.likes) }}</td>
         <td class="num">{{ compact(m.shares) }}</td><td class="num">{{ compact(m.saves) }}</td>
         <td class="num">{{ '–' if not m.watch_ratio else '%d%%' % (m.watch_ratio * 100) }}</td>
         <td class="num">{{ score_of(m) or '–' }}</td></tr>
       {% endfor %}
     </table>
-    {% else %}<p class="muted">Stats are collected 1 h, 3 h, 1 day, 3, 7, 14 and 30 days after posting.</p>{% endif %}
+    {% else %}<p class="muted">Numbers are collected 1 h, 3 h, 1 day, then 3, 7, 14 and 30 days after posting.</p>{% endif %}
   </div>
   <div class="card">
-    <h2>History</h2>
-    <ul class="log">{% for a in history %}
-      <li><span class="muted">{{ a.ts | local("%d %b %H:%M") }}</span> <b>{{ a.actor }}</b> {{ a.action }}</li>
+    <div class="card-head">{{ icon("check") }}<h2>Checks</h2><span class="more tiny">fact check: {{ fact.verdict or '–' }}</span></div>
+    {% if fact.reference_label %}<p><b>{{ fact.reference_label }}</b><br><span class="muted">{{ fact.reference_text }}</span></p>{% endif %}
+    {% for i in fact.issues %}<div class="alert warn" style="padding:8px 10px">{{ icon("alert", "sm") }}<div class="grow">{{ i }}</div></div>{% endfor %}
+    <ul class="checklist">{% for c in qa.checks %}
+      <li><span class="lvl {{ 'ok' if c.passed else 'bad' }}">{{ icon("check" if c.passed else "x") }}</span>
+        <div><b>{{ c.name.replace('_', ' ') }}</b><div class="tiny">{{ c.detail }}</div></div></li>
     {% endfor %}</ul>
   </div>
+</div>
+
+<div class="card section">
+  <div class="card-head">{{ icon("clock") }}<h2>History</h2></div>
+  <div class="list">{% for a in history %}
+    <div class="li"><span class="tiny" style="width:110px">{{ a.ts | local("%d %b %H:%M") }}</span><div class="grow"><b>{{ a.action.replace('_', ' ') }}</b> <span class="tiny">by {{ a.actor }}</span></div></div>
+  {% endfor %}</div>
 </div>
 {% endblock %}

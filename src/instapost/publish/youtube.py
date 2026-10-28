@@ -103,6 +103,9 @@ def channel() -> dict:
         raise PublishError("this Google account has no YouTube channel; log in with the "
                            "channel's account (or pick the channel when Google asks)")
     c = items[0]
+    from instapost.db import session, set_kv
+    with session() as s:  # remembered for the dashboard's channel and Studio links
+        set_kv(s, "youtube_channel_id", c["id"])
     return {"id": c["id"], "title": c["snippet"]["title"],
             "subscribers": c.get("statistics", {}).get("subscriberCount")}
 

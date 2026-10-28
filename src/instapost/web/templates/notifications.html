@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, note %}
+{% block title %}Notifications{% endblock %}
+{% block subtitle %}Alerts that are true right now, and what happened in the last 7 days{% endblock %}
+{% block actions %}<form method="post" action="/notifications/read" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button>{{ icon("check", "sm") }} Mark all read</button></form>{% endblock %}
+{% block content %}
+<div class="cols c-1-1">
+  <div class="card"><div class="card-head">{{ icon("alert") }}<h2>Right now</h2></div>
+    {% for n in shell.notes.alerts %}{{ note(n) }}{% else %}<div class="empty">{{ icon("check") }}<div>Nothing needs attention.</div></div>{% endfor %}</div>
+  <div class="card"><div class="card-head">{{ icon("bell") }}<h2>Recent</h2></div>
+    {% for n in shell.notes.events %}{{ note(n) }}{% else %}<div class="empty">Nothing in the last 7 days.</div>{% endfor %}</div>
+</div>
+<p class="tiny section">The same events also reach you on Telegram.</p>
+{% endblock %}

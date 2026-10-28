@@ -1,17 +1,31 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, status, thumb, fmt_label %}
 {% block title %}Calendar{% endblock %}
+{% block subtitle %}Next 14 days: scheduled posts, and what the weekly plan will still create{% endblock %}
+{% block actions %}<a class="btn" href="/plan">{{ icon("plan", "sm") }} Edit the plan</a>{% endblock %}
 {% block content %}
-<h1>Calendar (next 14 days)</h1>
-{% if not days %}<p class="muted">Nothing scheduled. Approve items in the queue to fill the calendar.</p>{% endif %}
+<div class="row" style="margin-bottom:12px">
+  <span class="pill info">scheduled</span><span class="tiny">approved, goes out at the time shown</span>
+  <span class="pill">planned</span><span class="tiny">will be created the evening before</span>
+</div>
 <div class="grid">
-{% for day, items in days.items() %}
+{% for d in days %}
   <div class="card">
-    <h2>{{ day }}</h2>
-    <ul class="log">{% for i in items %}
-      <li>{{ i.scheduled_at | local("%H:%M") }} · <span class="pill">{{ i.format }}</span>
-        <span class="pill {{ {'published':'ok','failed':'bad','partial':'warn'}.get(i.status, '') }}">{{ i.status }}</span><br>
-        <a href="/items/{{ i.id }}">{{ i.hook[:60] }}</a></li>
-    {% endfor %}</ul>
+    <div class="card-head"><h2>{{ d.label }}</h2>{% if d.today %}<span class="pill accent">today</span>{% endif %}
+      {% if d.posts or d.plan %}<span class="more tiny">{{ d.posts|length }} scheduled · {{ d.plan|length }} planned</span>{% endif %}</div>
+    {% if not d.posts and not d.plan %}<p class="muted">Nothing.</p>{% endif %}
+    <div class="list tl">
+      {% for i in d.posts %}
+      <div class="li"><div class="when">{{ i.scheduled_at | local("%H:%M") }}</div>{{ thumb(i) }}
+        <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
+          <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · {{ status(i.status) }}</div></div></div>
+      {% endfor %}
+      {% for e in d.plan %}
+      <div class="li"><div class="when">{{ e.slot }}</div>
+        <div class="grow"><div class="t">{{ fmt_label(e.format) }} · {{ e.pillar }}{% if e.topic %} · {{ e.topic }}{% endif %}</div>
+          <div class="s"><span class="pill">planned</span> {{ e.hook_style }}{% if e.experiment %} · experiment{% endif %}</div></div></div>
+      {% endfor %}
+    </div>
   </div>
 {% endfor %}
 </div>

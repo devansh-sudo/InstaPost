@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Log in{% endblock %}
-{% block content %}
-<div class="card login">
-  <h1>🕉 InstaPost</h1>
-  <form method="post" action="/login" autocomplete="off">
-    <input type="hidden" name="token" value="{{ csrf }}">
-    <input name="username" placeholder="Username" required autofocus>
-    <input name="password" type="password" placeholder="Password" required>
-    <input name="code" inputmode="numeric" pattern="[0-9]{6}" placeholder="6-digit code from your authenticator app" required>
-    <button class="primary" style="width:100%">Log in</button>
-  </form>
+{% block public %}
+<div class="login-wrap">
+  <div class="card login">
+    <div class="brand"><span class="pf" style="background:var(--accent)">ॐ</span><div><h1>Thoughtory</h1><span class="tiny">Admin dashboard</span></div></div>
+    <form method="post" action="/login" autocomplete="off">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input name="username" placeholder="Username" required autofocus>
+      <input name="password" type="password" placeholder="Password" required>
+      <input name="code" inputmode="numeric" pattern="[0-9]{6}" placeholder="6-digit code from your authenticator app" required>
+      <button class="primary" style="width:100%; justify-content:center">Log in</button>
+    </form>
+  </div>
 </div>
 {% endblock %}

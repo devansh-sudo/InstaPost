@@ -1,9 +1,10 @@
+{% from "_macros.html" import icon, note %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}InstaPost{% endblock %} · InstaPost</title>
+  <title>{% block title %}Home{% endblock %} · Thoughtory</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
@@ -11,28 +12,66 @@
   <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
+{% include "_icons.html" %}
 {% if user %}
-<header>
-  <span class="brand">🕉 InstaPost</span>
-  {% set path = request.url.path %}
-  <nav>
-    <a href="/" class="{{ 'on' if path == '/' }}">Live</a>
-    <a href="/queue" class="{{ 'on' if path.startswith('/queue') }}">Approvals</a>
-    <a href="/calendar" class="{{ 'on' if path.startswith('/calendar') }}">Calendar</a>
-    <a href="/plan" class="{{ 'on' if path.startswith('/plan') }}">Plan</a>
-    <a href="/stats" class="{{ 'on' if path.startswith('/stats') }}">Stats</a>
-    <a href="/learning" class="{{ 'on' if path.startswith('/learning') }}">Learning</a>
-    <a href="/reports" class="{{ 'on' if path.startswith('/reports') }}">Reports</a>
-    <a href="/library" class="{{ 'on' if path.startswith('/library') }}">Library</a>
-    <a href="/settings" class="{{ 'on' if path.startswith('/settings') }}">Settings</a>
-  </nav>
-  <form method="post" action="/logout"><input type="hidden" name="token" value="{{ csrf }}">
-    <button>Log out</button></form>
-</header>
+{% set path = request.url.path %}
+<div class="app">
+  <aside class="side">
+    <div class="brand"><span class="logo">ॐ</span><div>{{ shell.page_name }}<small>{{ shell.handle }}</small></div></div>
+    {% macro nav(href, ico, label, on, count=0) %}
+      <a class="nav {{ 'on' if on }}" href="{{ href }}">{{ icon(ico) }}<span class="label">{{ label }}</span>{% if count %}<span class="count">{{ count }}</span>{% endif %}</a>
+    {% endmacro %}
+    {{ nav("/", "home", "Home", path == "/") }}
+    <div class="group">Content</div>
+    {{ nav("/inbox", "inbox", "Inbox", path.startswith("/inbox") or path.startswith("/queue"), shell.pending) }}
+    {{ nav("/calendar", "calendar", "Calendar", path.startswith("/calendar")) }}
+    {{ nav("/create", "plus", "Create", path.startswith("/create")) }}
+    {{ nav("/library", "library", "Library", path.startswith("/library") or path.startswith("/items")) }}
+    <div class="group">Growth</div>
+    {{ nav("/analytics", "chart", "Analytics", path.startswith("/analytics") or path.startswith("/stats")) }}
+    {{ nav("/learning", "bulb", "Learning", path.startswith("/learning")) }}
+    {{ nav("/reports", "report", "Reports", path.startswith("/reports")) }}
+    <div class="group">Planning</div>
+    {{ nav("/plan", "plan", "Weekly plan", path.startswith("/plan")) }}
+    <div class="group">System</div>
+    {{ nav("/activity", "activity", "Activity", path.startswith("/activity")) }}
+    {{ nav("/settings", "settings", "Settings", path.startswith("/settings")) }}
+    <div class="foot">
+      <div class="status-line"><span class="sdot {{ 'ok' if shell.worker_ok else 'bad' }}"></span>Worker {{ 'running' if shell.worker_ok else 'offline' }}</div>
+      <div class="status-line"><span class="sdot {{ 'bad' if shell.kill else 'ok' }}"></span>{{ 'Publishing stopped' if shell.kill else 'Publishing on schedule' }}</div>
+      <div class="status-line"><span class="sdot"></span>Autonomy {{ shell.autonomy }}</div>
+      <form method="post" action="/logout"><input type="hidden" name="token" value="{{ csrf }}">
+        <button class="ghost sm">{{ icon("logout", "sm") }} Log out</button></form>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="title"><h1>{% block heading %}{{ self.title() }}{% endblock %}</h1>
+        <span class="tiny">{% block subtitle %}{% endblock %}</span></div>
+      <div class="actions">
+        {% block actions %}{% endblock %}
+        <a class="btn primary" href="/create">{{ icon("plus", "sm") }} Create</a>
+        <details class="notif">
+          <summary class="btn ghost" aria-label="Notifications">{{ icon("bell") }}{% if shell.notes.unread %}<span class="badge">{{ shell.notes.unread }}</span>{% endif %}</summary>
+          <div class="panel">
+            <div class="row between" style="margin-bottom:6px"><h2>Notifications</h2>
+              <form method="post" action="/notifications/read" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="ghost sm">Mark all read</button></form></div>
+            {% for n in shell.notes.alerts %}{{ note(n) }}{% endfor %}
+            {% for n in shell.notes.events[:8] %}{{ note(n) }}{% endfor %}
+            {% if not shell.notes.alerts and not shell.notes.events %}<div class="empty">{{ icon("check") }}<div>All quiet.</div></div>{% endif %}
+            <div style="text-align:center; margin-top:8px"><a href="/notifications">See all</a></div>
+          </div>
+        </details>
+      </div>
+    </header>
+    <main class="content">
+      {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% else %}
+<main>{% if flash %}<div class="flash" style="max-width:380px;margin:16px auto">{{ flash }}</div>{% endif %}{% block public %}{% endblock %}</main>
 {% endif %}
-<main>
-  {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
-  {% block content %}{% endblock %}
-</main>
 </body>
 </html>

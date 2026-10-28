@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from starlette.middleware.sessions import SessionMiddleware
 
-from instapost import approvals, budget, jobs, setup_status
+from instapost import approvals, budget, jobs, notifications, setup_status
 from instapost.brand import load_brand
 from instapost.config import get_settings
 from instapost.db import AuditLog, Item, ItemStatus, Job, PlanEntry, audit, get_kv, session, utcnow
@@ -26,13 +26,16 @@ from instapost.models import Format, HookStyle, Pillar
 from instapost.publish import publisher, tokens, youtube
 from instapost.publish.media_host import verify_local
 from instapost.schedule import load_schedule, to_local, to_utc_naive
-from instapost.stats import queries, report
+from instapost.stats import dashboard, queries, report
 from instapost.stats import score as scoring
 from instapost.stats.labels import PLATFORM_LABEL, compact
 from instapost.web import auth, charts
 
 HERE = Path(__file__).parent
 FILE_NAME = re.compile(r"^(reel\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
+FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story"}
+PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
+                "kabir": "Kabir", "life_lesson": "Life lesson"}
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 
 
@@ -99,13 +102,27 @@ def csrf(request: Request, token: str = Form("")) -> None:
         raise HTTPException(403, "invalid form token; reload the page")
 
 
+def _shell() -> dict:
+    """What every page shows around its content: inbox count, status, notifications."""
+    brand = load_brand()
+    with session() as s:
+        heartbeat = get_kv(s, "worker_heartbeat", "")
+        hb = datetime.fromisoformat(heartbeat) if heartbeat else None
+        return {"pending": len(approvals.pending_review(s)), "kill": approvals.kill_switch_on(s),
+                "autonomy": approvals.autonomy(s),
+                "worker_ok": bool(hb and utcnow() - hb < timedelta(minutes=2)),
+                "notes": notifications.build(s), "page_name": "Thoughtory",
+                "handle": brand.printed_handle or brand.page_name}
+
+
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     if "csrf" not in request.session:
         request.session["csrf"] = auth.new_csrf_token()
     flash = request.session.pop("flash", None)
+    shell = _shell() if request.session.get("user") else {}
     return templates.TemplateResponse(request, name, {
         "csrf": request.session["csrf"], "flash": flash, "user": request.session.get("user"),
-        **ctx})
+        "shell": shell, "compact": compact, "labels": PLATFORM_LABEL, **ctx})
 
 
 def back(request: Request, message: str, to: str | None = None) -> RedirectResponse:
@@ -125,24 +142,13 @@ def _item_files(item: Item) -> dict:
             "slides": [p.name for p in sorted(folder.glob("slide_*.jpg"))]}
 
 
-def _ops_context() -> dict:
+def _running_context() -> dict:
     with session() as s:
-        heartbeat = get_kv(s, "worker_heartbeat", "")
-        hb = datetime.fromisoformat(heartbeat) if heartbeat else None
-        return {
-            "kill": approvals.kill_switch_on(s),
-            "autonomy": approvals.autonomy(s),
-            "worker_ok": bool(hb and utcnow() - hb < timedelta(minutes=2)),
-            "heartbeat": hb,
-            "running": list(s.scalars(select(Job).where(Job.status.in_(("running", "queued")))
-                                      .order_by(Job.id.desc()))),
-            "recent_jobs": list(s.scalars(select(Job).order_by(Job.id.desc()).limit(10))),
-            "audit": list(s.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(25))),
-            "pending": len(approvals.pending_review(s)),
-            "upcoming": approvals.upcoming(s, days=2)[:6],
-            "spend_day": budget.spent("day"), "spend_month": budget.spent("month"),
-            "settings": get_settings(),
-        }
+        running = list(s.scalars(select(Job).where(Job.status.in_(("running", "queued")))
+                                 .order_by(Job.id.desc())))
+        last = s.scalars(select(Job).where(Job.status.in_(("done", "failed")))
+                         .order_by(Job.id.desc()).limit(1)).first()
+        return {"running": running, "last_job": last}
 
 
 def _by_format(rows) -> list[tuple[str, float, int]]:
@@ -193,16 +199,70 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
 
-    # Overview / live ops
+    # Home
     @app.get("/", response_class=HTMLResponse)
-    def ops(request: Request, who: str = Depends(user)):
-        today = load_schedule().local_now().date()
-        return render(request, "ops.html", **_ops_context(), formats=list(Format),
-                      pillars=list(Pillar), tomorrow=today + timedelta(days=1))
+    def home(request: Request, days: int = 7, who: str = Depends(user)):
+        days = days if days in (7, 30) else 7
+        sched = load_schedule()
+        hour = sched.local_now().hour
+        greeting = ("Good morning" if 4 <= hour < 12 else "Good afternoon" if hour < 17
+                    else "Good evening")
+        with session() as s:
+            ov = dashboard.overview(s, days=days)
+            day_list, per_platform = dashboard.daily_views(ov["rows"], 14)
+            return render(
+                request, "home.html", ov=ov, greeting=greeting, sched=sched,
+                pending=approvals.pending_review(s)[:4], upcoming=approvals.upcoming(s, days=2)[:6],
+                top=dashboard.top_posts(ov["rows"]), settings=get_settings(),
+                spend_day=budget.spent("day"), spend_month=budget.spent("month"),
+                views_chart=charts.stacked_columns(day_list, per_platform, "Views per day"),
+                followers_chart=charts.line_chart(queries.followers_series(s, days=30),
+                                                  "Followers per platform"),
+                **_running_context())
 
-    @app.get("/partials/live", response_class=HTMLResponse)
-    def live(request: Request, who: str = Depends(user)):
-        return render(request, "_live.html", **_ops_context())
+    @app.get("/partials/running", response_class=HTMLResponse)
+    def running(request: Request, who: str = Depends(user)):
+        return templates.TemplateResponse(request, "_running.html", _running_context())
+
+    @app.get("/thumb/{item_id}")
+    def thumb(item_id: str, who: str = Depends(user)):
+        with session() as s:
+            item = s.get(Item, item_id)
+            folder = Path(item.folder) if item else None
+        for name in ("cover.jpg", "story.jpg", "slide_01.jpg"):
+            if folder and (folder / name).exists():
+                return FileResponse(folder / name,
+                                    headers={"Cache-Control": "private, max-age=600"})
+        # A neutral placeholder (blocked items have no image).
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 4">'
+               '<rect width="3" height="4" fill="#8f877e" fill-opacity="0.22"/></svg>')
+        return Response(svg, media_type="image/svg+xml")
+
+    @app.get("/create", response_class=HTMLResponse)
+    def create_page(request: Request, who: str = Depends(user)):
+        today = load_schedule().local_now().date()
+        return render(request, "create.html", formats=list(Format), pillars=list(Pillar),
+                      pillar_labels=PILLAR_LABEL, today=today, tomorrow=today + timedelta(days=1),
+                      sched=load_schedule())
+
+    @app.get("/notifications", response_class=HTMLResponse)
+    def notifications_page(request: Request, who: str = Depends(user)):
+        return render(request, "notifications.html")
+
+    @app.post("/notifications/read")
+    def notifications_read(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        with session() as s:
+            notifications.mark_all_read(s)
+        return back(request, "All notifications marked as read.")
+
+    @app.get("/activity", response_class=HTMLResponse)
+    def activity(request: Request, who: str = Depends(user)):
+        with session() as s:
+            return render(request, "activity.html",
+                          recent_jobs=list(s.scalars(select(Job).order_by(Job.id.desc()).limit(15))),
+                          audit=list(s.scalars(select(AuditLog).order_by(AuditLog.id.desc())
+                                               .limit(100))),
+                          **_running_context())
 
     @app.post("/kill")
     def kill(request: Request, on: str = Form(...), who: str = Depends(user), _=Depends(csrf)):
@@ -236,14 +296,18 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         jobs.enqueue("generate_day", f"full plan for {day}", day=day, actor=f"web:{who}")
         return back(request, f"Queued the full plan for {day}.")
 
-    # Approval queue
-    @app.get("/queue", response_class=HTMLResponse)
-    def queue_page(request: Request, who: str = Depends(user)):
+    # Inbox (approval queue)
+    @app.get("/inbox", response_class=HTMLResponse)
+    def inbox(request: Request, who: str = Depends(user)):
         with session() as s:
             items = approvals.pending_review(s)
             days = sorted({i.for_date for i in items if i.for_date})
             cards = [(i, _item_files(i)) for i in items]
-            return render(request, "queue.html", cards=cards, days=days)
+            return render(request, "inbox.html", cards=cards, days=days, sched=load_schedule())
+
+    @app.get("/queue")
+    def queue_redirect():
+        return RedirectResponse("/inbox", status_code=301)
 
     def _act(request: Request, item_id: str, who: str, fn, message: str):
         try:
@@ -343,55 +407,101 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
 
     @app.get("/calendar", response_class=HTMLResponse)
     def calendar(request: Request, who: str = Depends(user)):
+        sched = load_schedule()
+        today = sched.local_now().date()
         with session() as s:
             items = approvals.upcoming(s, days=14)
-            days: dict[str, list] = {}
-            for i in items:
-                days.setdefault(_local(i.scheduled_at, "%A %d %B"), []).append(i)
+            days = []
+            for n in range(14):
+                d = today + timedelta(days=n)
+                days.append({
+                    "label": d.strftime("%A %d %b"), "today": n == 0,
+                    "posts": [i for i in items if i.scheduled_at
+                              and to_local(i.scheduled_at, sched).date() == d],
+                    "plan": planner.entries_for_day(s, d)})
             return render(request, "calendar.html", days=days)
 
     @app.get("/library", response_class=HTMLResponse)
-    def library(request: Request, status: str = "", who: str = Depends(user)):
+    def library(request: Request, status: str = "", format: str = "",
+                who: str = Depends(user)):
+        from sqlalchemy import func
         with session() as s:
             q = select(Item).order_by(Item.created_at.desc()).limit(200)
             if status:
                 q = q.where(Item.status == status)
-            return render(request, "library.html", items=list(s.scalars(q)), status=status,
-                          statuses=[v for k, v in vars(ItemStatus).items() if k.isupper()])
+            if format:
+                q = q.where(Item.format == format)
+            counts = dict(s.execute(select(Item.status, func.count()).group_by(Item.status)).all())
+            counts[""] = sum(counts.values())
+            return render(request, "library.html", items=list(s.scalars(q)),
+                          status_filter=status, fmt=format, counts=counts)
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request, who: str = Depends(user)):
         s = get_settings()
         sched = load_schedule()
         ig = tokens.info("ig_access_token")
+        from instapost.render import music
+        from instapost.studio.images import chain_names
+        with session() as db:
+            links = dashboard.platform_links(db)
         return render(request, "settings.html", s=s, sched=sched,
                       steps=setup_status.checklist(),
                       platforms=sorted(publisher.configured_platforms()),
-                      ig_token=ig, youtube_ok=youtube.is_configured(),
+                      ig_token=ig, youtube_ok=youtube.is_configured(), links=links,
+                      image_chain=chain_names(), music_tracks=len(music.tracks()),
                       spend_day=budget.spent("day"), spend_month=budget.spent("month"))
 
-    # Stats & reports (Phase 3)
-    @app.get("/stats", response_class=HTMLResponse)
-    def stats_page(request: Request, days: int = 30, sort: str = "date",
-                   who: str = Depends(user)):
+    # Analytics
+    @app.get("/stats")
+    def stats_redirect():
+        return RedirectResponse("/analytics", status_code=301)
+
+    @app.get("/analytics", response_class=HTMLResponse)
+    def analytics(request: Request, days: int = 30, platform: str = "", sort: str = "date",
+                  who: str = Depends(user)):
         days = days if days in (7, 30, 90) else 30
+        platform = platform if platform in queries.PLATFORMS else ""
         with session() as s:
-            k = queries.kpis(s, days=7)
-            rows = queries.post_rows(s, since=utcnow() - timedelta(days=days))
-            keyfn = {"score": lambda r: r.score if r.score is not None else -1,
-                     "views": lambda r: r.combined.get("views") or 0,
-                     "date": lambda r: r.published_at}.get(sort, lambda r: r.published_at)
+            ov = dashboard.overview(s, days=days)
+            rows = ov["rows"]
+            if platform:
+                rows = [r for r in rows if platform in r.per_platform or platform in r.permalinks]
+
+            def metric(r, key):
+                m = r.per_platform.get(platform, {}) if platform else r.combined
+                if key == "score":
+                    sc = scoring.score(m) if platform else m.get("score")
+                    return sc if sc is not None else -1
+                if key == "engagement":
+                    return (m.get("shares") or 0) + (m.get("saves") or 0)
+                return m.get(key) or 0
+
+            keyfn = {"score": lambda r: metric(r, "score"), "views": lambda r: metric(r, "views"),
+                     "engagement": lambda r: metric(r, "engagement")
+                     }.get(sort, lambda r: r.published_at)
             rows = sorted(rows, key=keyfn, reverse=True)
             sched = load_schedule()
             slot_hours = sorted({int(t.split(":")[0]) for times in sched.slots.values()
                                  for t in times})
+            day_list, per_platform = dashboard.daily_views(
+                ov["rows"], days, (platform,) if platform else queries.PLATFORMS)
+            followers = queries.followers_series(s, days=days)
+            if platform:
+                followers = {platform: followers.get(platform, [])}
+            scope = ov["platforms"][platform] if platform else ov["total"]
             return render(
-                request, "stats.html", k=k, rows=rows, days=days, sort=sort,
-                labels=PLATFORM_LABEL, compact=compact,
-                followers_chart=charts.line_chart(queries.followers_series(s, days=days),
-                                                  "Followers per platform"),
-                pillar_chart=charts.bar_chart(queries.by_pillar(rows), "Average score by pillar"),
-                format_chart=charts.bar_chart(_by_format(rows), "Average score by format"),
+                request, "analytics.html", ov=ov, scope=scope, rows=rows, days=days,
+                platform=platform, sort=sort, score_of=scoring.score,
+                scope_label=PLATFORM_LABEL.get(platform, "All platforms"),
+                views_chart=charts.stacked_columns(day_list, per_platform, "Views per day"),
+                followers_chart=charts.line_chart(followers, "Followers"),
+                pillar_chart=charts.bar_chart(
+                    [(PILLAR_LABEL.get(p, p), v, n) for p, v, n in queries.by_pillar(rows)],
+                    "Average score by pillar"),
+                format_chart=charts.bar_chart(
+                    [(FORMAT_LABEL.get(f, f), v, n) for f, v, n in _by_format(rows)],
+                    "Average score by format"),
                 heat=charts.heatmap(queries.slot_heatmap(rows), slot_hours,
                                     "Average score by weekday and posting hour"))
 

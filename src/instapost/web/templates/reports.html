@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Reports{% endblock %}
+{% block subtitle %}Created every morning for the day before, and sent to Telegram{% endblock %}
 {% block content %}
-<h1>Daily reports</h1>
-<p class="muted">Created every morning for the day before and sent to Telegram.</p>
 <div class="grid">
 {% for r in reports %}
   <div class="card"><pre class="caption">{{ r.text }}</pre></div>

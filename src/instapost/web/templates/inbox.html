@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, fmt_label %}
+{% block title %}Inbox{% endblock %}
+{% block subtitle %}{{ cards|length }} waiting for your approval · approved posts go out at their time slot{% endblock %}
+{% block actions %}
+  <form method="post" action="/approve-next" class="row"><input type="hidden" name="token" value="{{ csrf }}">
+    <input type="number" name="n" value="3" min="1" max="20" style="width:64px" aria-label="how many">
+    <button>{{ icon("check", "sm") }} Approve next</button></form>
+{% endblock %}
+{% block content %}
+{% if days %}
+<div class="row" style="margin-bottom:14px">
+  <span class="muted">Approve a whole day:</span>
+  {% for d in days %}
+  <form method="post" action="/approve-day" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+    <input type="hidden" name="day" value="{{ d }}"><button class="sm">{{ icon("calendar", "sm") }} {{ d }}</button></form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not cards %}
+<div class="card empty">{{ icon("inbox") }}<h2>Inbox zero</h2>
+  <p class="muted">New posts arrive every evening at {{ sched.generate_at }}, or create one now.</p>
+  <a class="btn primary" href="/create">{{ icon("plus", "sm") }} Create</a></div>
+{% endif %}
+
+<div class="qcards">
+{% for item, files in cards %}
+  <div class="card qcard">
+    <div class="row" style="margin-bottom:10px">
+      <span class="pill accent">{{ fmt_label(item.format) }}</span><span class="pill">{{ item.pillar }}</span>
+      <span class="tiny">for {{ item.for_date }}</span>
+      <span style="margin-left:auto">
+      {% if item.fact_check == 'pass' %}<span class="pill ok">{{ icon("check", "sm") }} facts ok</span>
+      {% elif item.fact_check == 'fail' %}<span class="pill bad">facts failed</span>
+      {% else %}<span class="pill warn">{{ icon("alert", "sm") }} check facts</span>{% endif %}</span>
+    </div>
+    {% include "_media.html" %}
+    <div class="hook">{{ item.hook }}</div>
+    <details><summary class="muted">Caption</summary><pre class="caption">{{ item.caption }}</pre></details>
+    <div class="actions">
+      <form method="post" action="/items/{{ item.id }}/approve" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+        <button>{{ icon("check", "sm") }} Approve</button></form>
+      <form method="post" action="/items/{{ item.id }}/publish-now" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+        <button class="primary">{{ icon("rocket", "sm") }} Post now</button></form>
+      <form method="post" action="/items/{{ item.id }}/regenerate" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+        <button class="ghost">{{ icon("refresh", "sm") }} Redo</button></form>
+      <form method="post" action="/items/{{ item.id }}/reject" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+        <button class="ghost">{{ icon("x", "sm") }} Reject</button></form>
+      <a class="btn ghost" href="/items/{{ item.id }}">Details</a>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

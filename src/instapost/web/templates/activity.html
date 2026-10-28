@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Activity{% endblock %}
+{% block subtitle %}What the worker is doing, and everything that happened{% endblock %}
+{% block content %}
+<div class="cols c-1-1">
+  <div class="card" hx-get="/partials/running" hx-trigger="every 5s" hx-swap="innerHTML">{% include "_running.html" %}</div>
+  <div class="card">
+    <div class="card-head">{{ icon("clock") }}<h2>Recent jobs</h2></div>
+    <div class="list">
+      {% for j in recent_jobs %}
+      <div class="li"><span class="pill {{ {'done': 'ok', 'failed': 'bad'}.get(j.status, 'warn') }}">{{ j.status }}</span>
+        <div class="grow"><div class="t">{{ j.kind.replace('_', ' ')|capitalize }} · {{ j.label }}</div>
+          {% if j.error %}<div class="s">{{ j.error[:240] }}</div>{% endif %}</div>
+        <span class="tiny">{{ j.started_at | local("%d %b %H:%M") }}</span></div>
+      {% else %}<div class="empty">No jobs yet.</div>{% endfor %}
+    </div>
+  </div>
+</div>
+<div class="card flush section">
+  <div class="card-head" style="padding:16px 18px 0">{{ icon("activity") }}<h2>Activity log</h2><span class="more tiny">latest 100</span></div>
+  <div class="table-wrap"><table>
+    <tr><th>When</th><th>Who</th><th>What</th><th>Item</th><th>Details</th></tr>
+    {% for a in audit %}
+    <tr><td class="tiny">{{ a.ts | local("%d %b %H:%M") }}</td><td>{{ a.actor }}</td><td><b>{{ a.action.replace('_', ' ') }}</b></td>
+      <td>{% if a.item_id %}<a href="/items/{{ a.item_id }}">{{ a.item_id.split("-", 3)[-1] }}</a>{% endif %}</td>
+      <td class="tiny">{% for k, v in (a.detail or {}).items() %}{{ k }}: {{ v|string|truncate(80) }}{{ " · " if not loop.last }}{% endfor %}</td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endblock %}

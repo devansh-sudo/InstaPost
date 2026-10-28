@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, pf, delta, change, status, thumb, fmt_label, note %}
+{% block title %}Home{% endblock %}
+{% block heading %}{{ greeting }}{% endblock %}
+{% block subtitle %}Last {{ ov.days }} days, compared with the {{ ov.days }} days before{% endblock %}
+{% block actions %}
+  <div class="tabs">{% for d in (7, 30) %}<a href="/?days={{ d }}" class="{{ 'on' if d == ov.days }}">{{ d }} days</a>{% endfor %}</div>
+{% endblock %}
+{% block content %}
+
+{% for n in shell.notes.alerts if n.level in ("bad", "warn") %}
+  <div class="alert {{ n.level }}">{{ icon("alert") }}<div class="grow"><b>{{ n.title }}</b><span class="muted">{{ n.detail }}</span></div>
+    {% if n.link %}<a class="btn sm" href="{{ n.link }}">Open</a>{% endif %}</div>
+{% endfor %}
+
+{% set t = ov.total %}
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("users", "sm") }} Followers</div>
+    <div class="v">{{ compact(t.followers) }}</div>
+    <div class="d">{{ change(t.followers_change, "in " ~ ov.days ~ " days") if t.followers_change is not none else "no data yet" }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("eye", "sm") }} Views</div>
+    <div class="v">{{ compact(t.counts.views.value) }}</div><div class="d">{{ delta(t.counts.views) }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("send", "sm") }} Sends + saves</div>
+    <div class="v">{{ compact(t.engagement.value) }}</div><div class="d">{{ delta(t.engagement) or "strongest ranking signals" }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("clock", "sm") }} Avg watch (reels)</div>
+    <div class="v">{{ '–' if t.watch_ratio.value is none else '%d%%' % (t.watch_ratio.value * 100) }}</div>
+    <div class="d">{{ delta(t.watch_ratio) or "of the video length" }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("star", "sm") }} Avg post score</div>
+    <div class="v">{{ '–' if t.score.value is none else t.score.value }}<small> /100</small></div>
+    <div class="d">{{ delta(t.score) or "scored from 20 viewers" }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("rocket", "sm") }} Posts published</div>
+    <div class="v">{{ t.posts.value }}</div><div class="d">{{ delta(t.posts) or (shell.pending ~ " waiting for you") }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("wallet", "sm") }} Spend this month</div>
+    <div class="v">${{ "%.2f"|format(spend_month) }}<small> / ${{ "%.0f"|format(settings.monthly_budget_usd) }}</small></div>
+    {% set pct = (spend_month / settings.monthly_budget_usd * 100) if settings.monthly_budget_usd else 0 %}
+    <div class="meter {{ 'bad' if pct >= 100 else ('warn' if pct >= 80) }}"><i style="width:{{ [pct, 100]|min }}%"></i></div>
+    <div class="d">today ${{ "%.2f"|format(spend_day) }}</div></div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("inbox") }}<h2>Needs your approval</h2><span class="pill accent">{{ shell.pending }}</span>
+        <a class="more" href="/inbox">Open inbox →</a></div>
+      {% if pending %}
+      <div class="list">
+        {% for i in pending %}
+        <div class="li">
+          <a href="/items/{{ i.id }}">{{ thumb(i) }}</a>
+          <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
+            <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · for {{ i.for_date }}
+              {% if i.fact_check != 'pass' %}· <span class="pill warn">check facts</span>{% endif %}</div></div>
+          <form method="post" action="/items/{{ i.id }}/approve" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+            <button class="sm">{{ icon("check", "sm") }} Approve</button></form>
+          <form method="post" action="/items/{{ i.id }}/publish-now" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+            <button class="sm primary">{{ icon("rocket", "sm") }} Post now</button></form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">{{ icon("check") }}<div>Nothing waiting. Tomorrow's posts arrive around {{ sched.generate_at }}.</div>
+        <div style="margin-top:10px"><a class="btn sm" href="/create">{{ icon("plus", "sm") }} Create one now</a></div></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-head">{{ icon("chart") }}<h2>Views per day</h2><span class="tiny">by the day posts went out</span>
+        <a class="more" href="/analytics?days={{ ov.days }}">Analytics →</a></div>
+      {{ views_chart }}
+    </div>
+
+    <div class="card">
+      <div class="card-head">{{ icon("users") }}<h2>Follower growth</h2></div>
+      {{ followers_chart }}
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("calendar") }}<h2>Coming up</h2><a class="more" href="/calendar">Calendar →</a></div>
+      {% if upcoming %}
+      <div class="list tl">
+        {% for i in upcoming %}
+        <div class="li"><div class="when">{{ i.scheduled_at | local("%H:%M") }}<small>{{ i.scheduled_at | local("%a %d") }}</small></div>
+          <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
+            <div class="s">{{ fmt_label(i.format) }} · {{ status(i.status) }}</div></div></div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="empty">{{ icon("calendar") }}<div>Nothing scheduled in the next 2 days.</div></div>{% endif %}
+    </div>
+
+    {% for name, p in ov.platforms.items() %}
+    <div class="card platform">
+      <div class="card-head">{{ pf(name) }}<h2>{{ labels[name] }}</h2>
+        {% if p.connected %}<span class="pill ok">connected</span>{% else %}<span class="pill">not connected</span>{% endif %}</div>
+      <div class="stats">
+        <div><div class="v">{{ compact(p.followers) }}</div><div class="k">followers {{ change(p.followers_change) }}</div></div>
+        <div><div class="v">{{ compact(p.counts.views.value) }}</div><div class="k">views</div></div>
+        <div><div class="v">{{ p.posts.value }}</div><div class="k">posts</div></div>
+      </div>
+      <div class="links">
+        {% for label, url in p.links.items() %}<a class="btn sm" href="{{ url }}" target="_blank" rel="noopener">{{ label }} {{ icon("external", "sm") }}</a>{% endfor %}
+        <a class="btn sm ghost" href="/analytics?platform={{ name }}&days={{ ov.days }}">Details →</a>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="card">
+      <div class="card-head">{{ icon("star") }}<h2>Top posts</h2><a class="more" href="/analytics?sort=score&days={{ ov.days }}">All posts →</a></div>
+      {% if top %}
+      <div class="list">
+        {% for r in top %}
+        <div class="li"><a href="/items/{{ r.item.id }}">{{ thumb(r.item) }}</a>
+          <div class="grow"><div class="t"><a href="/items/{{ r.item.id }}">{{ r.item.hook }}</a></div>
+            <div class="s">score {{ r.score if r.score is not none else '–' }} · {{ compact(r.combined.views) }} views · {{ compact((r.combined.shares or 0) + (r.combined.saves or 0)) }} sends+saves</div>
+            <div class="links" style="margin-top:6px">{% for p, url in r.permalinks.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ pf(p, "sm") }}</a>{% endfor %}</div></div></div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="empty">{{ icon("star") }}<div>Your best posts show up here once they have views.</div></div>{% endif %}
+    </div>
+
+    <div class="card" hx-get="/partials/running" hx-trigger="every 5s" hx-swap="innerHTML">
+      {% include "_running.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

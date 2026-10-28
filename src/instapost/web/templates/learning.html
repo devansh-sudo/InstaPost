@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Learning{% endblock %}
+{% block subtitle %}What works for your page, and how sure the agent is{% endblock %}
 {% block content %}
-<h1>What the agent has learned</h1>
 <p class="muted">Based on {{ observations }} scored posts (a post counts once it is a day old and reached 20+ people).
   Dot = average score; line = where the true average probably is. A wide line means "not sure yet".
   About {{ explore }}% of planned pieces are experiments so options with few posts still get tried.
   Expect real conclusions only after roughly 30–50 posts.</p>
 
 {% for fmt, dims in sections %}
-<h2 style="margin-top:18px">{{ fmt }}</h2>
+<div class="day-head">{{ {"reel_book_pov": "Reels", "carousel_shlok": "Carousels", "story_line": "Stories"}.get(fmt, fmt) }}</div>
 <div class="grid">
   {% for dim, confidence, chart in dims %}
   <div class="card">
@@ -20,7 +20,7 @@
 </div>
 {% endfor %}
 
-<h2 style="margin-top:18px">Weekly reviews</h2>
+<div class="day-head">Weekly reviews</div>
 <div class="grid">
 {% for r in reviews %}
   <div class="card"><pre class="caption">{{ r.text }}</pre>

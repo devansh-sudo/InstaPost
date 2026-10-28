@@ -246,7 +246,8 @@ def test_dashboard_requires_login_and_totp(web):
     assert web.get("/", follow_redirects=False).status_code == 303
     assert _login(web).headers["location"] == "/"
     page = web.get("/")
-    assert page.status_code == 200 and "KILL SWITCH" in page.text
+    assert page.status_code == 200 and "Needs your approval" in page.text
+    assert "Stop everything" in web.get("/settings").text  # the kill switch
     assert "default-src 'self'" in page.headers["content-security-policy"]
 
 
@@ -290,3 +291,23 @@ def test_make_request_is_queued_for_worker(web):
         job = s.query(Job).one()
         assert job.status == "queued" and job.payload["format"] == "story_line"
         assert json.dumps(job.payload)
+
+
+def test_every_dashboard_page_renders(web):
+    item_id = _story()
+    _login(web)
+    for path in ("/", "/?days=30", "/inbox", "/calendar", "/create", "/library",
+                 "/library?status=needs_review&format=story_line", "/analytics",
+                 "/analytics?platform=instagram&days=7&sort=score", "/learning", "/reports",
+                 "/plan", "/activity", "/notifications", "/settings", f"/items/{item_id}",
+                 "/partials/running", f"/thumb/{item_id}"):
+        r = web.get(path)
+        assert r.status_code == 200, path
+    assert web.get("/queue", follow_redirects=False).headers["location"] == "/inbox"
+    assert web.get("/stats", follow_redirects=False).headers["location"] == "/analytics"
+    # Notifications: the waiting post shows up, and "mark all read" works.
+    page = web.get("/notifications").text
+    assert "waiting for your approval" in page
+    r = web.post("/notifications/read", data={"token": _csrf(web, "/notifications")},
+                 follow_redirects=False)
+    assert r.status_code == 303

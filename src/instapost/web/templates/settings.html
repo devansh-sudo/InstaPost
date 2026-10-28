@@ -1,52 +1,86 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, pf, fmt_label %}
 {% block title %}Settings{% endblock %}
+{% block subtitle %}Controls, connections and setup{% endblock %}
 {% block content %}
-<h1>Settings</h1>
-<div class="card" style="margin-bottom:14px">
-  <h2>Setup checklist</h2>
-  <ul class="checklist">
-    {% for st in steps %}
-    <li>{{ '✅' if st.done else ('⬜' if st.required else '▫️') }} <b>{{ st.label }}</b>
-      {% if not st.done %}<span class="muted"> · {{ st.hint }}{{ '' if st.required else ' (optional)' }}</span>{% endif %}</li>
+<div class="cols c-1-1">
+  <div class="card {{ 'kill-on' if shell.kill }}">
+    <div class="card-head">{{ icon("power") }}<h2>Publishing controls</h2></div>
+    <div class="list">
+      <div class="li"><div class="grow"><div class="t">Kill switch</div>
+          <div class="s">{{ 'ON: nothing is published or created.' if shell.kill else 'Off: posts go out on schedule.' }}</div></div>
+        <form method="post" action="/kill" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+          {% if shell.kill %}<input type="hidden" name="on" value="0"><button class="ok">Resume publishing</button>
+          {% else %}<input type="hidden" name="on" value="1"><button class="danger">{{ icon("power", "sm") }} Stop everything</button>{% endif %}</form></div>
+      <div class="li"><div class="grow"><div class="t">Autonomy</div>
+          <div class="s">L0: you approve everything · L1: stories and carousels go out by themselves · L2: everything. Unverified facts always wait for you.</div></div>
+        <form method="post" action="/autonomy" class="row"><input type="hidden" name="token" value="{{ csrf }}">
+          <select name="level">{% for l in ("L0", "L1", "L2") %}<option {{ 'selected' if shell.autonomy == l }}>{{ l }}</option>{% endfor %}</select>
+          <button>Set</button></form></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">{{ icon("wallet") }}<h2>Budget</h2></div>
+    {% for label, spent, cap in [("Today", spend_day, s.daily_budget_usd), ("This month", spend_month, s.monthly_budget_usd)] %}
+    {% set pct = (spent / cap * 100) if cap else 0 %}
+    <div style="margin-bottom:12px"><div class="row between"><b>{{ label }}</b><span>${{ "%.2f"|format(spent) }} of ${{ "%.2f"|format(cap) }}</span></div>
+      <div class="meter {{ 'bad' if pct >= 100 else ('warn' if pct >= 80) }}"><i style="width:{{ [pct, 100]|min }}%"></i></div></div>
     {% endfor %}
-  </ul>
+    <p class="tiny">Caps in .env (DAILY_BUDGET_USD, MONTHLY_BUDGET_USD). Paid steps stop at the cap.</p>
+  </div>
 </div>
-<div class="grid">
-  <div class="card">
-    <h2>Connected platforms</h2>
-    <table>
-      {% for p in ["instagram", "facebook", "youtube"] %}
-      <tr><td>{{ p }}</td><td>{% if p in platforms %}<span class="pill ok">connected</span>
-        {% else %}<span class="pill bad">not set up</span>{% endif %}</td></tr>
-      {% endfor %}
-    </table>
-    <p class="muted">Instagram token:
-      {% if ig_token.refreshed_at %}refreshed {{ ig_token.refreshed_at[:10] }}, expires {{ (ig_token.expires_at or '?')[:10] }}
-      {% else %}from .env, not refreshed yet (the worker refreshes it automatically){% endif %}</p>
-    <p class="muted">YouTube privacy for uploads: <b>{{ s.youtube_privacy }}</b>
-      (set YOUTUBE_PRIVACY=public once the YouTube API audit is approved).</p>
-    <p class="muted">Setup steps: docs/SETUP_META_YOUTUBE.md</p>
+
+<div class="card section">
+  <div class="card-head">{{ icon("external") }}<h2>Connected platforms</h2></div>
+  <div class="grid">
+    {% for p in ["instagram", "facebook", "youtube"] %}
+    <div class="card" style="box-shadow:none">
+      <div class="card-head">{{ pf(p) }}<h2>{{ labels[p] }}</h2>
+        {% if p in platforms %}<span class="pill ok">connected</span>{% else %}<span class="pill bad">not set up</span>{% endif %}</div>
+      <p class="tiny">
+        {% if p == "instagram" %}Token: {% if ig_token.refreshed_at %}renewed {{ ig_token.refreshed_at[:10] }}, valid until {{ (ig_token.expires_at or '?')[:10] }}{% else %}from .env (the worker renews it daily){% endif %}
+        {% elif p == "youtube" %}Uploads are <b>{{ s.youtube_privacy }}</b>{% if s.youtube_privacy == "private" %} until the API audit is approved (then YOUTUBE_PRIVACY=public){% endif %}
+        {% else %}Reels are posted to your Page{% endif %}</p>
+      <div class="links">{% for label, url in links[p].items() %}<a class="btn sm" href="{{ url }}" target="_blank" rel="noopener">{{ label }} {{ icon("external", "sm") }}</a>{% endfor %}</div>
+    </div>
+    {% endfor %}
   </div>
+</div>
+
+<div class="cols c-1-1 section">
   <div class="card">
-    <h2>Budget</h2>
-    <p>Today ${{ "%.3f"|format(spend_day) }} of ${{ "%.2f"|format(s.daily_budget_usd) }}<br>
-       This month ${{ "%.3f"|format(spend_month) }} of ${{ "%.2f"|format(s.monthly_budget_usd) }}</p>
-    <p class="muted">Change the caps in .env (DAILY_BUDGET_USD, MONTHLY_BUDGET_USD) and restart.</p>
-    <h2>Content</h2>
-    <p class="muted">Writer {{ s.writer_model }} · fact check {{ s.factcheck_model }} ·
-      QA {{ s.qa_model }} · images {{ s.image_provider }}{{ " · DEMO MODE" if s.demo_mode }}</p>
-  </div>
-  <div class="card">
-    <h2>Schedule ({{ sched.timezone }})</h2>
-    <p>New content is created daily at <b>{{ sched.generate_at }}</b> for the next day.</p>
-    <table>
-      {% for fmt, times in sched.slots.items() %}
-      <tr><td>{{ fmt.value }}</td><td>{{ times | join(", ") }}</td>
-        <td class="muted">→ {{ sched.targets[fmt] | join(", ") }}</td></tr>
+    <div class="card-head">{{ icon("check") }}<h2>Setup checklist</h2><span class="more tiny">{{ steps|selectattr("done")|list|length }} of {{ steps|length }} done</span></div>
+    <ul class="checklist">
+      {% for st in steps %}
+      <li><span class="lvl {{ 'ok' if st.done else ('warn' if st.required else 'info') }}">{{ icon("check" if st.done else ("alert" if st.required else "info")) }}</span>
+        <div><b>{{ st.label }}</b>{% if not st.done %}<div class="tiny">{{ st.hint }}{{ '' if st.required else ' (optional)' }}</div>{% endif %}</div></li>
       {% endfor %}
-    </table>
-    <p class="muted">Daily limits: {% for p, n in sched.max_posts_per_day.items() %}{{ p }} {{ n }}{{ ", " if not loop.last }}{% endfor %}.
-      Edit schedule.yaml to change, then restart the worker.</p>
+    </ul>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("clock") }}<h2>Schedule</h2><span class="more tiny">{{ sched.timezone }}</span></div>
+      <p class="muted">New posts are created every day at <b>{{ sched.generate_at }}</b> for the next day; the report comes at <b>{{ sched.report_at }}</b>.</p>
+      <table>
+        <tr><th>Format</th><th>Times</th><th>Goes to</th></tr>
+        {% for fmt, times in sched.slots.items() %}
+        <tr><td>{{ fmt_label(fmt.value) }}</td><td>{{ times | join(", ") }}</td>
+          <td><div class="links">{% for p in sched.targets[fmt] %}{{ pf(p, "sm") }}{% endfor %}</div></td></tr>
+        {% endfor %}
+      </table>
+      <p class="tiny" style="margin-top:8px">Per-platform limits: {% for p, n in sched.max_posts_per_day.items() %}{{ labels.get(p, p) }} {{ n }}{{ ", " if not loop.last }}{% endfor %}. Edit schedule.yaml, then restart.</p>
+    </div>
+    <div class="card">
+      <div class="card-head">{{ icon("bulb") }}<h2>Content engine</h2></div>
+      <table>
+        <tr><td>Writer · fact check</td><td>{{ s.writer_model }} · {{ s.factcheck_model }}</td></tr>
+        <tr><td>Image check</td><td>{{ s.qa_model }}</td></tr>
+        <tr><td>Images</td><td>{{ image_chain | join(" → ") }}</td></tr>
+        <tr><td>Music library</td><td>{{ music_tracks }} track(s) in data/music/</td></tr>
+        <tr><td>Demo mode</td><td>{{ 'ON (sample text, placeholder images)' if s.demo_mode else 'off' }}</td></tr>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

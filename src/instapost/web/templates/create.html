@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, fmt_label %}
+{% block title %}Create{% endblock %}
+{% block subtitle %}The worker makes it in 2–4 minutes; it then appears in your Inbox and on Telegram{% endblock %}
+{% block content %}
+<div class="cols c-1-1">
+  <div class="card">
+    <div class="card-head">{{ icon("plus") }}<h2>One post</h2></div>
+    <form method="post" action="/make">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <div class="form-grid">
+        <label class="field">Format
+          <select name="format">{% for f in formats %}<option value="{{ f.value }}">{{ fmt_label(f.value) }}</option>{% endfor %}</select></label>
+        <label class="field">Pillar
+          <select name="pillar">{% for p in pillars %}<option value="{{ p.value }}">{{ pillar_labels.get(p.value, p.value) }}</option>{% endfor %}</select></label>
+        <label class="field">For date <input type="date" name="for_date" value="{{ today }}"></label>
+      </div>
+      <label class="field" style="margin-top:12px">Topic (optional)
+        <input name="topic" placeholder="e.g. गुस्सा, धैर्य, माँ, नई शुरुआत"></label>
+      <div class="row" style="margin-top:14px"><button class="primary">{{ icon("plus", "sm") }} Create</button>
+        <span class="tiny">About $0.05–0.10 · images are free from Unsplash or your library</span></div>
+    </form>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("calendar") }}<h2>A full day from the plan</h2></div>
+    <p class="muted">Makes everything the weekly plan has for that day. The worker does this by itself every evening at {{ sched.generate_at }} for the next day.</p>
+    <form method="post" action="/generate-day" class="row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input type="date" name="day" value="{{ tomorrow }}"><button>{{ icon("calendar", "sm") }} Create the day</button>
+    </form>
+    <hr>
+    <h3>From Telegram</h3>
+    <p class="muted"><code>/new reel gita गुस्सा</code> · <code>/new story shiv</code> · <code>/new carousel kabir</code>, then tap 🚀 Post now.</p>
+  </div>
+</div>
+{% endblock %}

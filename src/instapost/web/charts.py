@@ -135,6 +135,71 @@ def bar_chart(rows: list[tuple[str, float, int]], title: str, max_value: float =
     return Markup(f'<div class="viz">{"".join(parts)}{table}</div>')
 
 
+def stacked_columns(days: list[date], series: dict[str, list[int]], title: str,
+                    width: int = 720, height: int = 240) -> Markup:
+    """Views per day, one stacked column per day, one segment per platform (colour =
+    platform). 2px surface gap between segments; only the top segment gets a rounded end."""
+    series = {k: v for k, v in series.items() if any(v)}
+    if not series or not days:
+        return Markup('<p class="muted">No views yet in this period.</p>')
+    pad_l, pad_r, pad_t, pad_b = 44, 12, 12, 28
+    totals = [sum(v[i] for v in series.values()) for i in range(len(days))]
+    ticks = nice_ticks(max(totals) or 1)
+    ymax = ticks[-1] or 1
+    pw, ph = width - pad_l - pad_r, height - pad_t - pad_b
+    slot = pw / len(days)
+    bw = min(24, slot * 0.6)
+
+    def y(v: float) -> float:
+        return pad_t + ph * (1 - v / ymax)
+
+    parts = [f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" '
+             f'aria-label="{escape(title)}">']
+    for t in ticks:
+        parts.append(f'<line class="grid" x1="{pad_l}" x2="{pad_l + pw}" y1="{y(t):.1f}" '
+                     f'y2="{y(t):.1f}"/><text class="tick" x="{pad_l - 6}" y="{y(t) + 4:.1f}" '
+                     f'text-anchor="end">{compact(t)}</text>')
+    step = max(1, len(days) // 7)
+    for i, d in enumerate(days):
+        cx = pad_l + slot * (i + 0.5)
+        if i % step == 0 or i == len(days) - 1:
+            parts.append(f'<text class="tick" x="{cx:.1f}" y="{height - 8}" '
+                         f'text-anchor="middle">{d.strftime("%d %b")}</text>')
+        # Hover target bigger than the mark (the whole day column), under the segments so
+        # each segment still shows its own tooltip.
+        tip_all = escape(f"{d.strftime('%a %d %b')}: {compact(totals[i])} views")
+        parts.append(f'<rect class="hit" x="{cx - slot / 2:.1f}" y="{pad_t}" width="{slot:.1f}"'
+                     f' height="{ph}" data-tip="{tip_all}"/>')
+        base = 0
+        segs = [(n, v[i]) for n, v in series.items() if v[i]]
+        for j, (name, v) in enumerate(segs):
+            top, bottom = y(base + v), y(base)
+            h = max(bottom - top - (2 if j < len(segs) - 1 else 0), 1)  # 2px surface gap
+            x0 = cx - bw / 2
+            cls = f"s{PLATFORM_SLOT.get(name, 1)}"
+            tip = escape(f"{d.strftime('%a %d %b')} · {PLATFORM_LABEL.get(name, name)}: "
+                         f"{compact(v)} views (day total {compact(totals[i])})")
+            if j == len(segs) - 1:  # rounded data end on the top segment only
+                r = min(4, h, bw / 2)
+                path = (f"M{x0:.1f},{bottom:.1f} v-{h - r:.1f} "
+                        f"a{r},{r} 0 0 1 {r},-{r} h{bw - 2 * r:.1f} a{r},{r} 0 0 1 {r},{r} "
+                        f"v{h - r:.1f} z")
+                parts.append(f'<path class="bar {cls}" d="{path}" data-tip="{tip}"/>')
+            else:
+                parts.append(f'<rect class="bar {cls}" x="{x0:.1f}" y="{bottom - h:.1f}" '
+                             f'width="{bw:.1f}" height="{h:.1f}" data-tip="{tip}"/>')
+            base += v
+    parts.append("</svg>")
+    head = "".join(f"<th>{escape(PLATFORM_LABEL.get(n, n))}</th>" for n in series)
+    rows = "".join(f"<tr><td>{d.isoformat()}</td>" + "".join(
+        f"<td>{compact(series[n][i])}</td>" for n in series) + f"<td>{compact(totals[i])}</td></tr>"
+        for i, d in enumerate(days))
+    table = (f'<details class="table-view"><summary>Table</summary><table><tr><th>Day</th>'
+             f"{head}<th>Total</th></tr>{rows}</table></details>")
+    legend = _legend(list(series)) if len(series) > 1 else ""
+    return Markup(f'<div class="viz">{legend}{"".join(parts)}{table}</div>')
+
+
 SEQ_STEPS = 6  # seq-1 (light) .. seq-6 (dark), defined in app.css for light and dark
 
 

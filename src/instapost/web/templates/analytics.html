@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, pf, delta, change, thumb, fmt_label %}
+{% block title %}Analytics{% endblock %}
+{% block subtitle %}{{ scope_label }} · last {{ days }} days vs the {{ days }} days before{% endblock %}
+{% block actions %}
+  <div class="tabs">{% for d in (7, 30, 90) %}<a href="/analytics?days={{ d }}&platform={{ platform }}&sort={{ sort }}" class="{{ 'on' if d == days }}">{{ d }}d</a>{% endfor %}</div>
+{% endblock %}
+{% block content %}
+<div class="tabs" style="margin-bottom:16px">
+  <a href="/analytics?days={{ days }}&sort={{ sort }}" class="{{ 'on' if not platform }}">All platforms</a>
+  {% for p in ("instagram", "facebook", "youtube") %}
+  <a href="/analytics?days={{ days }}&platform={{ p }}&sort={{ sort }}" class="{{ 'on' if platform == p }}">{{ pf(p, "sm") }} {{ labels[p] }}</a>
+  {% endfor %}
+</div>
+
+{% set k = scope %}
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("users", "sm") }} Followers</div><div class="v">{{ compact(k.followers) }}</div>
+    <div class="d">{{ change(k.followers_change, "in " ~ days ~ " days") if k.followers_change is not none else "no data yet" }}</div></div>
+  {% for key, label, ico in [("views", "Views", "eye"), ("reach", "Reach", "users"), ("likes", "Likes", "star"), ("comments", "Comments", "inbox"), ("shares", "Shares / sends", "send"), ("saves", "Saves", "library")] %}
+  <div class="kpi"><div class="k">{{ icon(ico, "sm") }} {{ label }}</div><div class="v">{{ compact(k.counts[key].value) }}</div>
+    <div class="d">{{ delta(k.counts[key]) }}</div></div>
+  {% endfor %}
+  <div class="kpi"><div class="k">{{ icon("clock", "sm") }} Avg watch</div>
+    <div class="v">{{ '–' if k.watch_ratio.value is none else '%d%%' % (k.watch_ratio.value * 100) }}</div><div class="d">{{ delta(k.watch_ratio) or "reels" }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("star", "sm") }} Avg score</div>
+    <div class="v">{{ '–' if k.score.value is none else k.score.value }}<small> /100</small></div><div class="d">{{ delta(k.score) }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("rocket", "sm") }} Posts</div><div class="v">{{ k.posts.value }}</div><div class="d">{{ delta(k.posts) }}</div></div>
+</div>
+
+{% if not platform %}
+<div class="card flush section">
+  <div class="card-head" style="padding:16px 18px 0">{{ icon("chart") }}<h2>Platforms side by side</h2></div>
+  <div class="table-wrap"><table>
+    <tr><th>Platform</th><th class="num">Followers</th><th class="num">Change</th><th class="num">Posts</th><th class="num">Views</th>
+      <th class="num">Reach</th><th class="num">Likes</th><th class="num">Comments</th><th class="num">Shares</th><th class="num">Saves</th>
+      <th class="num">Watch</th><th class="num">Score</th><th>Open</th></tr>
+    {% for name, p in ov.platforms.items() %}
+    <tr><td><div class="row">{{ pf(name, "sm") }} <a href="/analytics?days={{ days }}&platform={{ name }}">{{ labels[name] }}</a>
+        {% if not p.connected %}<span class="pill">not connected</span>{% endif %}</div></td>
+      <td class="num">{{ compact(p.followers) }}</td><td class="num">{{ change(p.followers_change) or '–' }}</td>
+      <td class="num">{{ p.posts.value }}</td>
+      {% for key in ("views", "reach", "likes", "comments", "shares", "saves") %}<td class="num">{{ compact(p.counts[key].value) }}</td>{% endfor %}
+      <td class="num">{{ '–' if p.watch_ratio.value is none else '%d%%' % (p.watch_ratio.value * 100) }}</td>
+      <td class="num">{{ p.score.value if p.score.value is not none else '–' }}</td>
+      <td><div class="links">{% for label, url in p.links.items() %}<a class="btn sm" href="{{ url }}" target="_blank" rel="noopener">{{ label }} {{ icon("external", "sm") }}</a>{% endfor %}</div></td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% else %}
+<div class="row section">{% for label, url in scope.links.items() %}<a class="btn" href="{{ url }}" target="_blank" rel="noopener">{{ pf(platform, "sm") }} {{ label }} {{ icon("external", "sm") }}</a>{% endfor %}</div>
+{% endif %}
+
+<div class="cols c-1-1 section">
+  <div class="card"><div class="card-head">{{ icon("eye") }}<h2>Views per day</h2><span class="tiny">by the day posts went out</span></div>{{ views_chart }}</div>
+  <div class="card"><div class="card-head">{{ icon("users") }}<h2>Followers</h2></div>{{ followers_chart }}</div>
+</div>
+<div class="cols c-3 section">
+  <div class="card"><div class="card-head"><h2>Score by pillar</h2></div>{{ pillar_chart }}</div>
+  <div class="card"><div class="card-head"><h2>Score by format</h2></div>{{ format_chart }}</div>
+  <div class="card" style="overflow-x:auto"><div class="card-head"><h2>Best posting times</h2></div>
+    <p class="tiny">Average score by weekday and posting hour. Grey = not tried yet.</p>{{ heat }}</div>
+</div>
+
+<div class="card flush section">
+  <div class="card-head" style="padding:16px 18px 0">{{ icon("library") }}<h2>Posts ({{ rows|length }})</h2>
+    <div class="tabs more">{% for key, label in [("date", "Newest"), ("score", "Best score"), ("views", "Most views"), ("engagement", "Most sends+saves")] %}
+      <a href="/analytics?days={{ days }}&platform={{ platform }}&sort={{ key }}" class="{{ 'on' if sort == key }}">{{ label }}</a>{% endfor %}</div></div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Post</th><th>Posted</th><th>On</th><th class="num">Views</th><th class="num">Reach</th><th class="num">Likes</th>
+      <th class="num">Comments</th><th class="num">Shares</th><th class="num">Saves</th><th class="num">Watch</th><th class="num">Score</th></tr>
+    {% for r in rows %}
+    {% set m = r.per_platform.get(platform, {}) if platform else r.combined %}
+    <tr><td style="width:60px"><a href="/items/{{ r.item.id }}">{{ thumb(r.item) }}</a></td>
+      <td><a href="/items/{{ r.item.id }}"><b>{{ r.item.hook[:70] }}</b></a><div class="tiny">{{ fmt_label(r.item.format) }} · {{ r.item.pillar }}</div></td>
+      <td class="tiny">{{ r.published_at | local("%d %b %H:%M") }}</td>
+      <td><div class="links">{% for p, url in r.permalinks.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ pf(p, "sm") }}</a>{% endfor %}</div></td>
+      {% for key in ("views", "reach", "likes", "comments", "shares", "saves") %}<td class="num">{{ compact(m.get(key)) }}</td>{% endfor %}
+      <td class="num">{{ '–' if not m.get('watch_ratio') else '%d%%' % (m.watch_ratio * 100) }}</td>
+      <td class="num"><b>{{ (m.get('score') if not platform else score_of(m)) or '–' }}</b></td></tr>
+    {% else %}
+    <tr><td colspan="12"><div class="empty">{{ icon("chart") }}<div>No published posts in this period yet.</div></div></td></tr>
+    {% endfor %}
+  </table></div>
+  <details class="table-view" style="padding:0 18px 16px"><summary>How the score works</summary>
+    <p class="muted">0–100 from ratios, so a small new page compares fairly with itself: sends/reach 35%, saves/reach 25%,
+      watch time/length 25%, comments/reach 10%, follows/reach 5%. Posts need 20+ viewers to be scored.</p></details>
+</div>
+{% endblock %}
