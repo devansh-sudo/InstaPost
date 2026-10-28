@@ -250,3 +250,29 @@ def test_check_reports_bad_ig_user_id_without_crashing(monkeypatch, capsys):
     get_settings.cache_clear()
     assert cli.main(["check"]) == 0
     assert "! instagram test failed: Instagram 400" in capsys.readouterr().out
+
+
+def test_youtube_channel_summary_and_no_channel(monkeypatch):
+    from instapost.publish import youtube
+    from instapost.publish.instagram import PublishError
+
+    class Svc:
+        def __init__(self, items):
+            self.items = items
+
+        def channels(self):
+            return self
+
+        def list(self, **kw):
+            assert kw == {"part": "snippet,statistics", "mine": True}
+            return self
+
+        def execute(self):
+            return {"items": self.items}
+
+    monkeypatch.setattr(youtube, "_service", lambda *a: Svc([{
+        "id": "UC1", "snippet": {"title": "Thoughtory"}, "statistics": {"subscriberCount": "3"}}]))
+    assert youtube.channel() == {"id": "UC1", "title": "Thoughtory", "subscribers": "3"}
+    monkeypatch.setattr(youtube, "_service", lambda *a: Svc([]))
+    with pytest.raises(PublishError, match="no YouTube channel"):
+        youtube.channel()

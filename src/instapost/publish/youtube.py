@@ -66,6 +66,18 @@ def _service(api: str = "youtube", version: str = "v3"):
     return build(api, version, credentials=credentials(), cache_discovery=False)
 
 
+def channel() -> dict:
+    """The channel the stored login uploads to (a cheap live check)."""
+    items = _service().channels().list(part="snippet,statistics", mine=True).execute()
+    items = items.get("items", [])
+    if not items:
+        raise PublishError("this Google account has no YouTube channel; log in with the "
+                           "channel's account (or pick the channel when Google asks)")
+    c = items[0]
+    return {"id": c["id"], "title": c["snippet"]["title"],
+            "subscribers": c.get("statistics", {}).get("subscriberCount")}
+
+
 def upload_short(video: Path, title: str, description: str, tags: list[str]) -> Published:
     from googleapiclient.errors import HttpError
     from googleapiclient.http import MediaFileUpload

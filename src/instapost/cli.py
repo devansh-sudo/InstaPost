@@ -21,6 +21,7 @@ from pathlib import Path
 from instapost import budget
 from instapost.config import SetupError, get_settings
 from instapost.models import Draft, Format, Pillar
+from instapost.publish.tokens import redact
 from instapost.scriptures import load_verses
 from instapost.studio.images import PROVIDERS, QuotaError
 
@@ -121,7 +122,7 @@ def _youtube_login(args) -> int:
     from instapost.publish import youtube
 
     youtube.login(args.port, args.bind)
-    print("YouTube connected.")
+    print("YouTube connected:", youtube.channel())
     return 0
 
 
@@ -149,6 +150,14 @@ def _check(_args) -> int:
                 print("  instagram publishing limit:", ig.publishing_limit())
         except PublishError as e:
             print(f"  ! instagram test failed: {e}")
+    if "youtube" in ok:
+        from instapost.publish import youtube
+
+        try:
+            print("  youtube channel:", youtube.channel(), f"(uploads: {s.youtube_privacy})")
+        except Exception as e:  # noqa: BLE001 - Google errors come in several types
+            print(f"  ! youtube test failed: {redact(str(e))[:300]} "
+                  "(run youtube-login again if the login was revoked or expired)")
     if "facebook" in ok:
         from instapost.publish.facebook import Facebook
 
