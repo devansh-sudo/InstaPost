@@ -278,11 +278,8 @@ cmd_youtube_login() {
   [ -f "$COMPOSE_ENV" ] || die "run 'bash deploy/docker.sh deploy' first"
   [ -f secrets/youtube_client_secret.json ] || die "put the OAuth client JSON at \
 $APP_DIR/secrets/youtube_client_secret.json first (docs/SETUP_META_YOUTUBE.md B2)"
-  echo "On your Mac, keep this tunnel open in another terminal:"
-  echo "  ssh -L 8085:127.0.0.1:8085 $(id -un)@<server-ip>"
-  echo "Then open the link below in your Mac's browser and approve."
-  compose run --rm -T -p 127.0.0.1:8085:8085 worker \
-    instapost youtube-login --port 8085 --bind 0.0.0.0
+  # No tunnel needed: you paste the address the browser ends up on (it contains the code).
+  compose run --rm worker instapost youtube-login
 }
 
 case "${1:-deploy}" in

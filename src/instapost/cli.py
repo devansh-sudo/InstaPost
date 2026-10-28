@@ -121,7 +121,7 @@ def _worker(_args) -> int:
 def _youtube_login(args) -> int:
     from instapost.publish import youtube
 
-    youtube.login(args.port, args.bind)
+    youtube.login(args.port, args.bind, paste=not args.tunnel)
     print("YouTube connected:", youtube.channel())
     return 0
 
@@ -232,7 +232,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")
     yt.add_argument("--port", type=int, default=8085)
-    yt.add_argument("--bind", help="address to listen on (0.0.0.0 inside Docker)")
+    yt.add_argument("--bind", help="with --tunnel: address to listen on (0.0.0.0 in Docker)")
+    yt.add_argument("--tunnel", action="store_true",
+                    help="receive Google's redirect on --port (needs an SSH tunnel); by default "
+                         "you paste the address from the browser instead")
     yt.set_defaults(func=_youtube_login)
     sub.add_parser("check", help="show connected platforms").set_defaults(func=_check)
 

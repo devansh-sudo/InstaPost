@@ -134,10 +134,22 @@ FB_PAGE_TOKEN=...
      (search that name; it's on support.google.com/youtube). Describe it as "a personal tool
      that uploads my own channel's Shorts, created by me". Approval usually takes a few weeks.
 
-### B4. Connect the agent (in Phase 2)
-I'll add a command `instapost youtube-login`. You run it once; it prints a Google link, you
-log in with the channel account and approve, and the agent stores the refresh token in
-`secrets/` on the VPS. Nothing to do until then.
+### B4. Connect the agent (one time, about 3 min)
+1. Copy the client JSON from B2 to the server as `secrets/youtube_client_secret.json`
+   (`scp ~/Downloads/client_secret_*.json devansh@<server>:/mnt/HC_Volume_105724104/instapost/secrets/youtube_client_secret.json`,
+   then `chmod 600` it on the server).
+2. On the server: `bash deploy/docker.sh youtube-login`. It prints a Google link.
+3. Open the link in any browser (Mac or phone), log in with the channel's Google account,
+   pick the channel if asked, click **Advanced → Go to InstaPost Agent (unsafe)** on the
+   "unverified app" page, and **tick all three permissions**.
+4. The browser then shows "This site can't be reached" for `localhost:8085`. That is
+   expected: copy the **whole address** from the address bar (it contains `code=`) and paste
+   it into the server terminal. It prints `YouTube connected: {... 'title': '<your channel>'}`.
+5. `bash deploy/docker.sh cli check` shows `youtube connected` and the channel.
+
+No SSH tunnel is needed. (The older tunnel method is still available with
+`instapost youtube-login --tunnel`.) The code in the address works once, only together with
+the run that printed the link, and expires within minutes.
 
 ---
 

@@ -276,3 +276,52 @@ def test_youtube_channel_summary_and_no_channel(monkeypatch):
     monkeypatch.setattr(youtube, "_service", lambda *a: Svc([]))
     with pytest.raises(PublishError, match="no YouTube channel"):
         youtube.channel()
+
+
+def _fake_client_secret():
+    import json as _json
+
+    from instapost.config import get_settings
+    d = get_settings().secrets_dir
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "youtube_client_secret.json").write_text(_json.dumps({"installed": {
+        "client_id": "123.apps.googleusercontent.com", "client_secret": "s3cret",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": ["http://localhost"]}}))
+
+
+def test_youtube_paste_login_saves_refresh_token(monkeypatch, capsys):
+    from google_auth_oauthlib.flow import Flow
+
+    from instapost.config import get_settings
+    from instapost.publish import youtube
+    _fake_client_secret()
+    got = {}
+
+    def fake_fetch(self, **kw):
+        got.update(kw, verifier=self.code_verifier)
+        self.oauth2session.token = {"access_token": "at", "refresh_token": "rt",
+                                    "token_type": "Bearer", "expires_in": 3600,
+                                    "expires_at": 4102444800}
+
+    monkeypatch.setattr(Flow, "fetch_token", fake_fetch)
+    youtube.login(paste=True, read=lambda _: "http://localhost:8085/?state=x&code=4/abc&scope=y")
+    printed = capsys.readouterr().out
+    assert "redirect_uri=http%3A%2F%2Flocalhost%3A8085%2F" in printed
+    assert "prompt=consent" in printed and "code_challenge=" in printed
+    assert got["authorization_response"].startswith("https://localhost:8085/?")
+    assert got["verifier"]  # PKCE: the code only works with this run's secret
+    token = (get_settings().secrets_dir / "youtube_token.json")
+    assert '"refresh_token": "rt"' in token.read_text()
+    assert oct(token.stat().st_mode & 0o777) == "0o600"
+
+
+def test_youtube_paste_login_rejects_wrong_paste(monkeypatch):
+    from instapost.publish import youtube
+    from instapost.publish.instagram import PublishError
+    _fake_client_secret()
+    with pytest.raises(PublishError, match="code="):
+        youtube.login(paste=True, read=lambda _: "https://accounts.google.com/o/oauth2/auth?x")
+    with pytest.raises(PublishError, match="access_denied"):
+        youtube.login(paste=True, read=lambda _: "http://localhost:8085/?error=access_denied&code=")
