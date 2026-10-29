@@ -1,4 +1,4 @@
-"""Which book photos and drawings do well.
+"""Which book photos, drawings and reel looks (templates) do well.
 
 Every published post records the photo and drawing it used (item features "photo" and
 "drawing"). Once its numbers have settled, its score teaches a Beta belief per photo and per
@@ -17,9 +17,10 @@ import numpy as np
 from instapost.learn.bandit import Arm, observation
 from instapost.studio.free_images import _load_usage
 
-KINDS = ("photo", "drawing")
+KINDS = ("photo", "drawing", "template")
 RECENT = 3          # the last few used go to the back of the queue
 HISTORY_DAYS = 120
+PREFIX = {"photo": "plate:", "drawing": "drawing:", "template": "template:"}  # usage keys
 
 
 def _rows():
@@ -50,7 +51,7 @@ def arms(kind: str, rows=None) -> dict[str, Arm]:
 
 def recent(kind: str, ids: list[str], n: int = RECENT) -> set[str]:
     """The `n` ids (of these) used most recently."""
-    prefix = {"photo": "plate:", "drawing": "drawing:"}[kind]
+    prefix = PREFIX[kind]
     usage = _load_usage()
     used = sorted((usage[prefix + i], i) for i in ids if prefix + i in usage)
     return {i for _, i in used[-n:]}
@@ -71,7 +72,7 @@ def order(kind: str, ids: list[str], rng: random.Random | None = None,
 
     fresh = sorted((i for i in ids if i not in latest), key=draw, reverse=True)
     usage = _load_usage()
-    prefix = {"photo": "plate:", "drawing": "drawing:"}[kind]
+    prefix = PREFIX[kind]
     tail = sorted(latest, key=lambda i: usage.get(prefix + i, ""))
     return fresh + tail
 

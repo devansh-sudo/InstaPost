@@ -80,20 +80,22 @@ def make(
     brand: Brand | None = None,
     on_step: Callable[[str], None] | None = None,
     plan: dict | None = None,
+    template: str | None = None,
 ) -> Result:
-    """`on_step` receives a short label for each stage, for live progress on the dashboard."""
+    """`on_step` receives a short label for each stage, for live progress on the dashboard.
+    `template` asks for one reel look (render.templates); without it the looks rotate."""
     item_id = _item_id(fmt)
     # Every paid call below is recorded against this item (dashboard: Costs).
     with budget.tagged(item_id=item_id, format=fmt.value, pillar=Pillar(pillar).value):
         return _make(item_id, fmt, pillar, topic, offline=offline, draft=draft,
                      image_provider=image_provider, vision_qa=vision_qa, brand=brand,
-                     on_step=on_step, plan=plan)
+                     on_step=on_step, plan=plan, template=template)
 
 
 def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offline: bool,
           draft: Draft | None, image_provider: str | None, vision_qa: bool | None,
           brand: Brand | None, on_step: Callable[[str], None] | None,
-          plan: dict | None) -> Result:
+          plan: dict | None, template: str | None = None) -> Result:
     step = on_step or (lambda _label: None)
     if vision_qa is None:  # look at every finished picture, except in offline/demo runs
         vision_qa = get_settings().vision_check and not offline
@@ -134,17 +136,13 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
         illus = _drawing(draft, pillar, brand, provider, folder, offline)
         step("rendering")
         page_no = 108 if pillar == Pillar.SHIV_DHYAN else random.Random(seed).randint(12, 240)
-        page = render_page(brand, PageContent(
+        content = PageContent(
             header=brand.header_text, page_number=page_no, hook_lines=draft.hook_lines,
             body=draft.body, reference_label=fact.reference_label,
             reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
-        ), seed)
-        comp, vision = None, None
-        if get_settings().reel_style == "plate":
-            comp, vision = _book_photo_reel(brand, page, seed, folder, offline, vision_qa)
-        if comp is None:  # classic look: our drawn book over a blurred scene photo
-            scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
-            comp = compose_reel(brand, scene, page, seed)
+        )
+        comp, vision = _reel_look(brand, content, draft, seed, folder, provider, offline,
+                                  vision_qa, template)
         still, text_boxes = comp.still, comp.text_boxes
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
         motion = video.Motion(still, brand, duration, seed, comp)
@@ -199,6 +197,32 @@ def _drawing(draft: Draft, pillar: Pillar, brand: Brand, provider, folder: Path,
                                         generate=False if offline else None)
     (folder / "drawing.txt").write_text(source + "\n", encoding="utf-8")
     return img
+
+
+def _reel_look(brand: Brand, content: PageContent, draft: Draft, seed: int, folder: Path,
+               provider, offline: bool, vision_qa: bool, template: str | None):
+    """(composition, vision check or None) in the first look that works, rotating between
+    the enabled templates; the look used is saved in template.txt."""
+    from instapost.render import templates
+
+    for look in templates.order(templates.enabled(), seed, template):
+        vision = None
+        if look == "book_photo":
+            if get_settings().reel_style != "plate":
+                continue
+            comp, vision = _book_photo_reel(brand, render_page(brand, content, seed), seed,
+                                            folder, offline, vision_qa)
+            if comp is None:
+                continue  # no ready book photo fits: the next look
+        elif look == "classic":
+            scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
+            comp = compose_reel(brand, scene, render_page(brand, content, seed), seed)
+        else:
+            comp = templates.compose_card(brand, look, content, seed)
+        templates.mark_used(look)
+        (folder / "template.txt").write_text(look + "\n", encoding="utf-8")
+        return comp, vision
+    raise RuntimeError("no reel template could be made")  # unreachable: classic is last
 
 
 def _book_photo_reel(brand: Brand, page, seed: int, folder: Path, offline: bool,

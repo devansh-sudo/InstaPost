@@ -58,7 +58,8 @@ def test_image_check_blames_the_photo_then_another_photo_is_used(monkeypatch):
                                 problems=[])
 
     monkeypatch.setattr(qa.llm, "structured", fake_structured)
-    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True)
+    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True,
+                      template="book_photo")
     assert r.status == "needs_review", [c for c in r.qa.checks if not c.passed]
     used = (r.folder / "book_photo.txt").read_text().split()[0]
     index = plates.load_index()["plates"]
@@ -73,7 +74,8 @@ def test_text_problems_block_the_post_and_do_not_blame_the_photo(monkeypatch):
     monkeypatch.setattr(video, "encode", lambda *a, **k: None)
     monkeypatch.setattr(qa.llm, "structured", lambda **kw: qa.VisionVerdict(
         readable=False, looks_real=True, page_fits=True, problems=["broken matra"]))
-    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True)
+    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True,
+                      template="book_photo")
     assert r.status == "blocked"
     assert all(v["status"] == "on" for v in plates.load_index()["plates"].values())
 
@@ -84,7 +86,7 @@ def test_posts_record_their_photo_and_drawing(monkeypatch):
 
     _two_plates()
     monkeypatch.setattr(video, "encode", lambda *a, **k: None)
-    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True)
+    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, template="book_photo")
     with session() as s:
         item = approvals.register(s, r, Format.REEL_BOOK_POV, "gita", utcnow().date())
         assert item.features["photo"].startswith("own-")

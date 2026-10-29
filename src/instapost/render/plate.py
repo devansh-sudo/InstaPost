@@ -471,7 +471,8 @@ def compose_on_plate(brand: Brand, plate: Plate, page: RenderedPage,
     return Composition(img(still), img(base) if layers else img(still), layers,
                        [to_frame(b) for b in page.hook_boxes],
                        [to_frame(b) for b in page.text_boxes],
-                       page_box=Box(*[float(v) for v in box]), style="plate")
+                       page_box=Box(*[float(v) for v in box]), style="plate",
+                       page_quad=[tuple(q) for q in plate.quad])
 
 
 def prepare(id: str, photo: Image.Image, quad: Quad, credit: str = "",

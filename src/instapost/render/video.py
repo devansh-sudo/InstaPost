@@ -132,10 +132,12 @@ class Motion:
         photo = comp is not None and comp.style == "plate"
         # A real photo has its own light: a softer glow and fewer specks, never on the page.
         self.glow = _glow(brand) * (0.45 if photo else 1.0)
-        box = comp.page_box if photo and comp.page_box else None
+        # Specks never cross the page (book photo) or the text (full-screen cards).
+        box = comp.page_box if comp is not None and comp.page_box else None
+        card = comp is not None and comp.style == "card"
         self.specks = _dust(seed, duration,
                             (box.x0 - 20, box.y0 - 20, box.x1 + 20, box.y1 + 20) if box else None,
-                            count=14 if photo else 26)
+                            count=14 if photo or card else 26)
         self.sprite = _sprite()
         self.layers = comp.layers if comp else []
         self.base = np.asarray(comp.base if comp and comp.layers else still, np.float32)
@@ -148,11 +150,15 @@ class Motion:
             blurred = Image.fromarray(np.clip(self.base, 0, 255).astype(np.uint8)).filter(
                 ImageFilter.GaussianBlur(FOCUS_BLUR))
             self.bg_blur = np.asarray(blurred, np.float32)
-            m = Image.new("L", (FRAME_W, FRAME_H), 255)
-            ImageDraw.Draw(m).rectangle([box.x0, box.y0, box.x1, box.y1], fill=0)
-            self.bg_mask = (np.asarray(m.filter(ImageFilter.GaussianBlur(24)),
-                                       np.float32) / 255)[..., None]
-            self.light = _light_band(box)
+            # The page's real outline (not its bounding box), so no rectangle ever shows.
+            page = Image.new("L", (FRAME_W, FRAME_H), 0)
+            if comp.page_quad:
+                ImageDraw.Draw(page).polygon([tuple(q) for q in comp.page_quad], fill=255)
+            else:
+                ImageDraw.Draw(page).rectangle([box.x0, box.y0, box.x1, box.y1], fill=255)
+            soft = np.asarray(page.filter(ImageFilter.GaussianBlur(10)), np.float32) / 255
+            self.bg_mask = (1 - soft)[..., None]
+            self.light = _light_band(box, soft)
 
     def _page_at(self, t: float) -> Image.Image:
         if not self.layers and self.bg_blur is None:
@@ -219,10 +225,13 @@ def _handheld(img: Image.Image, zoom: float, dx: float, dy: float, rot: float) -
                          Image.Resampling.BILINEAR)
 
 
-def _light_band(box) -> Callable[[np.ndarray, float], None]:
+def _light_band(box, page: np.ndarray) -> Callable[[np.ndarray, float], None]:
     """Warm window light: a soft diagonal band that glides across the page once per loop,
     starting and ending off the page (so the loop has no seam)."""
     x0, y0, x1, y1 = (int(v) for v in (box.x0, box.y0, box.x1, box.y1))
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(FRAME_W, x1), min(FRAME_H, y1)
+    inside = page[y0:y1, x0:x1]  # light only falls on the paper
     yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
     diag = ((xx - x0) / max(x1 - x0, 1) * 0.7 + (yy - y0) / max(y1 - y0, 1) * 0.3)
     warm = np.array([1.0, 0.86, 0.62], np.float32) * LIGHT_GAIN
@@ -232,7 +241,7 @@ def _light_band(box) -> Callable[[np.ndarray, float], None]:
         near = np.abs(diag - centre) < 0.5  # rows/cols far from the band add nothing
         if not near.any():
             return
-        band = np.exp(-((diag - centre) / 0.16) ** 2) * near
+        band = np.exp(-((diag - centre) / 0.16) ** 2) * near * inside
         arr[y0:y1, x0:x1] += band[..., None] * warm
 
     return add

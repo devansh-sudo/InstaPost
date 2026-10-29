@@ -112,7 +112,7 @@ def test_reel_uses_a_book_photo_when_one_is_ready(monkeypatch):
     _book_photo().save(own / "sofa.jpg")
     (own / "sofa.json").write_text(json.dumps({"quad": [list(q) for q in QUAD]}))
     monkeypatch.setattr(video, "encode", lambda *a, **k: None)  # the picture is what we test
-    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True)
+    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, template="book_photo")
     assert r.status == "needs_review", [c for c in r.qa.checks if not c.passed]
     assert (r.folder / "book_photo.txt").read_text().startswith("own-sofa")
 
@@ -151,3 +151,19 @@ def test_backgrounds_page_review_and_corners(web, path):  # noqa: F811
                          ("files", ("evil.jpg", b"not a picture"))])
     assert up.status_code == 303 and (own / "my-photo.jpg").exists()
     assert not (own / "evil.jpg").exists()
+
+
+def test_unsplash_photos_always_wait_for_approval(tmp_path):
+    from instapost.studio import plates
+
+    f = tmp_path / "unsplash-x.jpg"
+    _book_photo(thumb=False).save(f)
+    entry = plates._entry(f, "unsplash", "Photo by someone")
+    assert entry["status"] in ("review", "off") and entry["status"] != "on"
+    # Older versions used them straight away: they go back for a check once.
+    data = plates.load_index()
+    data["plates"]["unsplash-x"] = dict(entry, status="on", auto=True)
+    plates.save_index(data)
+    assert plates.sync_library()["plates"]["unsplash-x"]["status"] == "review"
+    plates.set_status("unsplash-x", "on")
+    assert plates.sync_library()["plates"]["unsplash-x"]["status"] == "on"

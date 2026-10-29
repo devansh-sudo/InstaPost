@@ -80,9 +80,10 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
 
 
 def _features(folder, draft: dict, pillar: str, duration, scene) -> dict:
-    """What the learners track, plus the book photo and drawing this post used."""
+    """What the learners track, plus the book photo, drawing and look this post used."""
     feats = item_features(draft, pillar, duration, scene)
-    for kind, name in (("photo", "book_photo.txt"), ("drawing", "drawing.txt")):
+    for kind, name in (("photo", "book_photo.txt"), ("drawing", "drawing.txt"),
+                       ("template", "template.txt")):
         path = folder / name
         if path.exists():
             first = path.read_text(encoding="utf-8").split("\n", 1)[0].strip()

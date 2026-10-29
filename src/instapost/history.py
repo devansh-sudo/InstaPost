@@ -39,3 +39,11 @@ def add(item_id: str, fmt: str, pillar: str, topic: str, hook: str) -> None:
              "pillar": pillar, "topic": topic, "hook": hook}
     with _path().open("a") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def remove(item_id: str) -> None:
+    """Forget one item (it is being re-made with the same text, so it is not a duplicate)."""
+    kept = [e for e in entries() if e.get("id") != item_id]
+    tmp = _path().with_suffix(".tmp")
+    tmp.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in kept))
+    tmp.replace(_path())

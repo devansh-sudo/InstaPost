@@ -105,6 +105,7 @@ class Composition:
     hook_boxes: list[Box]
     text_boxes: list[Box]
     page_box: Box | None = None  # where the page is in the frame (book photos)
+    page_quad: list | None = None  # the page's paper outline (book photos): 4 corners
     style: str = "classic"       # "classic" (drawn book on a blurred scene) or "plate"
 
 

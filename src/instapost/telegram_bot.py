@@ -114,7 +114,9 @@ class Bot:
             [{"text": "✅ Approve", "callback_data": f"ap:{item.id}"},
              {"text": "🚀 Post now", "callback_data": f"pn:{item.id}"}],
             *([[{"text": "📲 Trending song (I post it on Instagram)",
-                 "callback_data": f"ts:{item.id}"}]] if item.format == "reel_book_pov" else []),
+                 "callback_data": f"ts:{item.id}"}],
+               [{"text": "🎨 Other look (same text)", "callback_data": f"rt:{item.id}"}]]
+              if item.format == "reel_book_pov" else []),
             [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},
@@ -235,6 +237,9 @@ class Bot:
             if action == "rg":
                 self.pool.submit(self._regenerate, arg)
                 return "🔁 Regenerating… the new version will arrive here in a few minutes."
+            if action == "rt":
+                self.pool.submit(self._retemplate, arg)
+                return "🎨 Making it in another look… it arrives here in a few minutes."
         except approvals.QueueError as e:
             return f"Not done: {e}"
         return "Unknown button."
@@ -273,6 +278,12 @@ class Bot:
             self.send_item(new_id)
         except Exception as e:  # noqa: BLE001
             self.send(f"⚠️ Regenerate failed: {redact(str(e))[:300]}")
+
+    def _retemplate(self, item_id: str) -> None:
+        try:
+            self.send_item(producer.retemplate(item_id, None, "telegram"))
+        except Exception as e:  # noqa: BLE001
+            self.send(f"⚠️ Other look failed: {redact(str(e))[:300]}")
 
     @staticmethod
     def _approved_list(items: list[Item]) -> str:

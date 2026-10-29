@@ -14,6 +14,24 @@ MARGIN_X = 80
 
 
 @dataclass
+class Layout:
+    """Size and spacing of a page. The default is the book page; card templates use the
+    full 9:16 frame with the text inside Instagram's safe area."""
+    w: int = PAGE_W
+    h: int = PAGE_H
+    margin: int = MARGIN_X
+    header_y: int = 52
+    top: int = 130          # content (drawing + text) starts here...
+    bottom_pad: int = 100   # ...and ends this far above the bottom
+    footer_pad: int = 58
+    hook_size: int = 58
+    body_size: int = 38
+    ref_size: int = 29
+    illus_max: int = 520
+    spine: bool = True      # darker paper toward the left edge, as on a book's right page
+
+
+@dataclass
 class PageContent:
     header: str
     page_number: int
@@ -48,7 +66,7 @@ def hex_rgb(value: str) -> tuple[int, int, int]:
     return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def paper_texture(brand: Brand, w: int, h: int, seed: int) -> Image.Image:
+def paper_texture(brand: Brand, w: int, h: int, seed: int, spine: bool = True) -> Image.Image:
     rng = np.random.default_rng(seed)
     base = np.array(hex_rgb(brand.colors.paper), dtype=np.float32)
     noise = rng.normal(0, 4.0, (h, w, 1)).astype(np.float32)
@@ -57,13 +75,15 @@ def paper_texture(brand: Brand, w: int, h: int, seed: int) -> Image.Image:
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     # Gentle darkening toward the edges and the spine (left side).
     edge = 1.0 - 0.06 * (np.abs(xx / w - 0.5) * 2) ** 3 - 0.06 * (np.abs(yy / h - 0.5) * 2) ** 3
-    spine = 1.0 - 0.10 * np.exp(-xx / (w * 0.05))
-    img = (base + noise + fibers) * (edge * spine)[..., None]
+    gutter = 1.0 - 0.10 * np.exp(-xx / (w * 0.05)) if spine else 1.0
+    img = (base + noise + fibers) * (edge * gutter)[..., None]
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
 
 
-def _place_illustration(page: Image.Image, illus: Image.Image, box: tuple[int, int, int, int]):
-    """Multiply-blend a sketch onto the paper so its white background disappears."""
+def _place_illustration(page: Image.Image, illus: Image.Image, box: tuple[int, int, int, int],
+                        ink: tuple[int, int, int] = (0, 0, 0)):
+    """Print a line drawing onto the paper in the ink colour: its white background disappears,
+    so it works on cream paper (dark lines) and on dark paper (light lines)."""
     x0, y0, x1, y1 = box
     sketch = ImageOps.autocontrast(illus.convert("L"), cutoff=1)
     sketch = ImageOps.contain(sketch, (x1 - x0, y1 - y0))
@@ -73,11 +93,10 @@ def _place_illustration(page: Image.Image, illus: Image.Image, box: tuple[int, i
     fade = Image.new("L", sketch.size, 0)
     ImageDraw.Draw(fade).rectangle([12, 12, sketch.width - 12, sketch.height - 12], fill=255)
     fade = fade.filter(ImageFilter.GaussianBlur(10))
-    white = Image.new("L", sketch.size, 255)
-    sketch = Image.composite(sketch, white, fade)
+    strength = ImageChops.multiply(ImageOps.invert(sketch), fade)  # 255 = full ink
     region = page.crop((sx, sy, sx + sketch.width, sy + sketch.height))
-    toned = ImageChops.multiply(region, Image.merge("RGB", (sketch, sketch, sketch)))
-    page.paste(toned, (sx, sy))
+    inked = Image.composite(Image.new("RGB", sketch.size, ink), region, strength)
+    page.paste(inked, (sx, sy))
 
 
 def _highlight(layer: Image.Image, box: Box, brand: Brand, rng: random.Random):
@@ -106,30 +125,33 @@ def _layer_from(draw_fn, size: tuple[int, int], order: int) -> RevealLayer | Non
     return RevealLayer(layer.crop((x0, y0, x1, y1)), x0, y0, order)
 
 
-def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
+def render_page(brand: Brand, c: PageContent, seed: int = 0,
+                layout: Layout | None = None) -> RenderedPage:
+    L = layout or Layout()
     rng = random.Random(seed)
-    page = paper_texture(brand, PAGE_W, PAGE_H, seed).convert("RGB")
+    page = paper_texture(brand, L.w, L.h, seed, L.spine).convert("RGB")
     ink = hex_rgb(brand.colors.ink)
     ink_soft = hex_rgb(brand.colors.ink_soft)
-    cx = PAGE_W / 2
-    max_w = PAGE_W - 2 * MARGIN_X
+    cx = L.w / 2
+    max_w = L.w - 2 * L.margin
 
     # Header and page number.
     d = ImageDraw.Draw(page)
     header_f = font(brand.font_path("header"), 34)
-    draw_centered(d, [c.header], header_f, cx, 52, ink_soft)
+    draw_centered(d, [c.header], header_f, cx, L.header_y, ink_soft)
     num_f = font(brand.font_path("footer"), 30)
     num = str(c.page_number)
-    d.text((PAGE_W - MARGIN_X + 20 - text_width(num_f, num), 50), num, font=num_f, fill=ink_soft)
+    d.text((L.w - L.margin + 20 - text_width(num_f, num), L.header_y - 2), num, font=num_f,
+           fill=ink_soft)
 
     # Fit the text block; the drawing takes what is left above it, so there is no empty gap.
-    top, bottom = 130, PAGE_H - 100
+    top, bottom = L.top, L.h - L.bottom_pad
     illus_min = 300 if c.illustration is not None else 0
     gap_illus, gap_body, gap_div, gap_ref = 56, 28, 34, 26
     for scale in (1.0, 0.94, 0.88, 0.82, 0.76, 0.7, 0.64):
-        hook_f = font(brand.font_path("hook"), int(58 * scale))
-        body_f = font(brand.font_path("body"), int(38 * scale))
-        ref_f = font(brand.font_path("reference"), int(29 * scale))
+        hook_f = font(brand.font_path("hook"), int(L.hook_size * scale))
+        body_f = font(brand.font_path("body"), int(L.body_size * scale))
+        ref_f = font(brand.font_path("reference"), int(L.ref_size * scale))
         hook = [ln for line in c.hook_lines for ln in wrap_balanced(hook_f, line, max_w - 40)]
         body = wrap_balanced(body_f, c.body, max_w - 20)
         ref_lines = []
@@ -150,11 +172,12 @@ def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
 
     if c.illustration is not None:
         # The drawing gets the free space (up to 520 px), and the group is centred.
-        illus_h = min(520, bottom - top - text_h - gap_illus)
+        illus_h = min(L.illus_max, bottom - top - text_h - gap_illus)
         group_h = illus_h + gap_illus + text_h
         y_illus = top + (bottom - top - group_h) / 2
         _place_illustration(page, c.illustration,
-                            (MARGIN_X, int(y_illus), PAGE_W - MARGIN_X, int(y_illus + illus_h)))
+                            (L.margin, int(y_illus), L.w - L.margin, int(y_illus + illus_h)),
+                            ink)
         y = y_illus + illus_h + gap_illus
     else:
         y = top + (bottom - top - text_h) / 2
@@ -225,7 +248,7 @@ def render_page(brand: Brand, c: PageContent, seed: int = 0) -> RenderedPage:
 
     foot_f = font(brand.font_path("footer"), 22)
     if c.footer:
-        d.text((PAGE_W - MARGIN_X - text_width(foot_f, c.footer), PAGE_H - 58), c.footer,
+        d.text((L.w - L.margin - text_width(foot_f, c.footer), L.h - L.footer_pad), c.footer,
                font=foot_f, fill=ink_soft)
 
     base = page.copy()

@@ -5,7 +5,7 @@ from datetime import date
 
 from sqlalchemy import select
 
-from instapost import approvals, budget, pipeline
+from instapost import approvals, budget, history, pipeline
 from instapost.brand import load_brand
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, PlanEntry, audit, get_kv, session, set_kv
@@ -21,9 +21,11 @@ Notify = Callable[[str], None]
 
 
 def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
-                       topic: str | None = None, entry_id: int | None = None) -> str | None:
+                       topic: str | None = None, entry_id: int | None = None,
+                       template: str | None = None, draft=None,
+                       slot: str | None = None) -> str | None:
     label = f"{fmt.value} / {pillar.value} for {for_date.isoformat()}"
-    plan, slot, scene = None, None, None
+    plan, scene = None, None
     if entry_id is not None:
         with session() as s:
             e = s.get(PlanEntry, entry_id)
@@ -36,7 +38,8 @@ def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
             label += f" (plan #{entry_id})"
     with track("generate", label) as job:
         result = pipeline.make(fmt, pillar, topic, on_step=job.step,
-                               offline=get_settings().demo_mode, plan=plan)
+                               offline=get_settings().demo_mode, plan=plan, template=template,
+                               draft=draft)
         with session() as s:
             item = approvals.register(s, result, fmt, pillar.value, for_date, actor=actor,
                                       preferred_slot=slot, scene=scene)
@@ -58,8 +61,46 @@ def make_weekly(actor: str, end_day: date | None = None) -> str:
 
 
 def make_one(fmt: Format, pillar: Pillar, for_date: date, topic: str | None,
-             actor: str) -> str:
-    return _make_and_register(fmt, pillar, for_date, actor, topic)
+             actor: str, template: str | None = None) -> str:
+    return _make_and_register(fmt, pillar, for_date, actor, topic, template=template)
+
+
+def retemplate(item_id: str, template: str | None, actor: str) -> str:
+    """The same reel text in another look: no new writing is paid for. The old item is
+    rejected ("new look") and the new one takes its date and slot."""
+    from pathlib import Path
+
+    from instapost.models import Draft
+    from instapost.render import templates
+
+    with session() as s:
+        item = s.get(Item, item_id)
+        if item is None:
+            raise approvals.QueueError(f"unknown item {item_id}")
+        if item.format != Format.REEL_BOOK_POV.value:
+            raise approvals.QueueError("only reels have looks")
+        folder = Path(item.folder)
+        draft = Draft.model_validate_json((folder / "draft.json").read_text(encoding="utf-8"))
+        if template is None:  # "another look": anything but the current one
+            current = (folder / "template.txt").read_text(encoding="utf-8").strip() \
+                if (folder / "template.txt").exists() else ""
+            others = [t for t in templates.order(templates.enabled(), sum(map(ord, item_id)))
+                      if t != current]
+            template = others[0] if others else None
+        fmt, pillar = Format(item.format), Pillar(item.pillar)
+        for_date, slot = date.fromisoformat(item.for_date), item.preferred_slot
+        entry = s.scalars(select(PlanEntry).where(PlanEntry.item_id == item_id)).first()
+        if item.status != ItemStatus.REJECTED:
+            approvals.reject(s, item, actor, reason=f"new look: {templates.label(template)}")
+    history.remove(item_id)  # the same hook again is not a duplicate of itself
+    new_id = _make_and_register(fmt, pillar, for_date, actor, draft.topic, template=template,
+                                draft=draft, slot=slot)
+    if entry is not None:
+        with session() as s:
+            e = s.get(PlanEntry, entry.id)
+            if e is not None:
+                e.item_id = new_id
+    return new_id
 
 
 def generate_day(day: date, notify: Notify, on_item: Callable[[str], None],

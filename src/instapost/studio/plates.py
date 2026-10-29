@@ -100,10 +100,13 @@ def _entry(file: Path, source: str, credit: str = "") -> dict:
     detail = entry.get("detail", {})
     # Sure enough to use without asking: corners given by hand, or one clean page found
     # without having to cut off a facing page (a wrong cut would look believable but off).
-    confident = not entry["auto"] or (detail.get("fill", 0) >= CONFIDENT_FILL
+    # Unsplash results are too varied (stacks of closed books, shelves, printed pages) to
+    # trust any automatic outline: those always wait for you, with an example post shown.
+    confident = not entry["auto"] or (source != "unsplash"
+                                      and detail.get("fill", 0) >= CONFIDENT_FILL
                                       and not detail.get("spine_cut"))
     entry.update(status="on" if confident else "review", reason="" if confident
-                 else "check the page outline")
+                 else "check the example post: is it an open book with a blank page?")
     return entry
 
 
@@ -122,6 +125,13 @@ def sync_library() -> dict:
                 data["plates"][f"{source}-{f.stem}"] = _entry(f, source)
             except OSError as e:
                 log.warning("cannot read %s: %s", f, e)
+    # Unsplash photos that were used without your approval (older versions trusted the
+    # automatic outline) go back to your check once.
+    for entry in data["plates"].values():
+        if entry.get("source") == "unsplash" and entry.get("auto") and \
+                entry.get("status") == "on" and not entry.get("approved"):
+            entry.update(status="review",
+                         reason="check the example post: is it an open book with a blank page?")
     save_index(data)
     return data
 
@@ -135,6 +145,7 @@ def set_status(plate_id: str, status: str, quad: list | None = None) -> dict:
     entry["status"] = status
     if status == "on":
         entry["reason"] = ""
+        entry["approved"] = True  # chosen by you, not only by the automatic check
     save_index(data)
     return entry
 

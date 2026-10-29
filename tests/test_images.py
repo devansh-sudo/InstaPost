@@ -149,6 +149,8 @@ def test_quota_error_in_cli_is_one_line_and_points_to_saved_draft(monkeypatch, c
         raise images.QuotaError("Gemini refused: limit: 0")
 
     monkeypatch.setattr(images.GeminiProvider, "generate", refuse)
+    from instapost.render import templates
+    monkeypatch.setattr(templates, "enabled", lambda: ["classic"])  # the look that needs images
     assert cli.main(["make", "reel", "--pillar", "gita"]) == 1
     err = capsys.readouterr().err
     assert err.startswith("ERROR: Gemini refused") and "--draft" in err and "draft.json" in err

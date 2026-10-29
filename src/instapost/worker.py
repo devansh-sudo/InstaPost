@@ -160,8 +160,12 @@ class Worker:
                 elif job.kind == "make":
                     item_id = producer.make_one(Format(p["format"]), Pillar(p["pillar"]),
                                                 date.fromisoformat(p["for_date"]),
-                                                p.get("topic"), p.get("actor", "web"))
+                                                p.get("topic"), p.get("actor", "web"),
+                                                template=p.get("template"))
                     self.send_item(item_id)
+                elif job.kind == "retemplate":
+                    self.send_item(producer.retemplate(p["item_id"], p.get("template"),
+                                                       p.get("actor", "web")))
                 elif job.kind == "build_plan":
                     with session() as s:
                         planner.build_week(s, date.fromisoformat(p["week_start"]),
