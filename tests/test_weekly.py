@@ -67,6 +67,7 @@ def test_plan_chapters_and_metadata(week):
         assert meta["title"].startswith("इस हफ़्ते के 3 जीवन सूत्र")
         assert len(meta["title"]) <= 100
         assert "00:00 सूत्र 1" in meta["description"] and "#गीता" in meta["description"]
+        assert meta["description"].count("#जीवनसूत्र") == 1
 
 
 def test_not_enough_posts(tmp_path):

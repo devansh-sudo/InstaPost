@@ -166,7 +166,7 @@ def metadata(p: Plan, brand: Brand) -> dict:
     span = f"{hindi_date(p.start_day)} – {hindi_date(p.end_day)}"
     title = f"इस हफ़्ते के {count} जीवन सूत्र | {themes} | {span}"[:100]
     handle = brand.printed_handle
-    hashtags: list[str] = []
+    hashtags: list[str] = ["#जीवनसूत्र", "#हिंदी"]
     for item in p.posts:
         draft = _draft(item)
         for tag in draft.get("hashtags", []):
@@ -182,11 +182,11 @@ def metadata(p: Plan, brand: Brand) -> dict:
         "",
         f"रोज़ नए Shorts और हर रविवार नया वीडियो{': ' + handle if handle else ''}",
         "",
-        " ".join(["#जीवनसूत्र", "#हिंदी", *hashtags[:6]]),
+        " ".join(hashtags[:8]),
     ]
     tags = ["जीवन सूत्र", "हिंदी विचार", "spiritual hindi", "motivation hindi",
             *[PILLAR_HI.get(x, x) for x in pillars], brand.page_name,
-            *[t.lstrip("#") for t in hashtags[:8]]]
+            *[t.lstrip("#") for t in hashtags[2:10]]]
     return {"title": title, "description": "\n".join(lines), "tags": tags,
             "chapters": [[t, name] for t, name in chapters(p)],
             "posts": [i.id for i in p.posts], "duration": p.duration,
