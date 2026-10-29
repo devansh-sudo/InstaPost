@@ -14,6 +14,7 @@ Backgrounds page, where you approve them or click the four page corners yourself
 import io
 import json
 import logging
+import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -22,7 +23,7 @@ from PIL import Image
 
 from instapost.config import get_settings
 from instapost.render import plate as plate_mod
-from instapost.studio.free_images import UNSPLASH_API, _load_usage, _mark_used
+from instapost.studio.free_images import UNSPLASH_API, _mark_used
 
 log = logging.getLogger("instapost.plates")
 
@@ -138,6 +139,14 @@ def set_status(plate_id: str, status: str, quad: list | None = None) -> dict:
     return entry
 
 
+def flag(plate_id: str, reason: str) -> None:
+    """Send a photo back for a check (the image check found its page outline wrong)."""
+    data = load_index()
+    if plate_id in data["plates"]:
+        data["plates"][plate_id].update(status="review", reason=f"image check: {reason}"[:200])
+        save_index(data)
+
+
 def ready(data: dict | None = None) -> list[tuple[str, dict]]:
     data = data or load_index()
     return [(k, v) for k, v in data["plates"].items() if v.get("status") == "on"]
@@ -154,7 +163,8 @@ def load(plate_id: str, entry: dict, seed: int = 0) -> plate_mod.Plate | None:
 
 
 def candidates(seed: int = 0, exclude: set[str] | None = None, search: bool = True):
-    """Ready plates, least recently used first (searching Unsplash if too few)."""
+    """Ready plates, best first (learner) with the most recently used last; searches
+    Unsplash first when too few are ready."""
     data = sync_library()
     if search and len(ready(data)) < MIN_READY:
         try:
@@ -162,9 +172,12 @@ def candidates(seed: int = 0, exclude: set[str] | None = None, search: bool = Tr
         except Exception as e:  # noqa: BLE001 - a failed search must not stop a post
             log.warning("Unsplash book photos: %s", e)
         data = load_index()
-    usage = _load_usage()
-    order = sorted(ready(data), key=lambda kv: usage.get(f"plate:{kv[0]}", ""))
-    for plate_id, entry in order:
+    from instapost.learn import assets
+
+    entries = dict(ready(data))
+    # Photos that did well come up more often; the last few used go to the back.
+    for plate_id in assets.order("photo", sorted(entries), random.Random(seed)):
+        entry = entries[plate_id]
         if exclude and plate_id in exclude:
             continue
         p = load(plate_id, entry, seed)

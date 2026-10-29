@@ -76,7 +76,7 @@ def make(
     offline: bool = False,
     draft: Draft | None = None,
     image_provider: str | None = None,
-    vision_qa: bool = False,
+    vision_qa: bool | None = None,
     brand: Brand | None = None,
     on_step: Callable[[str], None] | None = None,
     plan: dict | None = None,
@@ -91,10 +91,12 @@ def make(
 
 
 def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offline: bool,
-          draft: Draft | None, image_provider: str | None, vision_qa: bool,
+          draft: Draft | None, image_provider: str | None, vision_qa: bool | None,
           brand: Brand | None, on_step: Callable[[str], None] | None,
           plan: dict | None) -> Result:
     step = on_step or (lambda _label: None)
+    if vision_qa is None:  # look at every finished picture, except in offline/demo runs
+        vision_qa = get_settings().vision_check and not offline
     brand = brand or load_brand()
     if not offline:
         # Check every key before the first paid call, not halfway through.
@@ -137,9 +139,9 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
             body=draft.body, reference_label=fact.reference_label,
             reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
         ), seed)
-        comp = None
+        comp, vision = None, None
         if get_settings().reel_style == "plate":
-            comp = _on_book_photo(brand, page, seed, folder, search=not offline)
+            comp, vision = _book_photo_reel(brand, page, seed, folder, offline, vision_qa)
         if comp is None:  # classic look: our drawn book over a blurred scene photo
             scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
             comp = compose_reel(brand, scene, page, seed)
@@ -149,7 +151,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
         checks += qa.check_reel(draft, motion, text_boxes)
         still.save(folder / "cover.jpg", quality=92)
         if vision_qa:
-            checks.append(qa.check_vision(still, brand))
+            checks.append(vision or qa.check_vision(still, brand))
         if all(c.passed for c in checks):
             step("encoding video")
             track = music.pick(pillar)
@@ -199,23 +201,46 @@ def _drawing(draft: Draft, pillar: Pillar, brand: Brand, provider, folder: Path,
     return img
 
 
-def _on_book_photo(brand: Brand, page, seed: int, folder: Path, search: bool = True):
-    """The page printed onto a real book photo (render/plate.py); None if no photo fits."""
-    from instapost.render.plate import compose_on_plate
+def _book_photo_reel(brand: Brand, page, seed: int, folder: Path, offline: bool,
+                     vision_qa: bool):
+    """(composition, vision check) on a book photo, or (None, None). When the image check
+    blames the photo itself (page not sitting on the paper, not natural), the next photo is
+    tried and that photo goes back to the Backgrounds page for a check."""
     from instapost.studio import plates
 
-    for n, book in enumerate(plates.candidates(seed, search=search)):
-        if n >= 3:
-            break
-        comp = compose_on_plate(brand, book, page, seed)
-        if qa.unsafe_boxes(comp.text_boxes, photo=True):
-            continue  # text would sit under Instagram's buttons on this photo
+    tried: set[str] = set()
+    for _ in range(3):
+        found = _on_book_photo(brand, page, seed, search=not offline, exclude=tried)
+        if found is None:
+            return None, None
+        comp, book = found
+        check = qa.check_vision(comp.still, brand, photo=True) if vision_qa else None
+        if check is not None and qa.photo_fault(check):
+            plates.flag(book.id, check.detail)
+            tried.add(book.id)
+            continue
         plates.mark_used(book.id)
         (folder / "book_photo.txt").write_text(f"{book.id}\n{book.credit}\n", encoding="utf-8")
         if book.credit:
             with open(folder / "image_credits.txt", "a", encoding="utf-8") as f:
                 f.write(f"book photo: {book.credit}\n")
-        return comp
+        return comp, check
+    return None, None
+
+
+def _on_book_photo(brand: Brand, page, seed: int, search: bool = True,
+                   exclude: set[str] | None = None):
+    """(composition, plate) for the first ready photo the page fits on, or None."""
+    from instapost.render.plate import compose_on_plate
+    from instapost.studio import plates
+
+    for n, book in enumerate(plates.candidates(seed, exclude=exclude, search=search)):
+        if n >= 3:
+            break
+        comp = compose_on_plate(brand, book, page, seed)
+        if qa.unsafe_boxes(comp.text_boxes, photo=True):
+            continue  # text would sit under Instagram's buttons on this photo
+        return comp, book
     return None
 
 

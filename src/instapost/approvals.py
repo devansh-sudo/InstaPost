@@ -66,7 +66,7 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
         fact_check=result.fact.verdict.value, for_date=for_date.isoformat(),
         qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
         duration_s=duration, preferred_slot=preferred_slot,
-        features=item_features(draft, pillar, duration, scene),
+        features=_features(result.folder, draft, pillar, duration, scene),
         music=(result.folder / "music.txt").read_text(encoding="utf-8").strip()
         if (result.folder / "music.txt").exists() else None,
     )
@@ -77,6 +77,18 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
     if item.status == ItemStatus.NEEDS_REVIEW and _auto_approvable(s, item):
         approve(s, item, f"{actor}:autonomy-{autonomy(s)}")
     return item
+
+
+def _features(folder, draft: dict, pillar: str, duration, scene) -> dict:
+    """What the learners track, plus the book photo and drawing this post used."""
+    feats = item_features(draft, pillar, duration, scene)
+    for kind, name in (("photo", "book_photo.txt"), ("drawing", "drawing.txt")):
+        path = folder / name
+        if path.exists():
+            first = path.read_text(encoding="utf-8").split("\n", 1)[0].strip()
+            if first and first != "fallback":
+                feats[kind] = first
+    return feats
 
 
 def _read_draft(result: Result) -> dict:

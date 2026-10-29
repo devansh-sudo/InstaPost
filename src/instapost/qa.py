@@ -101,6 +101,8 @@ def check_reel(draft: Draft, motion: Motion, text_boxes: list[Box]) -> list[QACh
 
 class VisionVerdict(BaseModel):
     readable: bool
+    looks_real: bool
+    page_fits: bool
     problems: list[str]
 
 
@@ -109,23 +111,48 @@ Report problems only: text that is hard to read, cut off or overlapping, misspel
 Hindi characters, distorted hands, faces or anatomy, disrespectful depiction of a deity,
 any stray letters or watermarks inside the illustration or background.
 The request lists text that belongs on the design (page header, page number, the page's own
-handle, divider symbol); never report those as watermarks or stray text."""
+handle, divider symbol); never report those as watermarks or stray text.
+
+Some images are a photo of an open book with our page printed onto its blank page. For those:
+- looks_real: false only if the whole image clearly does not look like one natural photo
+  (the page looks pasted on, floating, glowing, or of a different sharpness than the paper).
+- page_fits: false only if the printed text or drawing leaves the book's paper, runs onto
+  fingers, the facing page or the background, or clearly does not follow the page's angle.
+For images that are not book photos, answer true for both. Be strict only about real faults:
+a small tilt, soft background or warm colour is how these photos are meant to look."""
+
+PHOTO_FAULT = "photo:"  # detail prefix: the book photo, not the text, is the problem
 
 
-def check_vision(image: Image.Image, brand: Brand | None = None) -> QACheck:
+def check_vision(image: Image.Image, brand: Brand | None = None,
+                 photo: bool = False) -> QACheck:
     buf = io.BytesIO()
     image.convert("RGB").resize((540, 960)).save(buf, "JPEG", quality=85)
     data = base64.standard_b64encode(buf.getvalue()).decode()
+    kind = ("This is a book photo with our page printed on it." if photo
+            else "This is a designed image (not a book photo).")
     verdict = llm.structured(
         model=get_settings().qa_model, system=VISION_SYSTEM,
         content=[{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": data}},
-                 {"type": "text", "text": "Check this image." + _intended_text(brand)}],
+                 {"type": "text", "text": f"Check this image. {kind}" + _intended_text(brand)}],
         schema=VisionVerdict, purpose="vision_qa", effort="low", max_tokens=2000,
         estimated_usd=0.005,
     )
-    return QACheck(name="vision", passed=verdict.readable and not verdict.problems,
-                   detail="; ".join(verdict.problems))
+    photo_bad = photo and not (verdict.looks_real and verdict.page_fits)
+    problems = list(verdict.problems)
+    if photo_bad:
+        what = [w for w, ok in (("does not look like one natural photo", verdict.looks_real),
+                                ("page does not sit on the book's paper", verdict.page_fits))
+                if not ok]
+        problems.insert(0, PHOTO_FAULT + " " + "; ".join(what))
+    return QACheck(name="vision", passed=verdict.readable and not problems,
+                   detail="; ".join(problems))
+
+
+def photo_fault(check: QACheck) -> bool:
+    """The vision check failed because of the book photo (try another photo)."""
+    return check.name == "vision" and not check.passed and check.detail.startswith(PHOTO_FAULT)
 
 
 def _intended_text(brand: Brand | None) -> str:

@@ -19,6 +19,8 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'state' / 'test.db'}")
     for key in ENV_TO_CLEAR:
         monkeypatch.delenv(key, raising=False)
+    # No paid image check in tests unless a test turns it on (it is on in production).
+    monkeypatch.setenv("VISION_CHECK", "false")
     get_settings.cache_clear()
     scriptures.load_verses.cache_clear()
     db.reset_for_tests()

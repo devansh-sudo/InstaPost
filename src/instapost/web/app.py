@@ -690,7 +690,9 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         rows = sorted(data["plates"].items(),
                       key=lambda kv: (rank.get(kv[1].get("status"), 3), kv[0]))
         counts = {s: sum(1 for _, e in rows if e.get("status") == s) for s in rank}
-        return render(request, "backgrounds.html", rows=rows, counts=counts,
+        from instapost.learn import assets
+        scores = {r["option"]: r for r in assets.table("photo")}
+        return render(request, "backgrounds.html", rows=rows, counts=counts, scores=scores,
                       last_used={k: usage.get(f"plate:{k}") for k, _ in rows},
                       style=get_settings().reel_style,
                       unsplash=bool(get_settings().unsplash_access_key),
@@ -1016,9 +1018,17 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                         fmt, dim, lambda o, d=dim: _option_label(d, o, presets)),
                                  charts.interval_chart(arms, f"{fmt.value} {dim}")))
                 sections.append((fmt.value, dims))
+            from instapost.learn import assets
+            assets_charts = []
+            for kind, title in (("photo", "Book photos"), ("drawing", "Drawings")):
+                rows_k = assets.table(kind, rows=rows)
+                assets_charts.append((title, len(rows_k), charts.interval_chart(
+                    [dict(r, label=r["option"].split(":")[-1].split("/")[-1][:18])
+                     for r in rows_k[:12]], title) if rows_k else None))
             return render(request, "learning.html", sections=sections,
                           observations=learner.observations, reviews=review.latest(s),
-                          explore=int(planner.EXPLORE_RATE * 100))
+                          explore=int(planner.EXPLORE_RATE * 100),
+                          assets_charts=assets_charts)
 
     # Files
     @app.get("/files/{item_id}/{name}")

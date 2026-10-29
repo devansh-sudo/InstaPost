@@ -41,3 +41,17 @@ Every photo is checked: a page must be found, blank, and big enough to read once
 photo the checker is sure about is used straight away. Otherwise it waits under **Waiting for
 your check** with its page outline and an example post. **Use it** if the example looks right,
 **Corners** to click the four page corners yourself, or **Don't use**.
+
+## Image check and learning
+- **Image check** (`VISION_CHECK=true`, about $0.001 a post): every finished picture is
+  looked at by the small model before it reaches you: readable, correctly formed Hindi; no
+  stray letters; for book photos also that the whole image looks like one natural photo and
+  that the page sits on the book's paper (not on fingers, the facing page or the background).
+  If the photo is the problem, the post is made again on the next photo (up to 3) and that
+  photo goes back to **Waiting for your check** with the reason. A text problem blocks the post
+  as before.
+- **Learning**: every post remembers its book photo and drawing. Once its numbers settle, the
+  learner keeps a score per photo and drawing (dashboard → Learning → Book photos and
+  drawings; each photo's score is on the Backgrounds page). Photos and drawings that do well
+  come up more often, new ones still get their turn, and the last three used wait, so the feed
+  never repeats the same photo two posts in a row.

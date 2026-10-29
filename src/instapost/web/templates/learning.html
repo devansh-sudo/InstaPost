@@ -20,6 +20,15 @@
 </div>
 {% endfor %}
 
+<div class="day-head">Book photos and drawings</div>
+<p class="muted">Each post remembers its book photo and drawing. Ones that score well come up more often; new ones still get their turn, and the last few used wait so the feed never repeats.</p>
+<div class="grid">
+  {% for title, n, chart in assets_charts %}
+  <div class="card"><h2>{{ title }}</h2>
+    {% if chart %}<p class="muted">{{ n }} with scored posts</p>{{ chart }}{% else %}<p class="muted">No scored posts with one yet.</p>{% endif %}</div>
+  {% endfor %}
+</div>
+
 <div class="day-head">Weekly reviews</div>
 <div class="grid">
 {% for r in reviews %}

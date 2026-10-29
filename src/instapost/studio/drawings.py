@@ -185,6 +185,21 @@ def _save_made(img: Image.Image, subject: str) -> Drawing:
     return Drawing(f"made:{rel}", path, set(words), "made")
 
 
+def _learned(ranked: list[tuple[int, Drawing]]) -> list[tuple[int, Drawing]]:
+    """Among the equally good matches, let the learner order them (drawings that did well
+    first, the most recently used last)."""
+    from instapost.learn import assets
+
+    if len(ranked) < 2 or ranked[0][0] == ranked[1][0] and ranked[0][0] == 0:
+        return ranked
+    top = ranked[0][0]
+    group = {d.id: (s, d) for s, d in ranked if s == top}
+    if len(group) < 2:
+        return ranked
+    ordered = [group[i] for i in assets.order("drawing", sorted(group))]
+    return ordered + [sd for sd in ranked if sd[0] != top]
+
+
 def illustration(subject: str, pillar: Pillar | str,
                  fallback: Callable[[], Image.Image] | None = None,
                  generate: bool | None = None) -> tuple[Image.Image, str]:
@@ -194,7 +209,7 @@ def illustration(subject: str, pillar: Pillar | str,
 
     st = get_settings()
     lib = library()
-    ranked = match(subject, pillar, lib)
+    ranked = _learned(match(subject, pillar, lib))
     if ranked and ranked[0][0] >= 3:  # a real subject match
         d = ranked[0][1]
         mark_used(d)

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # When no library drawing matches a post's subject, ask Gemini for a new ink drawing
     # (about $0.04, saved to the library for reuse). Needs a Gemini key with billing.
     drawings_generate: bool = True
+    # Look at every finished picture with the small model before it reaches you (readable
+    # Hindi, no stray letters, a book photo that looks natural); about $0.001 a post.
+    vision_check: bool = True
     unsplash_access_key: str | None = None
 
     daily_budget_usd: float = 0.60

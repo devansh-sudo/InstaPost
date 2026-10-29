@@ -352,8 +352,8 @@ def main(argv: list[str] | None = None) -> int:
     make.add_argument("--draft", help="path to a Draft JSON to render instead of writing one")
     make.add_argument("--image-provider", choices=list(PROVIDERS),
                       help="main image source; IMAGE_FALLBACK sources are tried after it")
-    make.add_argument("--vision-qa", action="store_true",
-                      help="also check the final image with Claude (about $0.002)")
+    make.add_argument("--vision-qa", action=argparse.BooleanOptionalAction, default=None,
+                      help="check the final image with Claude (default: VISION_CHECK, on)")
     make.set_defaults(func=_make)
 
     sub.add_parser("budget", help="show spend against the caps").set_defaults(func=_budget)

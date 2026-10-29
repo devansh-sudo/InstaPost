@@ -48,6 +48,7 @@
     <div class="row" style="margin-top:8px">
       {% if e.status == "on" %}<span class="pill ok">in use</span>{% elif e.status == "review" %}<span class="pill warn">check it</span>{% else %}<span class="pill">not used</span>{% endif %}
       <span class="tiny">{{ e.source }}{% if last_used[pid] %} · last used {{ last_used[pid][:10] }}{% endif %}</span>
+      {% if scores.get(pid) %}<span class="pill accent" title="average score of {{ scores[pid].posts }} scored post(s)">score {{ scores[pid].mean }}</span>{% endif %}
     </div>
     {% if e.reason %}<p class="tiny">{{ e.reason }}</p>{% endif %}
     {% if e.credit %}<p class="tiny">{{ e.credit.split(": ")[0] }}</p>{% endif %}

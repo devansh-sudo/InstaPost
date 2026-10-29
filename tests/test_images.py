@@ -222,7 +222,7 @@ def test_placeholder_handle_is_not_printed_and_real_handle_is_not_a_watermark(mo
 
     def fake(**kw):
         seen["text"] = kw["content"][1]["text"]
-        return qa.VisionVerdict(readable=True, problems=[])
+        return qa.VisionVerdict(readable=True, looks_real=True, page_fits=True, problems=[])
 
     monkeypatch.setattr(qa.llm, "structured", fake)
     assert qa.check_vision(Image.new("RGB", (1080, 1920)), real).passed
