@@ -45,8 +45,17 @@ main() {
   old="$("${git[@]}" rev-parse HEAD)"
   new="$("${git[@]}" rev-parse "$upstream")"
 
+  # The commit the running containers were built from (written after each good deploy). If
+  # the code was pulled by hand ("git pull"), the containers are still old: rebuild them.
+  local deployed=""
+  [ -f deploy/.deployed ] && deployed="$(cat deploy/.deployed)"
+
   if [ "$old" = "$new" ]; then
     echo "Already up to date ($("${git[@]}" log -1 --format='%h %s' "$old"))."
+    if [ "$deployed" != "$new" ]; then
+      echo "The running app was not built from this code yet: rebuilding."
+      force=1
+    fi
     if [ "$force" = 0 ] && [ ${#mode[@]} = 0 ]; then
       bash deploy/docker.sh status
       exit 0
@@ -110,6 +119,7 @@ d=sqlite3.connect('/app/$backup'); s.backup(d); d.close()" 2>/dev/null; then
     fi
     exit 1
   fi
+  "${git[@]}" rev-parse HEAD > deploy/.deployed
   say "Updated to $("${git[@]}" log -1 --format='%h %s')"
 }
 
