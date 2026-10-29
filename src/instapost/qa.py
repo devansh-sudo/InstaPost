@@ -3,6 +3,7 @@ unless every check passes; a failed item is kept with its report so it can be fi
 
 import base64
 import io
+import math
 
 import numpy as np
 from PIL import Image
@@ -61,17 +62,23 @@ def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) ->
     ]
 
 
-def unsafe_boxes(text_boxes: list[Box]) -> list[Box]:
-    """Text lines that would sit outside the safe area at the strongest zoom of the reel."""
-    z = 1 + ZOOM_AMPLITUDE
-    return [b for b in (_zoomed(b, z) for b in text_boxes)
+def unsafe_boxes(text_boxes: list[Box], photo: bool = False) -> list[Box]:
+    """Text lines that would sit outside the safe area at the strongest zoom of the reel
+    (book photos also drift and tilt a little, like a hand holding the book)."""
+    from instapost.render.video import PLATE_ZOOM, SWAY_DEG, SWAY_PX
+
+    z = (1 + ZOOM_AMPLITUDE) * (PLATE_ZOOM if photo else 1)
+    m = SWAY_PX + FRAME_H / 2 * math.sin(math.radians(SWAY_DEG)) if photo else 0
+    boxes = [_zoomed(b, z) for b in text_boxes]
+    boxes = [Box(b.x0 - m, b.y0 - m, b.x1 + m, b.y1 + m) for b in boxes]
+    return [b for b in boxes
             if b.y0 < SAFE_TOP or b.y1 > SAFE_BOTTOM or b.x0 < SAFE_SIDE
             or b.x1 > FRAME_W - SAFE_SIDE or _overlaps(b, RIGHT_RAIL)]
 
 
 def check_reel(draft: Draft, motion: Motion, text_boxes: list[Box]) -> list[QACheck]:
     checks = []
-    bad = unsafe_boxes(text_boxes)
+    bad = unsafe_boxes(text_boxes, photo=getattr(motion, "photo", False))
     checks.append(QACheck(name="safe_area", passed=not bad,
                           detail=f"{len(bad)} text lines outside the safe area" if bad else ""))
 

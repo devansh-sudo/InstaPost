@@ -12,11 +12,11 @@ half second, so the last frame equals the first and the loop has no seam.
 import math
 import subprocess
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 from instapost.brand import Brand
 from instapost.render import audio
@@ -79,14 +79,47 @@ def _smooth(x: float) -> float:
     return x * x * (3 - 2 * x)
 
 
-def reveal_state(order: int, count: int, t: float, duration: float) -> tuple[float, float]:
-    """(opacity 0..1, rise in px) of reveal layer `order` at time t."""
+def reveal_parts(order: int, count: int, t: float, duration: float
+                 ) -> tuple[float, float, float]:
+    """(written 0..1, still there 0..1, rise in px) of reveal layer `order` at time t."""
     step = REVEAL_STEP
     if count > 1:  # all lines are in by 40% of the reel, however many there are
         step = min(step, max(0.12, (0.4 * duration - REVEAL_START) / (count - 1)))
     a_in = _smooth((t - REVEAL_START - order * step) / REVEAL_FADE)
     a_out = _smooth((duration - t) / REVEAL_OUT)
-    return a_in * a_out, (1 - a_in) * REVEAL_RISE
+    return a_in, a_out, (1 - a_in) * REVEAL_RISE
+
+
+def reveal_state(order: int, count: int, t: float, duration: float) -> tuple[float, float]:
+    """(opacity 0..1, rise in px) of reveal layer `order` at time t."""
+    a_in, a_out, rise = reveal_parts(order, count, t, duration)
+    return a_in * a_out, rise
+
+
+WRITE_SOFT = 0.28   # width of the soft edge of the "being written" wipe (share of the line)
+
+# Book photos only: a hand holding the book. Every term has a whole number of cycles over the
+# reel, so the last frame meets the first.
+SWAY_PX = 6.0       # largest drift, px
+SWAY_DEG = 0.25     # largest tilt
+PLATE_ZOOM = 1.03   # a little zoom so the drift never shows the frame edge
+FOCUS_BLUR = 3.0    # background softness at the loop point (the page stays sharp)
+FOCUS_IN = 0.8      # s to sharpen after the loop point
+LIGHT_GAIN = 16.0   # warm light band sweeping across the page once per loop
+
+
+def sway_at(t: float, duration: float) -> tuple[float, float, float]:
+    """(dx, dy, degrees) of the hand-held drift at time t."""
+    ph = 2 * math.pi * t / duration
+    dx = SWAY_PX * (0.6 * math.sin(ph + 0.3) + 0.4 * math.sin(2 * ph + 1.7))
+    dy = SWAY_PX * 0.8 * (0.55 * math.sin(ph + 2.1) + 0.45 * math.sin(3 * ph + 0.4))
+    rot = SWAY_DEG * (0.7 * math.sin(ph + 1.1) + 0.3 * math.sin(2 * ph + 2.6))
+    return dx, dy, rot
+
+
+def focus_at(t: float, duration: float) -> float:
+    """1 = background softest (at the loop point), 0 = as photographed."""
+    return max(1 - _smooth(t / FOCUS_IN), 1 - _smooth((duration - t) / REVEAL_OUT))
 
 
 class Motion:
@@ -106,30 +139,55 @@ class Motion:
         self.sprite = _sprite()
         self.layers = comp.layers if comp else []
         self.base = np.asarray(comp.base if comp and comp.layers else still, np.float32)
+        self.photo = photo
+        self.ramps = [np.clip(np.linspace(0, 1, layer.alpha.shape[1], dtype=np.float32),
+                              0, 1)[None, :, None] for layer in self.layers]
+        self.bg_blur = self.bg_mask = self.light = None
+        if photo and box is not None:
+            # Background softened once; blended in near the loop point outside the page.
+            blurred = Image.fromarray(np.clip(self.base, 0, 255).astype(np.uint8)).filter(
+                ImageFilter.GaussianBlur(FOCUS_BLUR))
+            self.bg_blur = np.asarray(blurred, np.float32)
+            m = Image.new("L", (FRAME_W, FRAME_H), 255)
+            ImageDraw.Draw(m).rectangle([box.x0, box.y0, box.x1, box.y1], fill=0)
+            self.bg_mask = (np.asarray(m.filter(ImageFilter.GaussianBlur(24)),
+                                       np.float32) / 255)[..., None]
+            self.light = _light_band(box)
 
     def _page_at(self, t: float) -> Image.Image:
-        if not self.layers:
+        if not self.layers and self.bg_blur is None:
             return self.still
-        arr = self.base.copy()
+        arr = self.base.copy() if self.layers else np.asarray(self.still, np.float32).copy()
         n = len(self.layers)
-        for layer in self.layers:
-            a, rise = reveal_state(layer.order, n, t, self.duration)
-            if a <= 0.003:
+        for layer, ramp in zip(self.layers, self.ramps, strict=True):
+            a_in, a_out, rise = reveal_parts(layer.order, n, t, self.duration)
+            if a_in * a_out <= 0.003:
                 continue
+            # Written left to right with a soft edge, rising a little into place.
+            written = np.clip((a_in * (1 + WRITE_SOFT) - ramp) / WRITE_SOFT, 0, 1)
             h, w = layer.alpha.shape[:2]
             y0 = layer.y + int(round(rise))
             y1, x1 = min(FRAME_H, y0 + h), min(FRAME_W, layer.x + w)
             region = arr[y0:y1, layer.x:x1]
-            k = layer.alpha[:y1 - y0, :x1 - layer.x] * a
+            k = layer.alpha[:y1 - y0, :x1 - layer.x] * written[:, :x1 - layer.x] * a_out
             region += (layer.rgb[:y1 - y0, :x1 - layer.x] - region) * k
+        if self.bg_blur is not None:
+            f = focus_at(t, self.duration)
+            if f > 0.003:
+                arr += (self.bg_blur - arr) * self.bg_mask * f
+            self.light(arr, t / self.duration)
         return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
     def frame_at(self, t: float) -> np.ndarray:
         z = zoom_at(t, self.duration)
-        cw, ch = FRAME_W / z, FRAME_H / z
-        left, top = (FRAME_W - cw) / 2, (FRAME_H - ch) / 2
-        img = self._page_at(t).resize((FRAME_W, FRAME_H), Image.Resampling.BICUBIC,
-                                      box=(left, top, left + cw, top + ch))
+        if self.photo:
+            dx, dy, rot = sway_at(t, self.duration)
+            img = _handheld(self._page_at(t), z * PLATE_ZOOM, dx, dy, rot)
+        else:
+            cw, ch = FRAME_W / z, FRAME_H / z
+            left, top = (FRAME_W - cw) / 2, (FRAME_H - ch) / 2
+            img = self._page_at(t).resize((FRAME_W, FRAME_H), Image.Resampling.BICUBIC,
+                                          box=(left, top, left + cw, top + ch))
         arr = np.asarray(img, np.float32).copy()
         phase = 2 * math.pi * t / self.duration
         flicker = 0.6 + 0.22 * math.sin(3 * phase) + 0.12 * math.sin(7 * phase + 1.3)
@@ -146,6 +204,38 @@ class Motion:
     def frames(self) -> Iterator[np.ndarray]:
         for i in range(int(round(self.duration * FPS))):
             yield self.frame_at(i / FPS)
+
+
+def _handheld(img: Image.Image, zoom: float, dx: float, dy: float, rot: float) -> Image.Image:
+    """Zoom about the centre, tilt by `rot` degrees and drift by (dx, dy): one resampling."""
+    a = math.radians(rot)
+    cx, cy = FRAME_W / 2, FRAME_H / 2
+    c, s = math.cos(a) / zoom, math.sin(a) / zoom
+    # Output pixel -> input pixel (PIL's affine maps that way).
+    coeffs = (c, s, cx - c * (cx + dx) - s * (cy + dy),
+              -s, c, cy + s * (cx + dx) - c * (cy + dy))
+    # Bilinear: at this tiny zoom it looks the same as bicubic and is 2.5x faster.
+    return img.transform((FRAME_W, FRAME_H), Image.Transform.AFFINE, coeffs,
+                         Image.Resampling.BILINEAR)
+
+
+def _light_band(box) -> Callable[[np.ndarray, float], None]:
+    """Warm window light: a soft diagonal band that glides across the page once per loop,
+    starting and ending off the page (so the loop has no seam)."""
+    x0, y0, x1, y1 = (int(v) for v in (box.x0, box.y0, box.x1, box.y1))
+    yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+    diag = ((xx - x0) / max(x1 - x0, 1) * 0.7 + (yy - y0) / max(y1 - y0, 1) * 0.3)
+    warm = np.array([1.0, 0.86, 0.62], np.float32) * LIGHT_GAIN
+
+    def add(arr: np.ndarray, u: float) -> None:
+        centre = -0.35 + 1.7 * u            # from before the page to past it
+        near = np.abs(diag - centre) < 0.5  # rows/cols far from the band add nothing
+        if not near.any():
+            return
+        band = np.exp(-((diag - centre) / 0.16) ** 2) * near
+        arr[y0:y1, x0:x1] += band[..., None] * warm
+
+    return add
 
 
 def read_time_seconds(*texts: str) -> float:

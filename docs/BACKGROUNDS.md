@@ -10,8 +10,15 @@ Reels are made like this (`REEL_STYLE=plate`, the default):
 3. Our page (header, drawing, highlighted hook, body, verse) is printed onto the blank page in
    the photo's perspective: the ink multiplies the photo's own paper, so its light, gutter
    shadow and grain stay, and nothing is printed onto a thumb or finger.
-4. The reel motion is unchanged: the hook is there from the first frame, then the body and
-   verse print in line by line, and the loop is seamless.
+4. The motion, every part repeating exactly once per loop so the reel loops without a seam:
+   - the hook is there from the first frame (it stops the scroll); the body lines and the
+     verse are then written in left to right, like ink, rising slightly into place;
+   - a hand holding the book: a drift of a few pixels and a tilt under 0.3°;
+   - window light: one soft warm band glides across the page during the loop;
+   - focus breath: at the loop point (while the text fades out and back in) the background
+     softens a little and sharpens again; the page always stays sharp;
+   - a slow push-in, a soft warm glow and a few dust specks in the light, never on the page.
+   Text is kept inside Instagram's safe area including the drift and zoom.
 
 The text is always drawn by our code, so the Hindi is correct and sharp (AI-made pictures
 garble Devanagari), and the verse comes from the reviewed database.

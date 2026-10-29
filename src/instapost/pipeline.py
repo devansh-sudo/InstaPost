@@ -208,7 +208,7 @@ def _on_book_photo(brand: Brand, page, seed: int, folder: Path, search: bool = T
         if n >= 3:
             break
         comp = compose_on_plate(brand, book, page, seed)
-        if qa.unsafe_boxes(comp.text_boxes):
+        if qa.unsafe_boxes(comp.text_boxes, photo=True):
             continue  # text would sit under Instagram's buttons on this photo
         plates.mark_used(book.id)
         (folder / "book_photo.txt").write_text(f"{book.id}\n{book.credit}\n", encoding="utf-8")
