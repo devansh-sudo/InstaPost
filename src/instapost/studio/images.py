@@ -153,14 +153,18 @@ def illustration_prompt(subject: str, style: str) -> str:
 class GeminiProvider:
     name = "gemini"
 
-    def generate(self, prompt: str, portrait: bool) -> Image.Image:
+    def generate(self, prompt: str, portrait: bool,
+                 refs: list[Image.Image] | None = None) -> Image.Image:
+        """`refs`: earlier pictures to keep the same characters and style (scene reels)."""
         s = get_settings()
         require("gemini_api_key")
         budget.ensure_room(budget.IMAGE_PRICES[self.name])
         url = ("https://generativelanguage.googleapis.com/v1beta/models/"
                f"{s.gemini_image_model}:generateContent")
+        parts = [{"inlineData": {"mimeType": "image/jpeg", "data": _jpeg_b64(ref)}}
+                 for ref in refs or []]
         body = {
-            "contents": [{"parts": [{"text": prompt}]}],
+            "contents": [{"parts": [*parts, {"text": prompt}]}],
             "generationConfig": {
                 "responseModalities": ["IMAGE"],
                 "imageConfig": {"aspectRatio": "9:16" if portrait else "4:3"},
@@ -173,6 +177,14 @@ class GeminiProvider:
             if "inlineData" in part:
                 return Image.open(io.BytesIO(base64.b64decode(part["inlineData"]["data"])))
         raise RuntimeError("Gemini returned no image (possibly blocked by its safety filter)")
+
+
+def _jpeg_b64(img: Image.Image, size: int = 768) -> str:
+    small = img.convert("RGB").copy()
+    small.thumbnail((size, size))
+    buf = io.BytesIO()
+    small.save(buf, "JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode()
 
 
 class OpenAIProvider:

@@ -163,6 +163,13 @@ class Worker:
                                                 p.get("topic"), p.get("actor", "web"),
                                                 template=p.get("template"))
                     self.send_item(item_id)
+                elif job.kind == "scene_write":
+                    entry = producer.write_scene(p.get("topic"), p.get("actor", "web"))
+                    self.notify(f"🎭 New scene script to read: {entry['script']['title']}\n"
+                                "Dashboard → Scenes: edit it if you like, then approve to make "
+                                "the reel (about $0.15).")
+                elif job.kind == "scene_make":
+                    self.send_item(producer.make_scene(p["scene_id"], p.get("actor", "web")))
                 elif job.kind == "retemplate":
                     self.send_item(producer.retemplate(p["item_id"], p.get("template"),
                                                        p.get("actor", "web")))

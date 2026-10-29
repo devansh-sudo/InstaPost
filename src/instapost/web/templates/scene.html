@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Scene{% endblock %}
+{% block subtitle %}{{ script.source }} · {{ words }} / {{ max_words }} spoken words · about ${{ "%.2f"|format(est) }} to make{% endblock %}
+{% block content %}
+{% set editable = entry.status in ("draft", "approved") %}
+{% if problems %}<div class="card section"><b>Fix before approving:</b> {{ problems|join(" · ") }}</div>{% endif %}
+{% if entry.error %}<div class="card section"><b>Last attempt failed:</b> {{ entry.error }}</div>{% endif %}
+{% if entry.item_id %}<div class="card section">The reel is made: <a href="/items/{{ entry.item_id }}">open it</a>.</div>{% endif %}
+<form method="post" action="/scenes/{{ entry.id }}">
+  <input type="hidden" name="token" value="{{ csrf }}">
+  <div class="cols c-2-1 section">
+    <div class="card">
+      <div class="card-head">{{ icon("users") }}<h2>The conversation</h2></div>
+      <label class="field">Title (the hook, shown first)<input name="title" value="{{ script.title }}" {{ '' if editable else 'disabled' }}></label>
+      <div class="stack" style="gap:10px;margin-top:12px">
+      {% for i in range(6) %}{% set ln = script.lines[i] if i < script.lines|length else none %}
+        <div class="row" style="gap:8px;align-items:flex-start">
+          <select name="speaker_{{ i }}" style="width:120px" {{ '' if editable else 'disabled' }}>{% for c in characters.values() %}<option value="{{ c.id }}" {{ 'selected' if ln and ln.speaker == c.id }}>{{ c.name }}</option>{% endfor %}</select>
+          <select name="pic_{{ i }}" style="width:110px" title="picture on screen" {{ '' if editable else 'disabled' }}>{% for n in range(1, 5) %}<option value="{{ n }}" {{ 'selected' if ln and ln.picture == n - 1 }}>picture {{ n }}</option>{% endfor %}</select>
+          <input name="text_{{ i }}" value="{{ ln.text if ln else '' }}" placeholder="{{ 'line ' ~ (i + 1) ~ ' (empty = no line)' }}" style="flex:1" {{ '' if editable else 'disabled' }}>
+        </div>
+      {% endfor %}
+      </div>
+      <label class="field" style="margin-top:12px">Closing question<input name="question" value="{{ script.question }}" {{ '' if editable else 'disabled' }}></label>
+      <label class="field" style="margin-top:12px">Verse on the end card
+        <select name="reference_id" {{ '' if editable else 'disabled' }}><option value="">none</option>{% for vid, label in verses %}<option value="{{ vid }}" {{ 'selected' if vid == script.reference_id }}>{{ label }}</option>{% endfor %}</select></label>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <div class="card-head">{{ icon("info") }}<h2>Source</h2></div>
+        <label class="field">Source (shown in the caption)<input name="source" value="{{ script.source }}" {{ '' if editable else 'disabled' }}></label>
+        <p class="tiny" style="margin-top:8px">{{ script.source_note }}</p>
+        <p class="tiny">Check that the lines match the episode. Change anything that does not.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">{{ icon("image") }}<h2>Pictures</h2></div>
+        <p class="tiny">What each painting shows (English, for the painter). The characters' looks are added automatically and kept the same in every picture.</p>
+        {% for i in range(4) %}
+        <label class="field">Picture {{ i + 1 }}<textarea name="picture_{{ i }}" rows="3" {{ '' if editable else 'disabled' }}>{{ script.pictures[i].prompt if i < script.pictures|length else '' }}</textarea></label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="card section">
+    <div class="card-head">{{ icon("send") }}<h2>Caption</h2></div>
+    <textarea name="caption_hi" rows="4" style="width:100%" {{ '' if editable else 'disabled' }}>{{ script.caption_hi }}</textarea>
+    <label class="field" style="margin-top:8px">Hashtags<input name="hashtags" value="{{ script.hashtags|join(' ') }}" {{ '' if editable else 'disabled' }}></label>
+    <p class="tiny">An AI note and the source are added under the caption automatically.</p>
+  </div>
+  {% if editable %}
+  <div class="row section" style="gap:10px">
+    <button>{{ icon("check", "sm") }} Save</button>
+    <button class="primary" name="approve" value="1">{{ icon("rocket", "sm") }} Save and make the reel</button>
+    <span class="tiny">about ${{ "%.2f"|format(est) }} · 2–4 minutes · then it waits in the inbox for your final OK</span>
+  </div>
+  {% endif %}
+</form>
+{% if editable %}
+<form method="post" action="/scenes/{{ entry.id }}/reject" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="ghost sm">{{ icon("x", "sm") }} Discard this scene</button></form>
+{% endif %}
+{% endblock %}

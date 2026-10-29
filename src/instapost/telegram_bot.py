@@ -39,8 +39,9 @@ HELP = """Commands
 /plan – the plan for the next 7 days
 /setup – what is still missing in the setup"""
 
-FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "carousel_shlok": "🖼 Carousel",
-                "story_line": "📱 Story", "weekly_video": "📺 Weekly YouTube video"}
+FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "scene_reel": "🎭 Scene reel",
+                "carousel_shlok": "🖼 Carousel", "story_line": "📱 Story",
+                "weekly_video": "📺 Weekly YouTube video"}
 TELEGRAM_VIDEO_LIMIT = 48_000_000  # bots may send videos up to 50 MB
 
 
@@ -116,7 +117,7 @@ class Bot:
             *([[{"text": "📲 Trending song (I post it on Instagram)",
                  "callback_data": f"ts:{item.id}"}]] if item.format == "reel_book_pov" else []),
             *([[{"text": "🎨 Other look (same text)", "callback_data": f"rt:{item.id}"}]]
-              if item.format != approvals.WEEKLY_VIDEO else []),
+              if item.format not in (approvals.WEEKLY_VIDEO, approvals.SCENE_REEL) else []),
             [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},

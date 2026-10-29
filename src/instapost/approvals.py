@@ -18,6 +18,7 @@ from instapost.models import FactCheckVerdict, Format
 from instapost.pipeline import Result
 from instapost.render.video import probe_duration
 from instapost.schedule import Schedule, candidate_slots, load_schedule, to_local, to_utc_naive
+from instapost.studio.scenes import SCENE_REEL  # Shiv-Parvati scenes: a kind of reel
 
 AUTONOMY_LEVELS = ("L0", "L1", "L2")
 MIN_LEAD = timedelta(minutes=10)  # never schedule closer than this to "now"
@@ -103,7 +104,7 @@ def _auto_approvable(s: Session, item: Item) -> bool:
     if item.fact_check != FactCheckVerdict.PASS.value:
         return False
     level = autonomy(s)
-    return level == "L2" or (level == "L1" and item.format != Format.REEL_BOOK_POV.value)
+    return level == "L2" or (level == "L1" and item.format not in REEL_FORMATS)
 
 
 def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None = None,
@@ -113,10 +114,12 @@ def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None
     now = now or utcnow()
     taken = {
         row for (row,) in s.execute(
-            select(Item.scheduled_at).where(Item.format == fmt, Item.status.in_(TAKEN),
+            # Scene reels use the reel slots, so the two kinds of reel never collide.
+            select(Item.scheduled_at).where(Item.format.in_(same_slots(fmt)),
+                                            Item.status.in_(TAKEN),
                                             Item.scheduled_at.is_not(None)))
     }
-    candidates = candidate_slots(sched, Format(fmt), start_day)
+    candidates = candidate_slots(sched, base_format(fmt), start_day)
     if preferred:
         # The plan's slot on the planned day comes first, if it is still free.
         first = [c for c in candidates
@@ -130,6 +133,16 @@ def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None
 
 
 WEEKLY_VIDEO = "weekly_video"  # instapost.weekly.WEEKLY (not a Format: never planned daily)
+REEL_FORMATS = (Format.REEL_BOOK_POV.value, SCENE_REEL)
+
+
+def base_format(fmt: str) -> Format:
+    """The daily format whose slots and platforms a post uses (a scene reel is a reel)."""
+    return Format.REEL_BOOK_POV if fmt == SCENE_REEL else Format(fmt)
+
+
+def same_slots(fmt: str) -> list[str]:
+    return list(REEL_FORMATS) if fmt in REEL_FORMATS else [fmt]
 
 
 def approve(s: Session, item: Item, actor: str, when: datetime | None = None) -> Item:
@@ -145,7 +158,7 @@ def approve(s: Session, item: Item, actor: str, when: datetime | None = None) ->
     item.status = ItemStatus.APPROVED
     item.approved_by = actor
     item.approved_at = utcnow()
-    if item.format == Format.REEL_BOOK_POV and get_settings().instagram_reels == "app":
+    if item.format in REEL_FORMATS and get_settings().instagram_reels == "app":
         item.manual_platforms = sorted(set(item.manual_platforms or []) | {"instagram"})
     audit(s, actor, "approved", item.id, scheduled_at=item.scheduled_at.isoformat())
     return item

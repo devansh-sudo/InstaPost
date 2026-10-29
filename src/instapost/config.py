@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     # Hindi, no stray letters, a book photo that looks natural); about $0.001 a post.
     vision_check: bool = True
     unsplash_access_key: str | None = None
+    # Scene reels (Shiv and Parvati talking): voices from Gemini text-to-speech, same key as
+    # the pictures. SCENE_VOICES=false makes them subtitle-only (no AI voices, no AI label).
+    gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
+    scene_voices: bool = True
 
     daily_budget_usd: float = 0.60
     monthly_budget_usd: float = 18.00

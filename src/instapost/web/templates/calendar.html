@@ -12,11 +12,11 @@
   <a class="btn" href="/plan">{{ icon("plan", "sm") }} Edit the plan</a>
 {% endblock %}
 {% block content %}
-{% set flabel = {"reel_book_pov": "Reels", "carousel_shlok": "Carousels", "story_line": "Stories", "weekly_video": "Weekly videos"} %}
+{% set flabel = {"reel_book_pov": "Reels", "scene_reel": "Scene reels", "carousel_shlok": "Carousels", "story_line": "Stories", "weekly_video": "Weekly videos"} %}
 <div class="kpis">
   <div class="kpi"><div class="k">{{ icon("calendar", "sm") }} Posts in these {{ range_days }} days</div><div class="v">{{ totals.posts }}</div>
     <div class="d">scheduled + waiting + planned</div></div>
-  {% for f in ("reel_book_pov", "carousel_shlok", "story_line", "weekly_video") %}
+  {% for f in ("reel_book_pov", "scene_reel", "carousel_shlok", "story_line", "weekly_video") %}
   <div class="kpi"><div class="k">{{ flabel[f] }}</div><div class="v">{{ totals.formats.get(f, 0) }}</div><div class="d">&nbsp;</div></div>
   {% endfor %}
   {% for p in ("instagram", "facebook", "youtube") %}

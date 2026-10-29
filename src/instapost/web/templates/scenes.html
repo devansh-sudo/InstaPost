@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Scenes{% endblock %}
+{% block subtitle %}Shiv and Parvati talking: a 15–22 second reel in painted pictures, with a voice for each · nothing is paid for pictures or voices until you approve the script{% endblock %}
+{% block content %}
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("pen") }}<h2>Write a new scene</h2></div>
+    <p class="muted">Claude writes a short conversation from a real episode (Shiv Purana, Shri Ramcharitmanas, Vigyan Bhairav Tantra …), names its source, and keeps the lines simple. You read and edit it, then approve.</p>
+    <form method="post" action="/scenes/new" class="row" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input name="topic" placeholder="Topic (optional), e.g. धैर्य, गुस्सा, प्रेम, अकेलापन" style="flex:1">
+      <button class="primary">{{ icon("pen", "sm") }} Write (~$0.02)</button>
+    </form>
+    <form method="post" action="/scenes/sample" class="inline" style="margin-top:10px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <button class="ghost sm">Use the sample script (free)</button></form>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("info") }}<h2>Cost and labels</h2></div>
+    <p class="tiny">Script ~$0.02 · pictures ~$0.04 each (3–4) · voices under $0.01 · total about $0.15–0.20 a reel.</p>
+    <p class="tiny">{% if not gemini %}<b>No Gemini key:</b> pictures and voices need GEMINI_API_KEY.{% elif voices %}Voices: on (AI Hindi voices). Instagram asks you to add the <b>AI label</b> for realistic AI voices; the caption also says so.{% else %}Voices: off (SCENE_VOICES=false): subtitles only.{% endif %}</p>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-head">{{ icon("library") }}<h2>Scripts</h2></div>
+  {% if not items %}<p class="muted">No scenes yet. Write one, or start with the sample.</p>{% endif %}
+  <div class="list">
+    {% for e in items %}
+    <a class="li" href="/scenes/{{ e.id }}">
+      <div class="grow"><div class="t">{{ e.script.title }}</div>
+        <div class="s">{{ e.script.source }} · {{ e.script.lines|length }} lines · {{ e.created[:10] }}{% if e.error %} · <span class="pill">problem: {{ e.error[:80] }}</span>{% endif %}</div></div>
+      {% set cls = {"draft": "accent", "approved": "", "making": "", "made": "ok", "rejected": ""}[e.status] %}
+      <span class="pill {{ cls }}">{{ {"draft": "read and approve", "approved": "approved", "making": "being made", "made": "in the inbox", "rejected": "discarded"}[e.status] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

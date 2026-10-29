@@ -168,3 +168,27 @@ def regenerate(item_id: str, actor: str) -> str:
         entry_id = entry.id if entry else None
     return _make_and_register(fmt, pillar, date.fromisoformat(for_date), actor,
                               entry_id=entry_id)
+
+
+def write_scene(topic: str | None, actor: str) -> dict:
+    """A new Shiv-Parvati scene script from Claude, waiting for you on the Scenes page."""
+    from instapost.studio import scenes
+
+    with track("scene_write", f"scene script: {topic or 'any theme'}") as job:
+        job.step("writing the scene")
+        with budget.tagged(format=scenes.SCENE_REEL, pillar="shiv_dhyan"):
+            script = (scenes.SAMPLE if get_settings().demo_mode else scenes.write(topic))
+        entry = scenes.new(script, topic=topic)
+        with session() as s:
+            audit(s, actor, "scene_written", scene=entry["id"], title=script.title)
+        return entry
+
+
+def make_scene(scene_id: str, actor: str) -> str:
+    """Pictures, voices and video for an approved scene; returns the new item's id."""
+    from instapost import scene_maker
+
+    with track("scene_reel", f"scene reel {scene_id}") as job:
+        with session() as s:
+            return scene_maker.make(s, scene_id, actor=actor,
+                                    offline=get_settings().demo_mode, on_step=job.step).id

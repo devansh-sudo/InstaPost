@@ -339,6 +339,38 @@ def _check(_args) -> int:
     return 0
 
 
+def _scene(args) -> int:
+    """Scene reels from the command line: the sample, a new script, or make an approved one."""
+    from instapost import producer
+    from instapost.studio import scenes
+
+    if args.action == "write":
+        entry = producer.write_scene(args.topic, "cli")
+        print(f"Scene {entry['id']}: {entry['script']['title']}")
+        print("Read and approve it on the dashboard: Scenes.")
+        return 0
+    if args.action == "sample":
+        # You chose the sample by running this, so it counts as approved: it goes straight to
+        # pictures, voices and video, then waits in the inbox for your OK like any post.
+        entry = scenes.new(scenes.SAMPLE, topic="sample")
+        scenes.set_status(entry["id"], "approved")
+        scene_id = entry["id"]
+    else:
+        if not args.id:
+            print("ERROR: give the scene id (dashboard: Scenes)", file=sys.stderr)
+            return 1
+        scene_id = args.id
+    item_id = producer.make_scene(scene_id, "cli")
+    from instapost.db import Item, session
+    with session() as s:
+        item = s.get(Item, item_id)
+        print(f"{item.status}: {item.id}\n  {item.folder}/reel.mp4")
+        if item.qa_summary:
+            print(f"  problems: {item.qa_summary}")
+    print("It is in the dashboard inbox (and on Telegram once the worker sends it).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="instapost")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -383,6 +415,11 @@ def main(argv: list[str] | None = None) -> int:
     pm = sub.add_parser("plan-month", help="load a hand-written plan file (data/plan/*.yaml)")
     pm.add_argument("file")
     pm.set_defaults(func=_plan_month)
+    sc = sub.add_parser("scene", help="Shiv-Parvati scene reels: sample, write, make")
+    sc.add_argument("action", choices=["sample", "write", "make"])
+    sc.add_argument("id", nargs="?", help="make: the scene id")
+    sc.add_argument("--topic", help="write: what the scene is about")
+    sc.set_defaults(func=_scene)
     sub.add_parser("web", help="run the dashboard").set_defaults(func=_web)
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")

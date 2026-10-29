@@ -35,8 +35,8 @@ HERE = Path(__file__).parent
 FILE_NAME = re.compile(r"^(reel\.mp4|video\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
 MAX_TRACK_MB = 25
 LIBRARY_PAGE = 40  # posts per Library page
-FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story",
-                "weekly_video": "Weekly video"}
+FORMAT_LABEL = {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel",
+                "story_line": "Story", "weekly_video": "Weekly video"}
 PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
                 "kabir": "Kabir", "life_lesson": "Life lesson"}
 templates = Jinja2Templates(directory=str(HERE / "templates"))
@@ -641,6 +641,105 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     def _look(folder: Path) -> str:
         f = folder / "template.txt"
         return f.read_text(encoding="utf-8").strip() if f.exists() else ""
+
+    # Scene reels (Shiv and Parvati talking)
+    def _scene(scene_id: str) -> dict:
+        from instapost.studio import scenes
+        try:
+            return scenes.get(scene_id)
+        except KeyError:
+            raise HTTPException(404) from None
+
+    @app.get("/scenes", response_class=HTMLResponse)
+    def scenes_page(request: Request, who: str = Depends(user)):
+        from instapost.studio import scenes, voice
+        items = scenes.all_scenes()
+        return render(request, "scenes.html", items=items[:60], voices=voice.available(),
+                      gemini=bool(get_settings().gemini_api_key))
+
+    @app.post("/scenes/new")
+    def scene_new(request: Request, topic: str = Form(""), who: str = Depends(user),
+                  _=Depends(csrf)):
+        topic = topic.strip()[:200] or None
+        jobs.enqueue("scene_write", f"scene script: {topic or 'any theme'}", topic=topic,
+                     actor=f"web:{who}")
+        return back(request, "Claude is writing a scene (about $0.02). It appears here in a "
+                    "minute; you also get a Telegram message.", "/scenes")
+
+    @app.post("/scenes/sample")
+    def scene_sample(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import scenes
+        entry = scenes.new(scenes.SAMPLE, topic="sample")
+        return back(request, "Sample script added (free). Read it, then approve to make the "
+                    "reel.", f"/scenes/{entry['id']}")
+
+    @app.get("/scenes/{scene_id}", response_class=HTMLResponse)
+    def scene_page(request: Request, scene_id: str, who: str = Depends(user)):
+        from instapost.scriptures import load_verses
+        from instapost.studio import scenes, voice
+        entry = _scene(scene_id)
+        script = scenes.script_of(entry)
+        verses = [(v.id, v.label) for v in load_verses().values() if not v.rejected]
+        return render(request, "scene.html", entry=entry, script=script,
+                      problems=scenes.problems(script), characters=scenes.CHARACTERS,
+                      verses=verses, words=scenes.words(script), voices=voice.available(),
+                      max_words=scenes.SPOKEN_WORDS_MAX,
+                      est=len(script.pictures) * 0.039 + 0.01)
+
+    async def _scene_form(request: Request, entry: dict):
+        from instapost.studio import scenes
+        form = await request.form()
+        old = scenes.script_of(entry)
+        get = lambda k, d="": str(form.get(k, d)).strip()  # noqa: E731
+        pictures = [scenes.ScenePicture(prompt=get(f"picture_{i}"))
+                    for i in range(4) if get(f"picture_{i}")]
+        lines = []
+        for i in range(6):
+            text = get(f"text_{i}")
+            if not text:
+                continue
+            try:
+                pic = int(get(f"pic_{i}", "1")) - 1
+            except ValueError:
+                pic = 0
+            lines.append(scenes.SceneLine(speaker=get(f"speaker_{i}", "narrator"),
+                                          text=text, picture=pic))
+        tags = [t for t in get("hashtags").replace(",", " ").split() if t]
+        return old.model_copy(update=dict(
+            title=get("title") or old.title, source=get("source") or old.source,
+            pictures=pictures, lines=lines, reference_id=get("reference_id") or None,
+            question=get("question") or old.question, caption_hi=get("caption_hi"),
+            hashtags=tags))
+
+    @app.post("/scenes/{scene_id}")
+    async def scene_save(request: Request, scene_id: str, who: str = Depends(user),
+                         _=Depends(csrf)):
+        from instapost.studio import scenes
+        entry = _scene(scene_id)
+        form = await request.form()
+        script = await _scene_form(request, entry)
+        try:
+            scenes.update_script(scene_id, script)
+        except ValueError as e:
+            return back(request, str(e), f"/scenes/{scene_id}")
+        if bad := scenes.problems(script):
+            return back(request, "Saved, but fix this before approving: " + "; ".join(bad),
+                        f"/scenes/{scene_id}")
+        if form.get("approve") == "1":
+            scenes.set_status(scene_id, "approved", error=None)
+            jobs.enqueue("scene_make", f"scene reel {scene_id}", scene_id=scene_id,
+                         actor=f"web:{who}")
+            return back(request, "Approved. The pictures, voices and video are being made "
+                        "(about 3 minutes); the reel then waits in your inbox.", "/scenes")
+        return back(request, "Saved.", f"/scenes/{scene_id}")
+
+    @app.post("/scenes/{scene_id}/reject")
+    def scene_reject(request: Request, scene_id: str, who: str = Depends(user),
+                     _=Depends(csrf)):
+        from instapost.studio import scenes
+        if _scene(scene_id)["status"] in ("draft", "approved"):
+            scenes.set_status(scene_id, "rejected")
+        return back(request, "Scene discarded.", "/scenes")
 
     # Reel looks (templates)
     @app.get("/templates", response_class=HTMLResponse)

@@ -23,7 +23,8 @@ STAGES = {"write": "Writing", "fact_check": "Fact check", "vision_qa": "Image ch
 GROUPS = {"Writing": "Writing", "Fact check": "Checks", "Image check": "Checks",
           "Images": "Images & other", "Weekly review": "Images & other"}
 GROUP_SLOTS = {"Writing": 1, "Checks": 2, "Images & other": 3}
-FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story"}
+FORMAT_LABEL = {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel",
+                "story_line": "Story"}
 
 
 def stage_of(kind: str) -> str:

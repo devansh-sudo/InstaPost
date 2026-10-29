@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from instapost import approvals
-from instapost.approvals import WEEKLY_VIDEO
+from instapost.approvals import WEEKLY_VIDEO, base_format
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, Publication, audit, utcnow
 from instapost.models import Format
@@ -44,7 +44,7 @@ def targets_for(item: Item) -> list[str]:
     if item.format == WEEKLY_VIDEO:  # the long Sunday video is for YouTube only
         wanted = ["youtube"]
     else:
-        wanted = load_schedule().targets.get(Format(item.format), [])
+        wanted = load_schedule().targets.get(base_format(item.format), [])
     available = configured_platforms()
     manual = set(item.manual_platforms or [])
     return [p for p in wanted if p in available and p not in manual]
@@ -61,7 +61,7 @@ def planned_platforms(fmt: str) -> list[str]:
     if fmt == WEEKLY_VIDEO:
         return ["youtube"]
     try:
-        return list(load_schedule().targets.get(Format(fmt), []))
+        return list(load_schedule().targets.get(base_format(fmt), []))
     except ValueError:
         return []
 
@@ -117,7 +117,7 @@ def _publish_one(s: Session, item: Item, pub: Publication, files: dict, host) ->
         meta = files["meta"]
         return youtube.upload_video(files["video"], meta["title"], meta["description"],
                                     meta["tags"], thumbnail=files["cover"])
-    fmt = Format(item.format)
+    fmt = base_format(item.format)
 
     def remember(container_id: str) -> None:
         pub.container_id = container_id
