@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Home{% endblock %} · Thoughtory</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/static/app.css">
-  <script src="/static/htmx.min.js" defer></script>
-  <script src="/static/charts.js" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v={{ static_v }}">
+  <script src="/static/htmx.min.js?v={{ static_v }}" defer></script>
+  <script src="/static/charts.js?v={{ static_v }}" defer></script>
   <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>

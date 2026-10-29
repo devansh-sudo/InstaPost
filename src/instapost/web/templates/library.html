@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, pf, status, thumb, fmt_label %}
+{% from "_macros.html" import icon, pf, status, thumb, fmt_label, post_dests %}
 {% block title %}Library{% endblock %}
 {% block subtitle %}Everything the agent has made, newest first{% endblock %}
 {% block content %}
@@ -17,21 +17,28 @@
 </div>
 <div class="card flush">
   <div class="table-wrap"><table>
-    <tr><th></th><th>Post</th><th>Format</th><th>Status</th><th>Published on</th><th class="num">Created</th></tr>
+    <tr><th></th><th>Post</th><th>Format</th><th>Status</th><th>Platforms</th><th class="num">Created</th></tr>
     {% for i in items %}
     <tr>
       <td style="width:60px"><a href="/items/{{ i.id }}">{{ thumb(i) }}</a></td>
       <td><a href="/items/{{ i.id }}"><b>{{ i.hook[:90] }}</b></a><div class="tiny">{{ i.pillar }} · for {{ i.for_date or '–' }}</div></td>
       <td>{{ fmt_label(i.format) }}</td>
       <td>{{ status(i.status) }}</td>
-      <td><div class="links">{% for p in i.publications if p.status == 'published' %}
-        {% if p.permalink %}<a href="{{ p.permalink }}" target="_blank" rel="noopener">{{ pf(p.platform, "sm") }}</a>{% else %}{{ pf(p.platform, "sm") }}{% endif %}
-        {% else %}<span class="tiny">–</span>{% endfor %}</div></td>
+      <td>{{ post_dests(i, available) }}</td>
       <td class="num tiny">{{ i.created_at | local("%d %b %H:%M") }}</td>
     </tr>
     {% else %}
     <tr><td colspan="6"><div class="empty">{{ icon("library") }}<div>Nothing here yet.</div></div></td></tr>
     {% endfor %}
   </table></div>
+  {% if pages > 1 %}
+  <div class="row between" style="padding:12px 18px">
+    <span class="tiny">Page {{ page }} of {{ pages }} · {{ total }} posts</span>
+    <div class="tabs">
+      {% if page > 1 %}<a href="/library?status={{ status_filter }}&format={{ fmt }}&page={{ page - 1 }}">← Newer</a>{% endif %}
+      {% if page < pages %}<a href="/library?status={{ status_filter }}&format={{ fmt }}&page={{ page + 1 }}">Older →</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

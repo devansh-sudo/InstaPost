@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, pf, delta, change, status, thumb, fmt_label, note %}
+{% from "_macros.html" import icon, pf, delta, change, status, thumb, fmt_label, note, post_dests %}
 {% block title %}Home{% endblock %}
 {% block heading %}{{ greeting }}{% endblock %}
 {% block subtitle %}Last {{ ov.days }} days, compared with the {{ ov.days }} days before{% endblock %}
@@ -66,7 +66,7 @@
         <div class="li">
           <a href="/items/{{ i.id }}">{{ thumb(i) }}</a>
           <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
-            <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · for {{ i.for_date }}
+            <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · for {{ i.for_date }} {{ post_dests(i, available) }}
               {% if i.fact_check != 'pass' %}· <span class="pill warn">check facts</span>{% endif %}</div></div>
           <form method="post" action="/items/{{ i.id }}/approve" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
             <button class="sm">{{ icon("check", "sm") }} Approve</button></form>
@@ -101,7 +101,7 @@
         {% for i in upcoming %}
         <div class="li"><div class="when">{{ i.scheduled_at | local("%H:%M") }}<small>{{ i.scheduled_at | local("%a %d") }}</small></div>
           <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
-            <div class="s">{{ fmt_label(i.format) }} · {{ status(i.status) }}</div></div></div>
+            <div class="s">{{ fmt_label(i.format) }} · {{ status(i.status) }} {{ post_dests(i, available) }}</div></div></div>
         {% endfor %}
       </div>
       {% else %}<div class="empty">{{ icon("calendar") }}<div>Nothing scheduled in the next 2 days.</div></div>{% endif %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, pf, status, fmt_label %}
+{% from "_macros.html" import icon, pf, status, fmt_label, post_dests %}
 {% block title %}{{ item.hook[:40] }}{% endblock %}
 {% block heading %}{{ item.hook[:80] }}{% endblock %}
 {% block subtitle %}{{ fmt_label(item.format) }} · {{ item.pillar }} · for {{ item.for_date or '–' }}{% if item.scheduled_at %} · scheduled {{ item.scheduled_at | local }}{% endif %}{% endblock %}
@@ -46,13 +46,15 @@
     </div>
 
     <div class="card">
-      <div class="card-head">{{ icon("rocket") }}<h2>Where it's published</h2></div>
+      <div class="card-head">{{ icon("rocket") }}<h2>Where it goes</h2><span class="more">{{ post_dests(item, available) }}</span></div>
       <div class="list">
         {% for p in pubs %}
         <div class="li">{{ pf(p.platform) }}<div class="grow"><div class="t">{{ labels.get(p.platform, p.platform) }}</div>
             <div class="s">{{ p.status }}{% if p.attempts %} · {{ p.attempts }} tr{{ 'y' if p.attempts == 1 else 'ies' }}{% endif %}{% if p.error %} · {{ p.error[:160] }}{% endif %}</div></div>
           {% if p.permalink %}<a class="btn sm" href="{{ p.permalink }}" target="_blank" rel="noopener">Open {{ icon("external", "sm") }}</a>{% endif %}</div>
-        {% else %}<div class="empty">Not published yet.</div>{% endfor %}
+        {% else %}{% for p, st in destinations(item, available) if st != "manual" %}
+        <div class="li">{{ pf(p) }}<div class="grow"><div class="t">{{ labels.get(p, p) }}</div><div class="s">{{ dest_label.get(st, st) }}{% if st == "planned" and item.scheduled_at %} · {{ item.scheduled_at | local }}{% endif %}</div></div></div>
+        {% else %}<div class="empty">No platform for this format.</div>{% endfor %}{% endfor %}
         {% for p in (item.manual_platforms or []) if p not in pubs|map(attribute="platform")|list %}
         <div class="li">{{ pf(p) }}<div class="grow"><div class="t">{{ labels.get(p, p) }}</div><div class="s">you post this one in the app, then /posted {{ item.id }} &lt;link&gt;</div></div></div>
         {% endfor %}

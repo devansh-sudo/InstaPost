@@ -25,7 +25,7 @@ from instapost.learn.bandit import LENGTHS, Learner, dimensions
 from instapost.models import Format, HookStyle, Pillar
 from instapost.publish import publisher, tokens, youtube
 from instapost.publish.media_host import verify_local
-from instapost.schedule import load_schedule, to_local, to_utc_naive
+from instapost.schedule import WEEKDAYS, load_schedule, to_local, to_utc_naive
 from instapost.stats import dashboard, queries, report
 from instapost.stats import score as scoring
 from instapost.stats.labels import PLATFORM_LABEL, compact
@@ -34,6 +34,7 @@ from instapost.web import auth, charts
 HERE = Path(__file__).parent
 FILE_NAME = re.compile(r"^(reel\.mp4|video\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
 MAX_TRACK_MB = 25
+LIBRARY_PAGE = 40  # posts per Library page
 FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story",
                 "weekly_video": "Weekly video"}
 PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
@@ -48,8 +49,39 @@ def _local(dt: datetime | None, fmt: str = "%a %d %b, %H:%M") -> str:
 templates.env.filters["local"] = _local
 
 
+def _static_version() -> str:
+    """Changes whenever a file in static/ changes, for the ?v= on its links."""
+    return str(max(int(f.stat().st_mtime) for f in (HERE / "static").iterdir() if f.is_file()))
+
+
+templates.env.globals["static_v"] = _static_version()
+templates.env.globals["destinations"] = publisher.destinations
+templates.env.globals["planned_platforms"] = publisher.planned_platforms
+templates.env.globals["post_links"] = publisher.post_links
+templates.env.filters["plan_state"] = lambda p, available: (p, "planned" if p in available
+                                                              else "off")
+templates.env.globals["dest_label"] = publisher.DEST_LABEL
+templates.env.globals["platform_label"] = PLATFORM_LABEL
+
+
 class LoginRequired(Exception):
     pass
+
+
+class _PageGzip:
+    """Gzip for pages, CSS and JS only. Video, audio and pictures are already compressed,
+    and the player's range requests (seeking) need them untouched."""
+
+    SKIP = ("/files/", "/music/file/", "/media/", "/thumb/")
+
+    def __init__(self, app):
+        from starlette.middleware.gzip import GZipMiddleware
+        self.app, self.gzip = app, GZipMiddleware(app, minimum_size=1024)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and not scope["path"].startswith(self.SKIP):
+            return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)
 
 
 def create_app() -> FastAPI:
@@ -63,6 +95,8 @@ def create_app() -> FastAPI:
                        and s.public_base_url.startswith("https"),
                        max_age=12 * 3600, session_cookie="ip_session")
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
+    # Pages are 15-90 KB of HTML; compressed they are 5-10x smaller over the internet.
+    app.add_middleware(_PageGzip)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -76,6 +110,9 @@ def create_app() -> FastAPI:
         # action), other sites never see dashboard URLs.
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "DENY"
+        if request.url.path.startswith("/static/") and request.query_params.get("v"):
+            # Versioned links (?v=...) change whenever the file changes: cache for a year.
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
     @app.exception_handler(LoginRequired)
@@ -124,7 +161,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     shell = _shell() if request.session.get("user") else {}
     return templates.TemplateResponse(request, name, {
         "csrf": request.session["csrf"], "flash": flash, "user": request.session.get("user"),
-        "shell": shell, "compact": compact, "labels": PLATFORM_LABEL, **ctx})
+        "shell": shell, "compact": compact, "labels": PLATFORM_LABEL,
+        "available": publisher.configured_platforms(), **ctx})
 
 
 def back(request: Request, message: str, to: str | None = None) -> RedirectResponse:
@@ -143,6 +181,33 @@ def _item_files(item: Item) -> dict:
             "long": (folder / "video.mp4").exists(),
             "story": (folder / "story.jpg").exists(),
             "slides": [p.name for p in sorted(folder.glob("slide_*.jpg"))]}
+
+
+THUMB_W = 240  # list thumbnails are shown at most 120 px wide (2x for sharp screens)
+
+
+def _small_thumb(folder: Path) -> Path | None:
+    """A ~15 KB copy of the post's picture for lists (the originals are ~400 KB each), made
+    once next to the post and remade when the picture changes."""
+    from PIL import Image
+
+    for name in ("cover.jpg", "story.jpg", "slide_01.jpg"):
+        src = folder / name
+        if not src.exists():
+            continue
+        small = folder / "thumb.jpg"
+        try:
+            if not small.exists() or small.stat().st_mtime < src.stat().st_mtime:
+                with Image.open(src) as img:
+                    img = img.convert("RGB")
+                    img.thumbnail((THUMB_W, THUMB_W * 2))
+                    tmp = small.with_suffix(".tmp")
+                    img.save(tmp, "JPEG", quality=78, optimize=True)
+                    tmp.replace(small)
+            return small
+        except OSError:
+            return src  # read-only folder: fall back to the original
+    return None
 
 
 def _running_context() -> dict:
@@ -232,10 +297,9 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         with session() as s:
             item = s.get(Item, item_id)
             folder = Path(item.folder) if item else None
-        for name in ("cover.jpg", "story.jpg", "slide_01.jpg"):
-            if folder and (folder / name).exists():
-                return FileResponse(folder / name,
-                                    headers={"Cache-Control": "private, max-age=600"})
+        small = _small_thumb(folder) if folder else None
+        if small is not None:
+            return FileResponse(small, headers={"Cache-Control": "private, max-age=86400"})
         # A neutral placeholder (blocked items have no image).
         svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 4">'
                '<rect width="3" height="4" fill="#8f877e" fill-opacity="0.22"/></svg>')
@@ -418,35 +482,97 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                           cost=costs.item_cost(item_id))
 
     @app.get("/calendar", response_class=HTMLResponse)
-    def calendar(request: Request, who: str = Depends(user)):
+    def calendar(request: Request, days: int = 14, start: str = "",
+                 who: str = Depends(user)):
+        """Only the requested range is loaded: 7, 14 or 30 days from `start` (default today)."""
+        from datetime import time as dtime
+        days = days if days in (7, 14, 30) else 14
         sched = load_schedule()
         today = sched.local_now().date()
+        try:
+            first = date.fromisoformat(start) if start else today
+        except ValueError:
+            first = today
+        last = first + timedelta(days=days - 1)
+        lo = to_utc_naive(datetime.combine(first, dtime.min, tzinfo=sched.tz))
+        hi = to_utc_naive(datetime.combine(last + timedelta(days=1), dtime.min, tzinfo=sched.tz))
+        available = publisher.configured_platforms()
         with session() as s:
-            items = approvals.upcoming(s, days=14)
-            days = []
-            for n in range(14):
-                d = today + timedelta(days=n)
-                days.append({
-                    "label": d.strftime("%A %d %b"), "today": n == 0,
-                    "posts": [i for i in items if i.scheduled_at
-                              and to_local(i.scheduled_at, sched).date() == d],
-                    "plan": planner.entries_for_day(s, d)})
-            return render(request, "calendar.html", days=days)
+            scheduled = list(s.scalars(select(Item).where(
+                Item.scheduled_at >= lo, Item.scheduled_at < hi,
+                Item.status.in_(approvals.TAKEN + (ItemStatus.FAILED,)))
+                .order_by(Item.scheduled_at)))
+            waiting = list(s.scalars(select(Item).where(
+                Item.status == ItemStatus.NEEDS_REVIEW, Item.for_date >= first.isoformat(),
+                Item.for_date <= last.isoformat())))
+            entries = list(s.scalars(select(PlanEntry).where(
+                PlanEntry.status == "planned", PlanEntry.day >= first.isoformat(),
+                PlanEntry.day <= last.isoformat())
+                .order_by(PlanEntry.slot, PlanEntry.position)))
+            weekly_days = {i.for_date for i in s.scalars(select(Item).where(
+                Item.format == approvals.WEEKLY_VIDEO, Item.status != ItemStatus.REJECTED,
+                Item.for_date >= first.isoformat(), Item.for_date <= last.isoformat()))}
+            cfg = sched.weekly_video
+            day_list = []
+            totals = {"formats": {}, "platforms": {}, "posts": 0}
+
+            def count(fmt: str, platforms: list[str]) -> None:
+                totals["posts"] += 1
+                totals["formats"][fmt] = totals["formats"].get(fmt, 0) + 1
+                for pl in platforms:
+                    totals["platforms"][pl] = totals["platforms"].get(pl, 0) + 1
+
+            for n in range(days):
+                d = first + timedelta(days=n)
+                posts = [i for i in scheduled if to_local(i.scheduled_at, sched).date() == d]
+                wait = [i for i in waiting if i.for_date == d.isoformat()]
+                plan = [e for e in entries if e.day == d.isoformat()]
+                weekly_planned = (cfg.enabled and WEEKDAYS[d.weekday()] == cfg.day
+                                  and d >= today and d.isoformat() not in weekly_days)
+                for i in posts + wait:
+                    count(i.format, [p for p, st in publisher.destinations(i, available)
+                                     if st not in ("off", "skipped")])
+                for e in plan:
+                    count(e.format, [p for p in publisher.planned_platforms(e.format)
+                                     if p in available])
+                if weekly_planned:
+                    count(approvals.WEEKLY_VIDEO, ["youtube"] if "youtube" in available else [])
+                # One list per day, in time order: (time, kind, post or plan entry).
+                rows = [(to_local(i.scheduled_at, sched).strftime("%H:%M"), "post", i)
+                        for i in posts]
+                rows += [(i.preferred_slot or "", "post", i) for i in wait]
+                rows += [(e.slot or "", "plan", e) for e in plan]
+                if weekly_planned:
+                    rows.append((cfg.publish_at, "weekly", None))
+                rows.sort(key=lambda r: r[0] or "99")
+                day_list.append({"date": d, "label": d.strftime("%a %d %b"),
+                                 "today": d == today, "past": d < today, "rows": rows})
+            return render(request, "calendar.html", days=day_list, range_days=days,
+                          first=first, last=last, today=today, totals=totals,
+                          prev=(first - timedelta(days=days)).isoformat(),
+                          next=(first + timedelta(days=days)).isoformat(),
+                          lead=first.weekday(), available=available,
+                          weekly_at=cfg.publish_at)
 
     @app.get("/library", response_class=HTMLResponse)
-    def library(request: Request, status: str = "", format: str = "",
+    def library(request: Request, status: str = "", format: str = "", page: int = 1,
                 who: str = Depends(user)):
         from sqlalchemy import func
         with session() as s:
-            q = select(Item).order_by(Item.created_at.desc()).limit(200)
+            q = select(Item)
             if status:
                 q = q.where(Item.status == status)
             if format:
                 q = q.where(Item.format == format)
+            total = s.scalar(select(func.count()).select_from(q.subquery())) or 0
+            pages = max(1, -(-total // LIBRARY_PAGE))
+            page = min(max(page, 1), pages)
+            items = list(s.scalars(q.order_by(Item.created_at.desc())
+                                   .offset((page - 1) * LIBRARY_PAGE).limit(LIBRARY_PAGE)))
             counts = dict(s.execute(select(Item.status, func.count()).group_by(Item.status)).all())
             counts[""] = sum(counts.values())
-            return render(request, "library.html", items=list(s.scalars(q)),
-                          status_filter=status, fmt=format, counts=counts)
+            return render(request, "library.html", items=items, status_filter=status,
+                          fmt=format, counts=counts, page=page, pages=pages, total=total)
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request, who: str = Depends(user)):

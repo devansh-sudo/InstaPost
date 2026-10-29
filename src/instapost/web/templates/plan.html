@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, fmt_label %}
+{% from "_macros.html" import icon, fmt_label, plan_dests %}
 {% block title %}Weekly plan{% endblock %}
 {% block subtitle %}Week of {{ week.strftime('%d %b %Y') }}{% endblock %}
 {% block actions %}
@@ -35,7 +35,7 @@
     {% if e.status == 'planned' %}
     <tr>
       <td><select form="pe-{{ e.id }}" name="slot">{% for sl in sched.slots[e.format] %}<option {{ 'selected' if sl == e.slot }}>{{ sl }}</option>{% endfor %}</select></td>
-      <td>{{ fmt_label(e.format) }}{% if e.experiment %}<br><span class="pill warn">🔬 {{ e.experiment }}</span>{% endif %}</td>
+      <td>{{ fmt_label(e.format) }} {{ plan_dests(e.format, available) }}{% if e.experiment %}<br><span class="pill warn">🔬 {{ e.experiment }}</span>{% endif %}</td>
       <td><select form="pe-{{ e.id }}" name="pillar">{% for p in pillars %}<option {{ 'selected' if p == e.pillar }}>{{ p }}</option>{% endfor %}</select></td>
       <td><select form="pe-{{ e.id }}" name="hook_style">{% for h in hooks %}<option {{ 'selected' if h == e.hook_style }}>{{ h }}</option>{% endfor %}</select></td>
       <td><select form="pe-{{ e.id }}" name="scene">{% for sc in scenes %}<option value="{{ loop.index0 }}" {{ 'selected' if loop.index0 == e.scene }}>{{ loop.index }}: {{ sc[:24] }}…</option>{% endfor %}</select></td>

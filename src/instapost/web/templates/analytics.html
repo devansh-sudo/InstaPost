@@ -63,13 +63,13 @@
 </div>
 
 <div class="card flush section">
-  <div class="card-head" style="padding:16px 18px 0">{{ icon("library") }}<h2>Posts ({{ rows|length }})</h2>
+  <div class="card-head" style="padding:16px 18px 0">{{ icon("library") }}<h2>Posts ({{ rows|length }})</h2>{% if rows|length > 100 %}<span class="tiny">top 100 shown</span>{% endif %}
     <div class="tabs more">{% for key, label in [("date", "Newest"), ("score", "Best score"), ("views", "Most views"), ("engagement", "Most sends+saves")] %}
       <a href="/analytics?days={{ days }}&platform={{ platform }}&sort={{ key }}" class="{{ 'on' if sort == key }}">{{ label }}</a>{% endfor %}</div></div>
   <div class="table-wrap"><table>
     <tr><th></th><th>Post</th><th>Posted</th><th>On</th><th class="num">Views</th><th class="num">Reach</th><th class="num">Likes</th>
       <th class="num">Comments</th><th class="num">Shares</th><th class="num">Saves</th><th class="num">Watch</th><th class="num">Score</th></tr>
-    {% for r in rows %}
+    {% for r in rows[:100] %}
     {% set m = r.per_platform.get(platform, {}) if platform else r.combined %}
     <tr><td style="width:60px"><a href="/items/{{ r.item.id }}">{{ thumb(r.item) }}</a></td>
       <td><a href="/items/{{ r.item.id }}"><b>{{ r.item.hook[:70] }}</b></a><div class="tiny">{{ fmt_label(r.item.format) }} · {{ r.item.pillar }}</div></td>

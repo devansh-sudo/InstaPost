@@ -50,6 +50,48 @@ def targets_for(item: Item) -> list[str]:
     return [p for p in wanted if p in available and p not in manual]
 
 
+# What each platform state means on the dashboard badges.
+DEST_LABEL = {"published": "posted", "pending": "posting", "failed": "failed",
+              "planned": "will post", "manual": "you post it in the app",
+              "off": "not connected", "skipped": "not posted"}
+
+
+def planned_platforms(fmt: str) -> list[str]:
+    """Where a format is meant to go (schedule.yaml targets), connected or not."""
+    if fmt == WEEKLY_VIDEO:
+        return ["youtube"]
+    try:
+        return list(load_schedule().targets.get(Format(fmt), []))
+    except ValueError:
+        return []
+
+
+def post_links(item: Item) -> dict[str, str]:
+    return {p.platform: p.permalink for p in item.publications if p.permalink}
+
+
+def destinations(item: Item, available: set[str] | None = None) -> list[tuple[str, str]]:
+    """(platform, state) for every platform this post goes to or went to."""
+    available = configured_platforms() if available is None else available
+    pubs = {p.platform: p for p in item.publications}
+    manual = set(item.manual_platforms or [])
+    out = []
+    for platform in dict.fromkeys([*planned_platforms(item.format), *pubs]):
+        pub = pubs.get(platform)
+        if pub is not None and pub.status in ("published", "failed", "pending"):
+            state = pub.status
+        elif platform in manual:
+            state = "manual"
+        elif platform not in available:
+            state = "off"
+        elif item.status in (ItemStatus.REJECTED, ItemStatus.BLOCKED):
+            state = "skipped"
+        else:
+            state = "planned"
+        out.append((platform, state))
+    return out
+
+
 def published_today(s: Session, platform: str) -> int:
     sched = load_schedule()
     start_local = sched.local_now().replace(hour=0, minute=0, second=0, microsecond=0)

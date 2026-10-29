@@ -1,32 +1,89 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, status, thumb, fmt_label %}
+{% from "_macros.html" import icon, status, thumb, fmt_label, post_dests, plan_dests, pf %}
 {% block title %}Calendar{% endblock %}
-{% block subtitle %}Next 14 days: scheduled posts, and what the weekly plan will still create{% endblock %}
-{% block actions %}<a class="btn" href="/plan">{{ icon("plan", "sm") }} Edit the plan</a>{% endblock %}
+{% block subtitle %}{{ first.strftime("%d %b") }} – {{ last.strftime("%d %b %Y") }} · scheduled, waiting and planned posts, and where each one goes{% endblock %}
+{% block actions %}
+  <div class="tabs">{% for d in (7, 14, 30) %}<a href="/calendar?days={{ d }}&start={{ first.isoformat() }}" class="{{ 'on' if d == range_days }}">{{ d }} days</a>{% endfor %}</div>
+  <div class="tabs">
+    <a href="/calendar?days={{ range_days }}&start={{ prev }}" title="Earlier">←</a>
+    <a href="/calendar?days={{ range_days }}" class="{{ 'on' if first == today }}">Today</a>
+    <a href="/calendar?days={{ range_days }}&start={{ next }}" title="Later">→</a>
+  </div>
+  <a class="btn" href="/plan">{{ icon("plan", "sm") }} Edit the plan</a>
+{% endblock %}
 {% block content %}
-<div class="row" style="margin-bottom:12px">
-  <span class="pill info">scheduled</span><span class="tiny">approved, goes out at the time shown</span>
-  <span class="pill">planned</span><span class="tiny">will be created the evening before</span>
+{% set flabel = {"reel_book_pov": "Reels", "carousel_shlok": "Carousels", "story_line": "Stories", "weekly_video": "Weekly videos"} %}
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("calendar", "sm") }} Posts in these {{ range_days }} days</div><div class="v">{{ totals.posts }}</div>
+    <div class="d">scheduled + waiting + planned</div></div>
+  {% for f in ("reel_book_pov", "carousel_shlok", "story_line", "weekly_video") %}
+  <div class="kpi"><div class="k">{{ flabel[f] }}</div><div class="v">{{ totals.formats.get(f, 0) }}</div><div class="d">&nbsp;</div></div>
+  {% endfor %}
+  {% for p in ("instagram", "facebook", "youtube") %}
+  <div class="kpi"><div class="k">{{ pf(p, "sm") }} {{ labels[p] }}</div><div class="v">{{ totals.platforms.get(p, 0) }}</div>
+    <div class="d">{% if p not in available %}<span class="pill">not connected</span>{% else %}posts going there{% endif %}</div></div>
+  {% endfor %}
 </div>
+
+<div class="legend-dests section" style="margin-bottom:12px">
+  <span class="pill info">scheduled</span><span class="pill warn">waiting for you</span><span class="pill">planned</span>
+  <span>·</span>
+  <span class="dests"><span class="dest published">{{ pf("instagram", "sm") }}</span></span> posted
+  <span class="dests"><span class="dest planned">{{ pf("instagram", "sm") }}</span></span> will post
+  <span class="dests"><span class="dest manual">{{ pf("instagram", "sm") }}</span></span> you post it in the app
+  <span class="dests"><span class="dest off">{{ pf("instagram", "sm") }}</span></span> not connected
+</div>
+
+{% macro post_row(i) %}
+  <div class="li"><div class="when">{{ (i.scheduled_at | local("%H:%M")) if i.scheduled_at else "–" }}</div>{{ thumb(i) }}
+    <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
+      <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · {{ status(i.status) }} {{ post_dests(i, available) }}</div></div></div>
+{% endmacro %}
+{% macro plan_row(e) %}
+  <div class="li"><div class="when">{{ e.slot or "–" }}</div>
+    <div class="grow"><div class="t">{{ fmt_label(e.format) }} · {{ e.pillar }}{% if e.topic %} · {{ e.topic }}{% endif %}</div>
+      <div class="s"><span class="pill">planned</span> {{ e.hook_style or "" }}{% if e.experiment %} · experiment{% endif %} {{ plan_dests(e.format, available) }}</div></div></div>
+{% endmacro %}
+{% macro weekly_row() %}
+  <div class="li"><div class="when">{{ weekly_at }}</div>
+    <div class="grow"><div class="t">Weekly YouTube video</div>
+      <div class="s"><span class="pill">planned</span> made from this week's posts {{ plan_dests("weekly_video", available) }}</div></div></div>
+{% endmacro %}
+
+{% if range_days < 30 %}
 <div class="grid">
 {% for d in days %}
-  <div class="card">
-    <div class="card-head"><h2>{{ d.label }}</h2>{% if d.today %}<span class="pill accent">today</span>{% endif %}
-      {% if d.posts or d.plan %}<span class="more tiny">{{ d.posts|length }} scheduled · {{ d.plan|length }} planned</span>{% endif %}</div>
-    {% if not d.posts and not d.plan %}<p class="muted">Nothing.</p>{% endif %}
+  <div class="card {{ 'muted-card' if d.past }}">
+    <div class="card-head"><h2>{{ d.date.strftime("%A %d %b") }}</h2>{% if d.today %}<span class="pill accent">today</span>{% endif %}
+      {% set n = d.rows|length %}{% if n %}<span class="more tiny">{{ n }} post{{ 's' if n != 1 }}</span>{% endif %}</div>
+    {% if not d.rows %}<p class="muted">Nothing.</p>{% endif %}
     <div class="list tl">
-      {% for i in d.posts %}
-      <div class="li"><div class="when">{{ i.scheduled_at | local("%H:%M") }}</div>{{ thumb(i) }}
-        <div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook }}</a></div>
-          <div class="s">{{ fmt_label(i.format) }} · {{ i.pillar }} · {{ status(i.status) }}</div></div></div>
-      {% endfor %}
-      {% for e in d.plan %}
-      <div class="li"><div class="when">{{ e.slot }}</div>
-        <div class="grow"><div class="t">{{ fmt_label(e.format) }} · {{ e.pillar }}{% if e.topic %} · {{ e.topic }}{% endif %}</div>
-          <div class="s"><span class="pill">planned</span> {{ e.hook_style }}{% if e.experiment %} · experiment{% endif %}</div></div></div>
+      {% for when, kind, x in d.rows %}
+        {% if kind == "post" %}{{ post_row(x) }}{% elif kind == "plan" %}{{ plan_row(x) }}{% else %}{{ weekly_row() }}{% endif %}
       {% endfor %}
     </div>
   </div>
 {% endfor %}
 </div>
+{% else %}
+<div class="month">
+  {% for w in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") %}<div class="dow">{{ w }}</div>{% endfor %}
+  {% for _ in range(lead) %}<div class="day blank"></div>{% endfor %}
+  {% for d in days %}
+  <div class="day {{ 'today' if d.today }} {{ 'past' if d.past }}">
+    <div class="num">{{ d.date.day }}{% if d.date.day == 1 or loop.first %} <small>{{ d.date.strftime("%b") }}</small>{% endif %}</div>
+    {% for when, kind, x in d.rows %}
+      {% if kind == "post" %}
+      <a class="chip {{ 'wait' if x.status == 'needs_review' else 'sched' }}" href="/items/{{ x.id }}" title="{{ x.hook }}">
+        <span class="ct">{{ when }} {{ fmt_label(x.format) }}</span>{{ post_dests(x, available) }}</a>
+      {% elif kind == "plan" %}
+      <div class="chip plan" title="{{ x.topic or x.pillar }}"><span class="ct">{{ when }} {{ fmt_label(x.format) }}</span>{{ plan_dests(x.format, available) }}</div>
+      {% else %}
+      <div class="chip plan" title="Weekly YouTube video"><span class="ct">{{ when }} Weekly video</span>{{ plan_dests("weekly_video", available) }}</div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

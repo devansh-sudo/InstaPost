@@ -37,3 +37,19 @@
     </div>
   </div>
 {% endmacro %}
+
+{% macro dests(pairs, links={}) -%}
+  <span class="dests">{% for p, st in pairs %}
+    {%- set tip = platform_label.get(p, p) ~ ": " ~ dest_label.get(st, st) -%}
+    {%- if links.get(p) %}<a class="dest {{ st }}" href="{{ links[p] }}" target="_blank" rel="noopener" title="{{ tip }}">{{ pf(p, "sm") }}</a>
+    {%- else %}<span class="dest {{ st }}" title="{{ tip }}">{{ pf(p, "sm") }}</span>{% endif %}
+  {%- endfor %}</span>
+{%- endmacro %}
+
+{% macro post_dests(item, available) -%}
+  {{ dests(destinations(item, available), post_links(item)) }}
+{%- endmacro %}
+
+{% macro plan_dests(fmt, available) -%}
+  {{ dests(planned_platforms(fmt)|map("plan_state", available)|list) }}
+{%- endmacro %}

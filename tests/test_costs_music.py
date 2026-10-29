@@ -111,3 +111,41 @@ def test_stories_use_the_small_model_and_the_verse_list_is_cached(monkeypatch):
     assert "Verified references" in story["system"] and "Verified" not in story["content"]
     assert story["system"] == carousel["system"]  # same prefix -> one cache entry per model
     assert isinstance(sample, Draft)
+
+
+def test_platform_badges_and_calendar_range(web, monkeypatch):  # noqa: F811
+    from instapost.db import Item, Publication
+    from instapost.publish import publisher
+
+    monkeypatch.setattr(publisher, "configured_platforms", lambda: {"instagram", "youtube"})
+    item_id = _story()
+    with session() as s:
+        item = s.get(Item, item_id)
+        item.format = "reel_book_pov"
+        assert publisher.destinations(item, {"instagram", "youtube"}) == [
+            ("instagram", "planned"), ("facebook", "off"), ("youtube", "planned")]
+        item.manual_platforms = ["instagram"]
+        item.publications.append(Publication(platform="youtube", status="published",
+                                             permalink="https://youtube.com/shorts/x"))
+        assert publisher.destinations(item, {"instagram", "youtube"}) == [
+            ("instagram", "manual"), ("facebook", "off"), ("youtube", "published")]
+        assert publisher.post_links(item) == {"youtube": "https://youtube.com/shorts/x"}
+    _login(web)
+    page = web.get("/calendar?days=30").text
+    assert 'class="month"' in page and "Weekly video" in page
+    # The waiting post shows where it goes: by hand on Instagram, posted on YouTube.
+    assert "Instagram: you post it in the app" in page and "YouTube: posted" in page
+    assert "Facebook: not connected" in page
+    lib = web.get("/library").text
+    assert "YouTube: posted" in lib and 'href="https://youtube.com/shorts/x"' in lib
+
+
+def test_list_thumbnails_are_small(web):  # noqa: F811
+    from PIL import Image
+
+    item_id = _story()
+    _login(web)
+    r = web.get(f"/thumb/{item_id}")
+    assert r.status_code == 200 and len(r.content) < 40_000
+    from io import BytesIO
+    assert Image.open(BytesIO(r.content)).width <= 240

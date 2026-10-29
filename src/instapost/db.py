@@ -82,8 +82,9 @@ class Item(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
+    # selectin: a list of 50 posts loads all their publications in one query, not 50.
     publications: Mapped[list["Publication"]] = relationship(
-        back_populates="item", cascade="all, delete-orphan")
+        back_populates="item", cascade="all, delete-orphan", lazy="selectin")
 
 
 class Publication(Base):
@@ -207,7 +208,7 @@ class AuditLog(Base):
     ts: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     actor: Mapped[str] = mapped_column(String(40))  # agent / web:admin / telegram
     action: Mapped[str] = mapped_column(String(60))
-    item_id: Mapped[str | None] = mapped_column(String(80))
+    item_id: Mapped[str | None] = mapped_column(String(80), index=True)
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
@@ -251,6 +252,8 @@ def _add_missing_columns(eng) -> None:
                 if col.name not in existing and col.nullable:
                     ddl = col.type.compile(eng.dialect)
                     conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {ddl}'))
+            for index in table.indexes:  # indexes added in later versions
+                index.create(conn, checkfirst=True)
 
 
 @lru_cache
