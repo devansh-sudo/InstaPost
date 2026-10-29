@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     writer_model: str = "claude-sonnet-5-5"
     factcheck_model: str = "claude-sonnet-5-5"
     qa_model: str = "claude-haiku-5-5"
+    # Stories are one line plus a poll, so the small model writes them (about 20x cheaper).
+    # Set STORY_WRITER_MODEL=claude-sonnet-5-5 to write them with the writer model again.
+    story_writer_model: str = "claude-haiku-5-5"
 
     image_provider: str = "gemini"
     gemini_api_key: str | None = None

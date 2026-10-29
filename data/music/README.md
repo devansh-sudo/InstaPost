@@ -4,18 +4,31 @@ The agent picks a track that fits each reel's pillar from this folder, least rec
 first, fades it in and out, levels its loudness and keeps the soft tanpura ambience
 underneath. With an empty folder, reels use the ambience alone.
 
-## Name files by what they are
-Words in the name decide which pillar a track is used for:
+## Folders decide the pillar
+Put tracks in a folder named after the pillar. Every track in it is used only for that pillar:
 
-| Pillar | Words that match |
+| Folder name | Pillar |
 |---|---|
-| Shiva | shiva, om, mahadev, damru, mantra, rudra, chant, temple |
-| Gita / Krishna | krishna, flute, bansuri, gita, govinda, radha |
-| Kabir | kabir, sitar, ektara, folk, bhajan, doha, santoor |
-| Jeevan sutra / life lessons | calm, peace, piano, meditation, flute, morning, soft, hope |
+| `shiv`, `shiva`, `mahadev`, `shankar`, `bholenath`, `mahakal`, `om` | Shiv dhyan |
+| `krishna`, `kanha`, `gita`, `radha`, `radhe`, `bansuri` | Gita |
+| `kabir`, `bhajan`, `doha`, `folk` | Kabir |
+| `jeevan`, `calm`, `peace`, `meditation` | Jeevan sutra |
+| `life`, `lesson`, `piano`, `hope` | Life lesson (`life`, `calm`, `peace` also Jeevan sutra) |
 
-Examples: `krishna-bansuri-calm.mp3`, `shiv-om-chant@12.mp3` (`@12` = start 12 seconds in,
-for tracks with a slow intro), `kabir-ektara-folk.mp3`. Aim for 5+ tracks per pillar.
+Tracks loose in `data/music/` are matched by words in their file name instead (`shiv-om-chant.mp3`,
+`krishna-bansuri-calm.mp3`). `@12` at the end of a name (`om-chant@12.mp3`) starts it 12 seconds
+in, for tracks with a slow intro. A pillar without any track uses any track. Aim for 5+ per pillar:
+the least recently used one is picked, so more tracks means less repetition.
+
+## Adding tracks
+- **Dashboard → Music → Add tracks:** pick the folder, choose files, Upload. You can listen to
+  every track there, see which reels used it and when, and remove one (it moves to
+  `data/music/.removed/`).
+- **From your Mac, a whole folder at once** (keeps the folder names):
+  ```bash
+  rsync -av ~/Downloads/data/music/ devansh@46.224.187.54:/mnt/HC_Volume_105724104/instapost/data/music/
+  ```
+  No restart needed: the next reel uses them.
 
 ## Where to get tracks you may use
 - **Pixabay Music** (pixabay.com/music): free for commercial and monetized social videos, no

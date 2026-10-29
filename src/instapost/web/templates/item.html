@@ -36,6 +36,13 @@
       <h3 style="margin-top:16px">Caption</h3>
       <pre class="caption">{{ item.caption }}</pre>
       {% if draft.alternative_hooks %}<p class="tiny">Other hooks: {{ draft.alternative_hooks | join(" · ") }}</p>{% endif %}
+      <div class="row" style="margin-top:12px;gap:14px">
+        {% if cost %}<span class="pill accent">{{ icon("coins", "sm") }} cost ${{ "%.3f"|format(cost.usd) }}</span>
+          <span class="tiny">{% for st, v in cost.stages.items() %}{{ st }} ${{ "%.3f"|format(v) }}{{ " · " if not loop.last }}{% endfor %}
+            · {{ compact(cost.tokens_in) }} tokens in / {{ compact(cost.tokens_out) }} out{% if cost.why %} · {{ cost.why|join("; ") }}{% endif %}</span>
+        {% else %}<span class="tiny">{{ icon("coins", "sm") }} cost not tracked (made before cost tracking)</span>{% endif %}
+        {% if item.music %}<span class="tiny">{{ icon("music", "sm") }} {{ item.music }}</span>{% endif %}
+      </div>
     </div>
 
     <div class="card">

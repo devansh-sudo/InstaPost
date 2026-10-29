@@ -33,6 +33,7 @@ from instapost.web import auth, charts
 
 HERE = Path(__file__).parent
 FILE_NAME = re.compile(r"^(reel\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
+MAX_TRACK_MB = 25
 FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story"}
 PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
                 "kabir": "Kabir", "life_lesson": "Life lesson"}
@@ -384,6 +385,8 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     @app.get("/items/{item_id}", response_class=HTMLResponse)
     def item_page(request: Request, item_id: str, who: str = Depends(user)):
         import json
+
+        from instapost.stats import costs
         with session() as s:
             item = s.get(Item, item_id)
             if item is None:
@@ -403,7 +406,8 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                           score_of=scoring.score,
                           qa=read("qa.json"), fact=read("fact_check.json"),
                           draft=read("draft.json"), pubs=list(item.publications),
-                          history=history, now_local=load_schedule().local_now())
+                          history=history, now_local=load_schedule().local_now(),
+                          cost=costs.item_cost(item_id))
 
     @app.get("/calendar", response_class=HTMLResponse)
     def calendar(request: Request, who: str = Depends(user)):
@@ -451,6 +455,127 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                       ig_token=ig, youtube_ok=youtube.is_configured(), links=links,
                       image_chain=chain_names(), music_tracks=len(music.tracks()),
                       spend_day=budget.spent("day"), spend_month=budget.spent("month"))
+
+    @app.get("/costs", response_class=HTMLResponse)
+    def costs_page(request: Request, days: int = 30, who: str = Depends(user)):
+        from instapost.stats import costs
+        days = days if days in (7, 30, 90) else 30
+        st = get_settings()
+        with session() as s:
+            c = costs.summary(s, days)
+            chart = charts.stacked_columns(
+                c["day_list"], c["per_day"], "Spend per day", unit="spent",
+                fmt=lambda v: f"${v:.2f}" if v >= 0.1 or v == 0 else f"${v:.3f}",
+                slots=costs.GROUP_SLOTS)
+            return render(request, "costs.html", c=c, day_chart=chart,
+                          cap=st.monthly_budget_usd, daily_cap=st.daily_budget_usd,
+                          models={"writer": st.writer_model, "qa": st.qa_model,
+                                  "story": st.story_writer_model
+                                  if st.story_writer_model != st.writer_model else ""})
+
+    # Music library
+    @app.get("/music", response_class=HTMLResponse)
+    def music_page(request: Request, pillar: str = "", who: str = Depends(user)):
+        from instapost.render import music
+        with session() as s:
+            used = list(s.scalars(select(Item).where(Item.music.is_not(None))
+                                  .order_by(Item.created_at.desc()).limit(500)))
+            by_track: dict[str, list[Item]] = {}
+            for i in used:
+                by_track.setdefault(i.music, []).append(i)
+            rows = []
+            for p in music.tracks():
+                name = music.rel(p)
+                posts = by_track.get(name, [])
+                stamp = music.last_used(p)
+                rows.append({
+                    "rel": name, "name": p.name, "folder": name.rpartition("/")[0],
+                    "pillars": [x.value for x in music.pillars_of(p)],
+                    "duration": music.duration(p), "offset": music.start_offset(p),
+                    "uses": len(posts), "last_post": posts[0] if posts else None,
+                    "last_used_at": datetime.fromisoformat(stamp).replace(tzinfo=None)
+                    if stamp else None})
+            coverage = {p.value: sum(1 for r in rows if p.value in r["pillars"]) for p in Pillar}
+            stamped = [r for r in rows if r["last_used_at"]]
+            newest = next((r for r in rows if used and r["rel"] == used[0].music), None)
+            last = newest or (max(stamped, key=lambda r: r["last_used_at"]) if stamped else None)
+            folders = sorted({r["folder"] for r in rows if r["folder"]}
+                             | {"shiv", "krishna", "kabir", "jeevan", "life"})
+            hint = {f: ", ".join(PILLAR_LABEL[p.value] for p, words in
+                                 music.FOLDER_PILLARS.items() if f.lower() in words)
+                    for f in folders}
+            mode = get_settings().music_mode
+            return render(request, "music.html", rows=rows, pillar=pillar,
+                          shown=[r for r in rows if not pillar or pillar in r["pillars"]],
+                          coverage=coverage, last=last, recent=used[:8], folders=folders,
+                          folder_hint=hint, pillar_label=PILLAR_LABEL,
+                          trending=music.trending_list(), max_mb=MAX_TRACK_MB,
+                          mode_note="in use for reels" if mode == "library"
+                          else f"MUSIC_MODE={mode}: not used")
+
+    @app.get("/music/file/{name:path}")
+    def music_file(name: str, who: str = Depends(user)):
+        from instapost.render import music
+        path = music.resolve(name)
+        if path is None:
+            raise HTTPException(404)
+        return FileResponse(path)
+
+    @app.post("/music/upload")
+    async def music_upload(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.render import music
+        form = await request.form()
+        raw = str(form.get("new_folder") or form.get("folder") or "").strip().lower()
+        folder = music.safe_name(raw) if raw else ""
+        target = music.library_dir() / folder
+        saved, skipped = [], []
+        for f in form.getlist("files")[:30]:
+            if not getattr(f, "filename", ""):
+                continue
+            name = music.safe_name(f.filename)
+            if Path(name).suffix.lower() not in music.AUDIO_EXTENSIONS:
+                skipped.append(f"{name} (not audio)")
+                continue
+            target.mkdir(parents=True, exist_ok=True)
+            dest = target / name
+            n = 2
+            while dest.exists():
+                dest = target / f"{Path(name).stem}-{n}{Path(name).suffix}"
+                n += 1
+            size, too_big = 0, False
+            with dest.open("wb") as out:
+                while chunk := await f.read(1 << 20):
+                    size += len(chunk)
+                    if size > MAX_TRACK_MB << 20:
+                        too_big = True
+                        break
+                    out.write(chunk)
+            if too_big:
+                dest.unlink()
+                skipped.append(f"{name} (over {MAX_TRACK_MB} MB)")
+                continue
+            saved.append(music.rel(dest))
+        with session() as s:
+            if saved:
+                audit(s, f"web:{who}", "music_added", tracks=saved)
+        msg = (f"Added {len(saved)} track(s) to {folder or 'data/music'}." if saved
+               else "No track added.")
+        return back(request, msg + (" Skipped: " + ", ".join(skipped) if skipped else ""),
+                    "/music")
+
+    @app.post("/music/remove")
+    def music_remove(request: Request, name: str = Form(...), who: str = Depends(user),
+                     _=Depends(csrf)):
+        from instapost.render import music
+        path = music.resolve(name)
+        if path is None:
+            raise HTTPException(404)
+        dest = music.library_dir() / ".removed" / music.rel(path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        path.replace(dest)
+        with session() as s:
+            audit(s, f"web:{who}", "music_removed", track=name)
+        return back(request, f"Removed {name} (kept in data/music/.removed).", "/music")
 
     # Analytics
     @app.get("/stats")

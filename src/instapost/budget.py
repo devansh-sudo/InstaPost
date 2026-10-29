@@ -5,6 +5,9 @@ after. The ledger is an append-only JSONL file so it doubles as an audit trail.
 """
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -29,6 +32,20 @@ IMAGE_PRICES = {
 
 class BudgetExceeded(RuntimeError):
     pass
+
+
+# What the paid calls in progress belong to (item id, format, pillar), added to each entry so
+# the dashboard can show what every post cost.
+_tags: ContextVar[dict | None] = ContextVar("spend_tags", default=None)
+
+
+@contextmanager
+def tagged(**fields) -> Iterator[None]:
+    token = _tags.set({**(_tags.get() or {}), **fields})
+    try:
+        yield
+    finally:
+        _tags.reset(token)
 
 
 def _ledger_path() -> Path:
@@ -61,9 +78,20 @@ def ensure_room(estimated_usd: float) -> None:
 
 def record(kind: str, model: str, usd: float, **details) -> None:
     entry = {"ts": datetime.now(UTC).isoformat(), "kind": kind, "model": model,
-             "usd": round(usd, 6), **details}
+             "usd": round(usd, 6), **(_tags.get() or {}), **details}
     with _ledger_path().open("a") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def entries() -> list[dict]:
+    return _entries()
+
+
+def usage_fields(usage) -> dict:
+    """Token counts of one Claude call, kept in the ledger to explain its cost."""
+    return {"in": usage.input_tokens, "out": usage.output_tokens,
+            "cache_read": usage.cache_read_input_tokens or 0,
+            "cache_write": usage.cache_creation_input_tokens or 0}
 
 
 def claude_cost(model: str, usage) -> float:

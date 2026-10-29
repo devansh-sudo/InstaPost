@@ -67,6 +67,8 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
         qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
         duration_s=duration, preferred_slot=preferred_slot,
         features=item_features(draft, pillar, duration, scene),
+        music=(result.folder / "music.txt").read_text(encoding="utf-8").strip()
+        if (result.folder / "music.txt").exists() else None,
     )
     s.merge(item)
     s.flush()

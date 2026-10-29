@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, status %}
+{% block title %}Music{% endblock %}
+{% block subtitle %}Background tracks for reels · a folder's name decides the pillar · least recently used goes first{% endblock %}
+{% block content %}
+
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("music", "sm") }} Tracks</div><div class="v">{{ rows|length }}</div>
+    <div class="d">{{ mode_note }}</div></div>
+  {% for p, n in coverage.items() %}
+  <div class="kpi"><div class="k">{{ pillar_label[p] }}</div><div class="v">{{ n }}</div>
+    <div class="d">{% if n == 0 %}<span class="pill warn">no track: any track is used</span>{% elif n < 5 %}<span class="pill">aim for 5+</span>{% else %}<span class="pill ok">good</span>{% endif %}</div></div>
+  {% endfor %}
+  <div class="kpi"><div class="k">{{ icon("clock", "sm") }} Last used</div>
+    <div class="v" style="font-size:15px;line-height:1.3">{{ last.rel if last else '–' }}</div>
+    <div class="d">{% if last and last.last_post %}<a href="/items/{{ last.last_post.id }}">{{ last.last_post.hook[:36] }}</a>{% elif last %}{{ last.last_used_at | local("%d %b %H:%M") }}{% else %}no reel yet{% endif %}</div></div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="card flush">
+    <div class="card-head" style="padding:16px 18px 0">{{ icon("music") }}<h2>Library</h2>
+      <div class="tabs more">
+        <a href="/music" class="{{ 'on' if not pillar }}">All</a>
+        {% for p in coverage %}<a href="/music?pillar={{ p }}" class="{{ 'on' if pillar == p }}">{{ pillar_label[p] }}</a>{% endfor %}
+      </div></div>
+    <div class="table-wrap"><table>
+      <tr><th>Listen</th><th>Track</th><th>Used for</th><th class="num">Length</th><th class="num">Reels</th><th>Last used</th><th></th></tr>
+      {% for r in shown %}
+      <tr>
+        <td style="width:260px"><audio class="player" controls preload="none" src="/music/file/{{ r.rel | urlencode }}"></audio></td>
+        <td><b>{{ r.name }}</b><div class="tiny">{{ r.folder or 'data/music' }}{% if r.offset %} · starts at {{ r.offset|int }} s{% endif %}</div></td>
+        <td>{% for p in r.pillars %}<span class="pill">{{ pillar_label[p] }}</span> {% else %}<span class="tiny">any pillar (fallback)</span>{% endfor %}</td>
+        <td class="num">{{ '%d:%02d' % (r.duration // 60, r.duration % 60) if r.duration else '–' }}</td>
+        <td class="num">{{ r.uses }}</td>
+        <td class="tiny">{% if r.last_post %}<a href="/items/{{ r.last_post.id }}">{{ r.last_post.hook[:34] }}</a><br>{{ r.last_post.created_at | local("%d %b") }}{% elif r.last_used_at %}{{ r.last_used_at | local("%d %b %H:%M") }}{% else %}never{% endif %}</td>
+        <td><form method="post" action="/music/remove" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+          <input type="hidden" name="name" value="{{ r.rel }}"><button class="sm ghost" title="Move to data/music/.removed">{{ icon("x", "sm") }}</button></form></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7"><div class="empty">{{ icon("music") }}<div>No tracks{% if pillar %} for this pillar{% endif %} yet. Add some on the right.</div></div></td></tr>
+      {% endfor %}
+    </table></div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("plus") }}<h2>Add tracks</h2></div>
+      <form method="post" action="/music/upload" enctype="multipart/form-data" class="stack" style="gap:10px">
+        <input type="hidden" name="token" value="{{ csrf }}">
+        <label>Folder (decides the pillar)
+          <select name="folder">{% for f in folders %}<option value="{{ f }}">{{ f }}{% if folder_hint.get(f) %} → {{ folder_hint[f] }}{% endif %}</option>{% endfor %}</select></label>
+        <label>Or a new folder <input name="new_folder" placeholder="e.g. hanuman" maxlength="40"></label>
+        <label>Files (mp3, m4a, wav… up to {{ max_mb }} MB each)
+          <input type="file" name="files" multiple accept=".mp3,.m4a,.aac,.wav,.ogg,.flac,audio/*"></label>
+        <button class="primary">{{ icon("plus", "sm") }} Upload</button>
+        <p class="tiny">Only royalty-free music (Pixabay Music, YouTube Audio Library "no attribution", your own).
+          Film or label songs get reels muted and YouTube earnings claimed. Add <code>@12</code> to a file name to start 12 seconds in.</p>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-head">{{ icon("clock") }}<h2>Recent reels and their music</h2></div>
+      <div class="list">{% for i in recent %}
+        <div class="li"><div class="grow"><div class="t"><a href="/items/{{ i.id }}">{{ i.hook[:60] }}</a></div>
+          <div class="s">{{ icon("music", "sm") }} {{ i.music }} · {{ i.created_at | local("%d %b %H:%M") }} · {{ status(i.status) }}</div></div></div>
+        {% else %}<div class="empty">No reel with music yet.</div>{% endfor %}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">{{ icon("star") }}<h2>Trending sounds (Instagram app)</h2></div>
+      {% if trending %}
+      <div class="list">{% for t in trending %}
+        <div class="li"><div class="grow"><div class="t">{{ t.name }}</div>
+          <div class="s">search "{{ t.search or t.name }}"{% if t.mood %} · {{ t.mood }}{% endif %}{% if t.pillars %} · {{ t.pillars|join(", ") }}{% endif %}</div></div></div>
+      {% endfor %}</div>
+      {% else %}<p class="muted">No list yet. Copy <code>data/music/trending.example.yaml</code> to <code>trending.yaml</code> and note this week's trending sounds; the bot suggests them for each reel.</p>{% endif %}
+      <p class="tiny">Trending songs can only be added in the Instagram app (its licence). Reels for Facebook and YouTube use the library above.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

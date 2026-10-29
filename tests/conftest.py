@@ -1,6 +1,6 @@
 import pytest
 
-from instapost import db
+from instapost import db, scriptures
 from instapost.config import get_settings
 
 ENV_TO_CLEAR = (
@@ -20,7 +20,9 @@ def isolated_state(tmp_path, monkeypatch):
     for key in ENV_TO_CLEAR:
         monkeypatch.delenv(key, raising=False)
     get_settings.cache_clear()
+    scriptures.load_verses.cache_clear()
     db.reset_for_tests()
     yield
     get_settings.cache_clear()
+    scriptures.load_verses.cache_clear()
     db.reset_for_tests()

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from instapost import history, qa
+from instapost import budget, history, qa
 from instapost.brand import Brand, load_brand
 from instapost.config import IMAGE_KEYS, get_settings, require
 from instapost.models import Draft, FactCheckResult, FactCheckVerdict, Format, Pillar, QAReport
@@ -80,6 +80,18 @@ def make(
     plan: dict | None = None,
 ) -> Result:
     """`on_step` receives a short label for each stage, for live progress on the dashboard."""
+    item_id = _item_id(fmt)
+    # Every paid call below is recorded against this item (dashboard: Costs).
+    with budget.tagged(item_id=item_id, format=fmt.value, pillar=Pillar(pillar).value):
+        return _make(item_id, fmt, pillar, topic, offline=offline, draft=draft,
+                     image_provider=image_provider, vision_qa=vision_qa, brand=brand,
+                     on_step=on_step, plan=plan)
+
+
+def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offline: bool,
+          draft: Draft | None, image_provider: str | None, vision_qa: bool,
+          brand: Brand | None, on_step: Callable[[str], None] | None,
+          plan: dict | None) -> Result:
     step = on_step or (lambda _label: None)
     brand = brand or load_brand()
     if not offline:
@@ -93,7 +105,6 @@ def make(
         draft = load_sample(fmt) if offline else writer.write(
             brand, fmt, pillar, topic, history.recent_hooks(), plan)
 
-    item_id = _item_id(fmt)
     folder = get_settings().output_dir / date.today().isoformat() / item_id
     folder.mkdir(parents=True, exist_ok=True)
     _write_json(folder / "draft.json", draft)
@@ -141,7 +152,7 @@ def make(
             video.encode(still, brand, duration, folder / "reel.mp4", seed, comp, music=track,
                          app_copy=folder / "reel_for_app.mp4")
             if track is not None:
-                (folder / "music.txt").write_text(track.name + "\n", encoding="utf-8")
+                (folder / "music.txt").write_text(music.rel(track) + "\n", encoding="utf-8")
 
     elif fmt == Format.CAROUSEL_SHLOK:
         illus = provider.generate(

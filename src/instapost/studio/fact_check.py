@@ -50,7 +50,9 @@ def fact_check(draft: Draft) -> FactCheckResult:
     result = llm.structured(
         model=get_settings().factcheck_model, system=SYSTEM,
         content=json.dumps(payload, ensure_ascii=False, indent=1),
-        schema=FactCheckLLM, purpose="fact_check", effort="medium", max_tokens=4000,
+        # Without a cited verse there is less to verify, so less thinking is needed.
+        schema=FactCheckLLM, purpose="fact_check",
+        effort="medium" if verse is not None else "low", max_tokens=4000,
         estimated_usd=0.03,
     )
     issues += result.issues

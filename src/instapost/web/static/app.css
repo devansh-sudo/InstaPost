@@ -71,7 +71,7 @@ svg.i.fill { fill: currentColor; stroke: none; }
 .top .title { min-width: 0; }
 .top .title .tiny { display: block; }
 .top .actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.content { padding: 22px 28px 48px; max-width: 1400px; }
+.content { padding: 22px 28px 48px; }
 
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; background: var(--bg); }
@@ -110,7 +110,7 @@ svg.i.fill { fill: currentColor; stroke: none; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 
 /* KPI tiles */
-.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr)); }
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
        box-shadow: var(--shadow); min-width: 0; }
 .kpi .k { font-size: 12.5px; color: var(--soft); display: flex; align-items: center; gap: 6px; }
@@ -267,7 +267,7 @@ ul.log li { padding: 8px 0; border-bottom: 1px solid var(--line-2); }
   svg.chart .cell-text.on-light { fill: #f1e9df; }
 }
 .viz { position: relative; }
-svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart { width: 100%; height: auto; max-height: 300px; display: block; overflow: visible; }
 svg.chart .grid { stroke: var(--grid); stroke-width: 1; }
 svg.chart .tick { fill: var(--soft); font-size: 11px; }
 svg.chart .label { fill: var(--ink); font-size: 12px; }
@@ -303,11 +303,13 @@ svg.chart .cell-text { font-size: 11px; pointer-events: none; }
 .tile .d { font-size: 12px; color: var(--soft); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .checklist li { margin: 4px 0; }
-svg.chart.heat { width: auto; max-width: 100%; }
-svg.chart.fixed { width: auto; max-width: 100%; }
+svg.chart.heat { width: auto; max-width: 100%; max-height: none; }
+svg.chart.fixed { width: auto; max-width: 100%; max-height: none; }
 
 /* Phones: list rows keep the full width for the text, buttons wrap underneath (kept last so
    it wins over the general list rules above). */
+audio.player { width: 240px; height: 34px; display: block; }
+
 @media (max-width: 900px) {
   .list > .li { flex-wrap: wrap; }
   .list > .li > .grow { flex: 1 1 calc(100% - 64px); }

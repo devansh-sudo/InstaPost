@@ -37,6 +37,24 @@
     <div class="d">today ${{ "%.2f"|format(spend_day) }}</div></div>
 </div>
 
+<div class="cols c-3 section">
+  {% for name, p in ov.platforms.items() %}
+  <div class="card platform">
+    <div class="card-head">{{ pf(name) }}<h2>{{ labels[name] }}</h2>
+      {% if p.connected %}<span class="pill ok">connected</span>{% else %}<span class="pill">not connected</span>{% endif %}</div>
+    <div class="stats">
+      <div><div class="v">{{ compact(p.followers) }}</div><div class="k">followers {{ change(p.followers_change) }}</div></div>
+      <div><div class="v">{{ compact(p.counts.views.value) }}</div><div class="k">views</div></div>
+      <div><div class="v">{{ p.posts.value }}</div><div class="k">posts</div></div>
+    </div>
+    <div class="links">
+      {% for label, url in p.links.items() %}<a class="btn sm" href="{{ url }}" target="_blank" rel="noopener">{{ label }} {{ icon("external", "sm") }}</a>{% endfor %}
+      <a class="btn sm ghost" href="/analytics?platform={{ name }}&days={{ ov.days }}">Details →</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
 <div class="cols c-2-1 section">
   <div class="stack">
     <div class="card">
@@ -89,21 +107,6 @@
       {% else %}<div class="empty">{{ icon("calendar") }}<div>Nothing scheduled in the next 2 days.</div></div>{% endif %}
     </div>
 
-    {% for name, p in ov.platforms.items() %}
-    <div class="card platform">
-      <div class="card-head">{{ pf(name) }}<h2>{{ labels[name] }}</h2>
-        {% if p.connected %}<span class="pill ok">connected</span>{% else %}<span class="pill">not connected</span>{% endif %}</div>
-      <div class="stats">
-        <div><div class="v">{{ compact(p.followers) }}</div><div class="k">followers {{ change(p.followers_change) }}</div></div>
-        <div><div class="v">{{ compact(p.counts.views.value) }}</div><div class="k">views</div></div>
-        <div><div class="v">{{ p.posts.value }}</div><div class="k">posts</div></div>
-      </div>
-      <div class="links">
-        {% for label, url in p.links.items() %}<a class="btn sm" href="{{ url }}" target="_blank" rel="noopener">{{ label }} {{ icon("external", "sm") }}</a>{% endfor %}
-        <a class="btn sm ghost" href="/analytics?platform={{ name }}&days={{ ov.days }}">Details →</a>
-      </div>
-    </div>
-    {% endfor %}
 
     <div class="card">
       <div class="card-head">{{ icon("star") }}<h2>Top posts</h2><a class="more" href="/analytics?sort=score&days={{ ov.days }}">All posts →</a></div>

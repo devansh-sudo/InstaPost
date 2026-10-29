@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, status, thumb, fmt_label %}
+{% block title %}Costs{% endblock %}
+{% block subtitle %}What every post cost to make, and why · last {{ c.days }} days{% endblock %}
+{% block actions %}
+  <div class="tabs">{% for d in (7, 30, 90) %}<a href="/costs?days={{ d }}" class="{{ 'on' if d == c.days }}">{{ d }}d</a>{% endfor %}</div>
+{% endblock %}
+{% block content %}
+{% macro usd(v) %}{{ '–' if v is none else ('$%.3f' % v if v < 0.1 else '$%.2f' % v) }}{% endmacro %}
+
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("wallet", "sm") }} This month</div>
+    <div class="v">${{ "%.2f"|format(c.month_spent) }}<small> / ${{ "%.0f"|format(cap) }}</small></div>
+    {% set pct = (c.month_spent / cap * 100) if cap else 0 %}
+    <div class="meter {{ 'bad' if pct >= 100 else ('warn' if pct >= 80) }}"><i style="width:{{ [pct, 100]|min }}%"></i></div>
+    <div class="d">today ${{ "%.2f"|format(c.day_spent) }} / ${{ "%.2f"|format(daily_cap) }}</div></div>
+  <div class="kpi"><div class="k">{{ icon("chart", "sm") }} Month at this pace</div>
+    <div class="v">${{ "%.2f"|format(c.projected) }}</div>
+    <div class="d">{% if c.projected > cap %}<span class="pill bad">over the cap</span>{% else %}<span class="pill ok">inside the cap</span>{% endif %}</div></div>
+  {% for label, f in c.per_format.items() %}
+  <div class="kpi"><div class="k">{{ icon("coins", "sm") }} Avg per {{ label|lower }}</div>
+    <div class="v">{{ usd(f.avg) }}</div><div class="d">{{ f.n }} made · {{ usd(f.total) }}</div></div>
+  {% endfor %}
+  <div class="kpi"><div class="k">{{ icon("alert", "sm") }} Wasted</div>
+    <div class="v">{{ usd(c.wasted) }}</div><div class="d">blocked, rejected or failed runs</div></div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="card"><div class="card-head">{{ icon("chart") }}<h2>Spend per day</h2><span class="tiny">by stage, local time</span></div>{{ day_chart }}</div>
+  <div class="card">
+    <div class="card-head">{{ icon("coins") }}<h2>Where the money goes</h2><span class="tiny">{{ c.calls }} paid calls</span></div>
+    {% if c.by_stage %}
+    <div class="list">{% for stage, v in c.by_stage.items() %}
+      {% set share = (v / c.total * 100) if c.total else 0 %}
+      <div class="li"><div class="grow"><div class="t">{{ stage }}</div>
+        <div class="meter"><i style="width:{{ share }}%"></i></div></div>
+        <div class="num"><b>{{ usd(v) }}</b><div class="tiny">{{ share|round|int }}%</div></div></div>
+    {% endfor %}</div>
+    {% else %}<div class="empty">{{ icon("coins") }}<div>Nothing spent in this period.</div></div>{% endif %}
+    <p class="tiny" style="margin-top:12px">Writing and fact check use {{ models.writer }}, image checks {{ models.qa }}{% if models.story %}, stories {{ models.story }}{% endif %}.
+      Photos from Unsplash or your library are free.</p>
+  </div>
+</div>
+
+<div class="card flush section">
+  <div class="card-head" style="padding:16px 18px 0">{{ icon("library") }}<h2>Cost per post ({{ c.posts|length }})</h2>{% if c.posts|length > 60 %}<span class="tiny">newest 60 shown</span>{% endif %}</div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Post</th><th>Made</th><th class="num">Writing</th><th class="num">Fact check</th><th class="num">Image check</th>
+      <th class="num">Images</th><th class="num">Total</th><th class="num">Tokens in / out</th><th>Why</th></tr>
+    {% for p in c.posts[:60] %}
+    <tr>
+      <td style="width:60px">{% if p.item %}<a href="/items/{{ p.item_id }}">{{ thumb(p.item) }}</a>{% endif %}</td>
+      <td>{% if p.item %}<a href="/items/{{ p.item_id }}"><b>{{ p.item.hook[:60] }}</b></a>
+          <div class="tiny">{{ fmt_label(p.format) }} · {{ status(p.item.status) }}</div>
+        {% else %}<b>{{ fmt_label(p.format) }}</b><div class="tiny">{{ p.item_id }} · not saved</div>{% endif %}</td>
+      <td class="tiny">{{ p.first | local("%d %b %H:%M") }}</td>
+      {% for st in ("Writing", "Fact check", "Image check", "Images") %}<td class="num">{{ usd(p.stages.get(st)) if p.stages.get(st) else '–' }}</td>{% endfor %}
+      <td class="num"><b>{{ usd(p.usd) }}</b></td>
+      <td class="num tiny">{{ compact(p.tokens_in) }} / {{ compact(p.tokens_out) }}</td>
+      <td class="tiny">{{ p.why | join("; ") or "normal" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10"><div class="empty">{{ icon("coins") }}<div>No post costs recorded yet. Costs are tracked per post from this update on.</div></div></td></tr>
+    {% endfor %}
+  </table></div>
+  {% if c.untracked %}<p class="tiny" style="padding:0 18px 14px">{{ usd(c.untracked) }} in this period was spent before per-post tracking started.</p>{% endif %}
+</div>
+
+<div class="card section">
+  <div class="card-head">{{ icon("bulb") }}<h2>How the cost is kept low</h2></div>
+  <ul class="checklist">
+    <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Prompt caching</b><div class="tiny">The instructions and the verse list are the same for every post, so after the first post of the evening they are read from Claude's cache at 10% of the price.</div></div></li>
+    <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Cheap checks first</b><div class="tiny">Free rule checks and the fact check run before any image or video, so a bad draft never costs more.</div></div></li>
+    <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Right model per job</b><div class="tiny">Image checks use the small model; stories (one line) use {{ models.story or models.writer }}; reels and carousels use {{ models.writer }}.</div></div></li>
+    <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Free photos</b><div class="tiny">Unsplash and your own image library cost nothing.</div></div></li>
+    <li><span class="lvl {{ 'ok' if c.wasted < 0.2 * (c.total or 1) else 'warn' }}">{{ icon("info") }}</span><div><b>Waste</b><div class="tiny">Every Redo or Reject pays for a new post. Approving with small caption edits costs nothing.</div></div></li>
+  </ul>
+</div>
+{% endblock %}

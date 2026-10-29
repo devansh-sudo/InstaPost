@@ -77,6 +77,8 @@ class Item(Base):
     features: Mapped[dict | None] = mapped_column(JSON)
     # Platforms you post by hand (e.g. Instagram with a trending song from its app library).
     manual_platforms: Mapped[list | None] = mapped_column(JSON)
+    # Background track of a reel, as named in the music library ("shiv/om-chant.mp3").
+    music: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

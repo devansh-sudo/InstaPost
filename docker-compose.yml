@@ -17,6 +17,8 @@ x-app: &app
     - ./brand.yaml:/app/brand.yaml:ro
     - ./schedule.yaml:/app/schedule.yaml:ro
     - ./data:/app/data:ro
+    # Writable so you can add and remove tracks on the dashboard's Music page.
+    - ./data/music:/app/data/music
     # Read-only, only so `instapost check` can point at problems in the file itself;
     # the values reach the app through env_file above.
     - ./.env:/app/.env:ro

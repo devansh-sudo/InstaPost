@@ -52,7 +52,7 @@ def structured[T: BaseModel](
         response = _client().messages.parse(**kwargs)
 
     budget.record(purpose, response.model, budget.claude_cost(model, response.usage),
-                  request_id=response._request_id)
+                  request_id=response._request_id, **budget.usage_fields(response.usage))
     if response.stop_reason == "refusal":
         raise RefusalError(f"{purpose}: model declined the request")
     if response.stop_reason == "max_tokens" or response.parsed_output is None:

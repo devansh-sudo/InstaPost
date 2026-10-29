@@ -300,6 +300,7 @@ def test_every_dashboard_page_renders(web):
                  "/library?status=needs_review&format=story_line", "/analytics",
                  "/analytics?platform=instagram&days=7&sort=score", "/learning", "/reports",
                  "/plan", "/activity", "/notifications", "/settings", f"/items/{item_id}",
+                 "/music", "/music?pillar=gita", "/costs", "/costs?days=7",
                  "/partials/running", f"/thumb/{item_id}"):
         r = web.get(path)
         assert r.status_code == 200, path

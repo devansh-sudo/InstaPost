@@ -80,14 +80,18 @@ def write(
     }
     if plan:
         request["plan"] = plan
-    content = (
-        "Verified references you may cite (by id):\n" + catalogue_for_prompt()
-        + "\n\nRequest:\n" + json.dumps(request, ensure_ascii=False, indent=1)
-    )
+    # The verse list is the same for every post, so it sits in the cached system prompt;
+    # only the short request below is new (and fully priced) on each call.
+    system = SYSTEM + "\n\nVerified references you may cite (by id):\n" + catalogue_for_prompt()
+    content = "Request:\n" + json.dumps(request, ensure_ascii=False, indent=1)
+    st = get_settings()
+    story = fmt == Format.STORY_LINE
+
     def ask(text: str) -> Draft:
         return llm.structured(
-            model=get_settings().writer_model, system=SYSTEM, content=text, schema=Draft,
-            purpose=f"write:{fmt.value}", effort="medium", max_tokens=8000, estimated_usd=0.05,
+            model=st.story_writer_model if story else st.writer_model, system=system,
+            content=text, schema=Draft, purpose=f"write:{fmt.value}",
+            effort="low" if story else "medium", max_tokens=8000, estimated_usd=0.05,
         )
 
     draft = ask(content)
