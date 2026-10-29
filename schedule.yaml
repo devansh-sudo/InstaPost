@@ -13,6 +13,15 @@ report_at: "09:00"
 plan_day: sun
 plan_at: "18:00"
 
+# Sunday YouTube video from the week's published posts (6-9 minutes, chapters, thumbnail).
+# Built at make_at and sent to you for approval; published to YouTube at publish_at.
+weekly_video:
+  enabled: true
+  day: sun
+  make_at: "16:30"
+  publish_at: "19:15"
+  days: 7
+
 # Time slots per format. Items are scheduled into the next free slot after approval.
 slots:
   reel_book_pov: ["07:15", "20:45"]

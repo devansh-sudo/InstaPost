@@ -10,7 +10,7 @@
     {% endfor %}
   </div>
   <div class="tabs">
-    {% for key, label in [("", "All formats"), ("reel_book_pov", "Reels"), ("carousel_shlok", "Carousels"), ("story_line", "Stories")] %}
+    {% for key, label in [("", "All formats"), ("reel_book_pov", "Reels"), ("carousel_shlok", "Carousels"), ("story_line", "Stories"), ("weekly_video", "Weekly videos")] %}
     <a href="/library?status={{ status_filter }}&format={{ key }}" class="{{ 'on' if fmt == key }}">{{ label }}</a>
     {% endfor %}
   </div>

@@ -7,7 +7,8 @@ Every 30 seconds it:
 4. once a day refreshes the Instagram token when it is more than 7 days old;
 5. collects post and account stats (throttled to every 10 minutes);
 6. at `report_at` sends the daily report for the previous day;
-7. on `plan_day` at `plan_at`: weekly Claude review, then next week's plan.
+7. on `plan_day` at `plan_at`: weekly Claude review, then next week's plan;
+8. on Sunday afternoon (schedule.yaml weekly_video): the week's posts as one YouTube video.
 """
 
 import logging
@@ -108,6 +109,29 @@ class Worker:
             self.notify(f"📝 {len(created)} items for {tomorrow} are ready. "
                         "Approve them above, or /approve_tomorrow.")
 
+    def maybe_weekly_video(self) -> None:
+        """Sunday afternoon: the week's posts as one long YouTube video, sent for approval."""
+        from instapost import weekly
+
+        with session() as s:
+            if not weekly.due(s):
+                return
+            weekly.mark_tried(s, load_schedule().local_now().date())
+        self.make_weekly_video(None, "agent")
+
+    def make_weekly_video(self, end_day: date | None, actor: str) -> None:
+        from instapost import weekly
+
+        try:
+            item_id = producer.make_weekly(actor, end_day)
+        except weekly.NotEnoughPosts as e:
+            self.notify(f"🎬 No weekly YouTube video this time: {e}.")
+            return
+        except Exception as e:  # noqa: BLE001
+            self.notify(f"⚠️ Weekly video failed: {tokens.redact(str(e))[:300]}")
+            return
+        self.send_item(item_id)
+
     def maybe_refresh_token(self) -> None:
         if not tokens.get("ig_access_token"):
             return
@@ -145,6 +169,9 @@ class Worker:
                 elif job.kind == "weekly_review":
                     ws = date.fromisoformat(p["week_start"])
                     self.weekly(ws - timedelta(days=7), ws, actor=p.get("actor", "web"))
+                elif job.kind == "weekly_video":
+                    self.make_weekly_video(date.fromisoformat(p["end_day"]) if p.get("end_day")
+                                           else None, p.get("actor", "web"))
                 elif job.kind == "generate_day":
                     producer.generate_day(date.fromisoformat(p["day"]), self.notify,
                                           self.send_item, force=True)
@@ -204,7 +231,7 @@ class Worker:
             set_kv(s, "worker_heartbeat", utcnow().isoformat())
         for duty in (self.publish_due, self.run_requests, self.maybe_generate,
                      self.maybe_refresh_token, self.collect_stats, self.maybe_report,
-                     self.maybe_plan_week):
+                     self.maybe_plan_week, self.maybe_weekly_video):
             try:
                 duty()
             except Exception as e:  # noqa: BLE001 - keep the worker alive, but tell the admin

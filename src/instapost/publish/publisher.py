@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from instapost import approvals
+from instapost.approvals import WEEKLY_VIDEO
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, Publication, audit, utcnow
 from instapost.models import Format
@@ -40,7 +41,10 @@ def configured_platforms() -> set[str]:
 
 
 def targets_for(item: Item) -> list[str]:
-    wanted = load_schedule().targets.get(Format(item.format), [])
+    if item.format == WEEKLY_VIDEO:  # the long Sunday video is for YouTube only
+        wanted = ["youtube"]
+    else:
+        wanted = load_schedule().targets.get(Format(item.format), [])
     available = configured_platforms()
     manual = set(item.manual_platforms or [])
     return [p for p in wanted if p in available and p not in manual]
@@ -56,12 +60,21 @@ def published_today(s: Session, platform: str) -> int:
 
 def _files(item: Item) -> dict:
     folder = Path(item.folder)
+    if item.format == WEEKLY_VIDEO:
+        return {"video": folder / "video.mp4", "cover": folder / "cover.jpg",
+                "meta": json.loads((folder / "meta.json").read_text(encoding="utf-8"))}
     return {"video": folder / "reel.mp4", "cover": folder / "cover.jpg",
             "slides": sorted(folder.glob("slide_*.jpg")), "story": folder / "story.jpg",
             "draft": json.loads((folder / "draft.json").read_text(encoding="utf-8"))}
 
 
 def _publish_one(s: Session, item: Item, pub: Publication, files: dict, host) -> Published:
+    if item.format == WEEKLY_VIDEO:
+        if pub.platform != "youtube":
+            raise PublishError("the weekly video goes to YouTube only")
+        meta = files["meta"]
+        return youtube.upload_video(files["video"], meta["title"], meta["description"],
+                                    meta["tags"], thumbnail=files["cover"])
     fmt = Format(item.format)
 
     def remember(container_id: str) -> None:

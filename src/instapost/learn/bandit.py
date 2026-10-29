@@ -81,6 +81,8 @@ def observation(row: PostRow) -> tuple[Format, dict[str, str], float] | None:
 
     if row.score is None or (utcnow() - row.published_at).total_seconds() < MIN_AGE_HOURS * 3600:
         return None
+    if row.item.format not in set(Format):  # e.g. the weekly video: nothing to learn
+        return None
     fmt = Format(row.item.format)
     feats = {k: str(v) for k, v in (row.item.features or {}).items() if v is not None}
     feats.setdefault("pillar", row.item.pillar)

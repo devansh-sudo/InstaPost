@@ -23,6 +23,7 @@ Recommended, in the same BotFather chat:
 new - create one now, e.g. /new reel gita गुस्सा
 postnow - publish an item right away, e.g. /postnow <id>
 posted - link a reel you posted in the Instagram app, e.g. /posted <id> <link>
+weekly - make this week's long YouTube video now
 queue - items waiting for approval
 approve_next - approve the next N items, e.g. /approve_next 3
 approve_tomorrow - approve everything planned for tomorrow

@@ -18,6 +18,7 @@
 #   bash deploy/docker.sh post [reel|carousel|story] [pillar] [topic]   make one now -> Telegram
 #   bash deploy/docker.sh reset             clear test data (backed up first) to start fresh
 #   bash deploy/docker.sh plan-month <file> load a month plan, e.g. data/plan/2026-10-29.yaml
+#   bash deploy/docker.sh weekly-video     make this week's long YouTube video now
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -346,5 +347,6 @@ case "${1:-deploy}" in
   post)        shift; cmd_cli new "$@" ;;
   reset)       cmd_reset ;;
   plan-month)  shift; cmd_cli plan-month "$@" ;;
+  weekly-video) shift; cmd_cli weekly-video "$@" ;;
   *)           sed -n '2,21p' "$0"; exit 1 ;;
 esac

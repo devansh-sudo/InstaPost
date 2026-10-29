@@ -111,12 +111,38 @@ def channel() -> dict:
 
 
 def upload_short(video: Path, title: str, description: str, tags: list[str]) -> Published:
+    vid = _upload(video, title, description, tags)
+    return Published(remote_id=vid, permalink=f"https://youtube.com/shorts/{vid}")
+
+
+def upload_video(video: Path, title: str, description: str, tags: list[str],
+                 thumbnail: Path | None = None) -> Published:
+    """A long (landscape) video, e.g. the weekly compilation, with its own thumbnail."""
+    import logging
+
+    from googleapiclient.errors import HttpError
+    from googleapiclient.http import MediaFileUpload
+
+    vid = _upload(video, title, description, tags)
+    if thumbnail is not None and thumbnail.exists():
+        try:
+            _service().thumbnails().set(
+                videoId=vid, media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg"),
+            ).execute()
+        except HttpError as e:  # custom thumbnails need a phone-verified channel
+            logging.getLogger("instapost.youtube").warning(
+                "thumbnail not set (%s %s): verify the channel at youtube.com/verify",
+                e.status_code, e.reason)
+    return Published(remote_id=vid, permalink=f"https://youtube.com/watch?v={vid}")
+
+
+def _upload(video: Path, title: str, description: str, tags: list[str]) -> str:
     from googleapiclient.errors import HttpError
     from googleapiclient.http import MediaFileUpload
 
     body = {
         "snippet": {"title": title[:100], "description": description[:4900],
-                    "tags": [t.lstrip("#") for t in tags][:15], "categoryId": "22",
+                    "tags": _tags(tags), "categoryId": "22",
                     "defaultLanguage": "hi", "defaultAudioLanguage": "hi"},
         "status": {"privacyStatus": get_settings().youtube_privacy,
                    "selfDeclaredMadeForKids": False,
@@ -132,5 +158,15 @@ def upload_short(video: Path, title: str, description: str, tags: list[str]) -> 
             _, response = request.next_chunk()
     except HttpError as e:
         raise PublishError(f"YouTube upload failed: {e.status_code} {e.reason}") from e
-    vid = response["id"]
-    return Published(remote_id=vid, permalink=f"https://youtube.com/shorts/{vid}")
+    return response["id"]
+
+
+def _tags(tags: list[str]) -> list[str]:
+    """At most 15 tags and 450 characters in total (YouTube rejects more)."""
+    out, total = [], 0
+    for t in tags:
+        t = t.lstrip("#").strip()
+        if t and t not in out and total + len(t) + 1 <= 450:
+            out.append(t)
+            total += len(t) + 1
+    return out[:15]

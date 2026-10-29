@@ -113,12 +113,19 @@ def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None
     raise QueueError(f"no free {fmt} slot in the next 14 days")
 
 
+WEEKLY_VIDEO = "weekly_video"  # instapost.weekly.WEEKLY (not a Format: never planned daily)
+
+
 def approve(s: Session, item: Item, actor: str, when: datetime | None = None) -> Item:
     if item.status != ItemStatus.NEEDS_REVIEW:
         raise QueueError(f"{item.id} is {item.status}, not waiting for review")
     start = date.fromisoformat(item.for_date) if item.for_date else utcnow().date()
-    item.scheduled_at = when or next_free_slot(s, item.format, start,
-                                               preferred=item.preferred_slot)
+    if item.format == WEEKLY_VIDEO:
+        from instapost import weekly
+        item.scheduled_at = when or weekly.publish_time()
+    else:
+        item.scheduled_at = when or next_free_slot(s, item.format, start,
+                                                   preferred=item.preferred_slot)
     item.status = ItemStatus.APPROVED
     item.approved_by = actor
     item.approved_at = utcnow()

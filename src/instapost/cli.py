@@ -167,6 +167,21 @@ def _new(args) -> int:
     return 0
 
 
+def _weekly_video(args) -> int:
+    from datetime import date
+
+    from instapost import jobs
+
+    end = args.end or None
+    if end:
+        date.fromisoformat(end)  # validate
+    jobs.enqueue("weekly_video", "weekly video (command line)", end_day=end, actor="cli")
+    print("Queued: the worker makes the weekly YouTube video from the published posts of the "
+          "7 days up to " + (end or "today") + ". It arrives in Telegram and the Inbox in a "
+          "few minutes.")
+    return 0
+
+
 def _plan_month(args) -> int:
     from instapost.db import session
     from instapost.learn import planner
@@ -326,6 +341,9 @@ def main(argv: list[str] | None = None) -> int:
                          "Telegram with 🚀 Post now")
     new.add_argument("words", nargs="*", help="[reel|carousel|story] [pillar] [topic ...]")
     new.set_defaults(func=_new)
+    wv = sub.add_parser("weekly-video", help="make the long YouTube video of the week's posts")
+    wv.add_argument("--end", help="last day (YYYY-MM-DD), default today")
+    wv.set_defaults(func=_weekly_video)
     pm = sub.add_parser("plan-month", help="load a hand-written plan file (data/plan/*.yaml)")
     pm.add_argument("file")
     pm.set_defaults(func=_plan_month)

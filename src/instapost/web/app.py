@@ -32,9 +32,10 @@ from instapost.stats.labels import PLATFORM_LABEL, compact
 from instapost.web import auth, charts
 
 HERE = Path(__file__).parent
-FILE_NAME = re.compile(r"^(reel\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
+FILE_NAME = re.compile(r"^(reel\.mp4|video\.mp4|cover\.jpg|story\.jpg|slide_\d{2}\.jpg)$")
 MAX_TRACK_MB = 25
-FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story"}
+FORMAT_LABEL = {"reel_book_pov": "Reel", "carousel_shlok": "Carousel", "story_line": "Story",
+                "weekly_video": "Weekly video"}
 PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
                 "kabir": "Kabir", "life_lesson": "Life lesson"}
 templates = Jinja2Templates(directory=str(HERE / "templates"))
@@ -139,6 +140,7 @@ def back(request: Request, message: str, to: str | None = None) -> RedirectRespo
 def _item_files(item: Item) -> dict:
     folder = Path(item.folder)
     return {"video": (folder / "reel.mp4").exists(), "cover": (folder / "cover.jpg").exists(),
+            "long": (folder / "video.mp4").exists(),
             "story": (folder / "story.jpg").exists(),
             "slides": [p.name for p in sorted(folder.glob("slide_*.jpg"))]}
 
@@ -289,6 +291,12 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                      actor=f"web:{who}")
         return back(request, "Queued. The worker starts within 30 seconds; "
                     "the result appears in the approval queue and on Telegram.")
+
+    @app.post("/weekly-video")
+    def weekly_video(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        jobs.enqueue("weekly_video", "weekly video (dashboard)", actor=f"web:{who}")
+        return back(request, "Making this week's YouTube video. It appears in the Inbox in a "
+                    "few minutes.")
 
     @app.post("/generate-day")
     def generate_day(request: Request, day: str = Form(...), who: str = Depends(user),

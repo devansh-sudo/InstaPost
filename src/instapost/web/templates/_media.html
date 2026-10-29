@@ -1,4 +1,7 @@
-{% if files.video %}
+{% if files.long %}
+  <video class="media wide" controls playsinline preload="metadata"
+         poster="/files/{{ item.id }}/cover.jpg" src="/files/{{ item.id }}/video.mp4"></video>
+{% elif files.video %}
   <video class="media" controls loop playsinline preload="metadata"
          poster="/files/{{ item.id }}/cover.jpg" src="/files/{{ item.id }}/reel.mp4"></video>
 {% elif files.story %}

@@ -29,8 +29,16 @@
       <input type="date" name="day" value="{{ tomorrow }}"><button>{{ icon("calendar", "sm") }} Create the day</button>
     </form>
     <hr>
+    <h3>Weekly YouTube video</h3>
+    <p class="muted">The last {{ sched.weekly_video.days }} days' published posts as one long video with chapters and a thumbnail (free, no AI calls).
+      Made by itself every {{ sched.weekly_video.day|capitalize }} at {{ sched.weekly_video.make_at }}; it goes to YouTube at {{ sched.weekly_video.publish_at }} once you approve it.</p>
+    <form method="post" action="/weekly-video" class="row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <button>{{ icon("youtube", "sm") }} Make it now</button>
+    </form>
+    <hr>
     <h3>From Telegram</h3>
-    <p class="muted"><code>/new reel gita गुस्सा</code> · <code>/new story shiv</code> · <code>/new carousel kabir</code>, then tap 🚀 Post now.</p>
+    <p class="muted"><code>/new reel gita गुस्सा</code> · <code>/new story shiv</code> · <code>/new carousel kabir</code>, then tap 🚀 Post now. <code>/weekly</code> makes the weekly video.</p>
   </div>
 </div>
 {% endblock %}

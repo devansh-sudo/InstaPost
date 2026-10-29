@@ -13,6 +13,15 @@ from instapost.models import Format, Pillar
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
+class WeeklyVideo(BaseModel):
+    """The Sunday YouTube video made from the week's posts (instapost.weekly)."""
+    enabled: bool = True
+    day: str = "sun"
+    make_at: str = "16:30"     # built then and sent to you for approval
+    publish_at: str = "19:15"  # goes out then once approved (or 10 minutes after approval)
+    days: int = 7
+
+
 class Schedule(BaseModel):
     timezone: str
     generate_at: str
@@ -25,6 +34,7 @@ class Schedule(BaseModel):
     monday_pillar: Pillar | None = None
     targets: dict[Format, list[str]]
     max_posts_per_day: dict[str, int]
+    weekly_video: WeeklyVideo = WeeklyVideo()
 
     @property
     def tz(self) -> ZoneInfo:

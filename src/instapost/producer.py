@@ -46,6 +46,17 @@ def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
             return item.id
 
 
+def make_weekly(actor: str, end_day: date | None = None) -> str:
+    """Build the Sunday YouTube video from the week's posts (see instapost.weekly)."""
+    from instapost import weekly
+
+    with track("weekly_video", f"weekly video up to {end_day or 'today'}") as job:
+        job.step("rendering the weekly video")
+        with session() as s:
+            return weekly.make(s, end_day, actor=actor,
+                               days=load_schedule().weekly_video.days).id
+
+
 def make_one(fmt: Format, pillar: Pillar, for_date: date, topic: str | None,
              actor: str) -> str:
     return _make_and_register(fmt, pillar, for_date, actor, topic)
@@ -101,6 +112,14 @@ def regenerate(item_id: str, actor: str) -> str:
             raise approvals.QueueError(f"unknown item {item_id}")
         if item.status != ItemStatus.REJECTED:
             approvals.reject(s, item, actor, reason="regenerate")
+        if item.format == approvals.WEEKLY_VIDEO:
+            end_day = date.fromisoformat(item.for_date)
+        else:
+            end_day = None
+    if end_day is not None:
+        return make_weekly(actor, end_day)
+    with session() as s:
+        item = s.get(Item, item_id)
         fmt, pillar, for_date = Format(item.format), Pillar(item.pillar), item.for_date
         entry = s.scalars(select(PlanEntry).where(PlanEntry.item_id == item_id)).first()
         entry_id = entry.id if entry else None

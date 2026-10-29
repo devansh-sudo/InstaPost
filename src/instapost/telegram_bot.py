@@ -25,6 +25,7 @@ HELP = """Commands
 /new reel gita गुस्सा – create one now (format, pillar and topic optional); arrives here
 /postnow <id> – publish an approved or waiting item right away
 /posted <id> <link> – link a reel you posted in the Instagram app
+/weekly – make this week's long YouTube video now (normally Sunday afternoon)
 /queue – items waiting for approval
 /approve_next 3 – approve the next N items
 /approve_tomorrow – approve everything planned for tomorrow
@@ -39,7 +40,8 @@ HELP = """Commands
 /setup – what is still missing in the setup"""
 
 FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "carousel_shlok": "🖼 Carousel",
-                "story_line": "📱 Story"}
+                "story_line": "📱 Story", "weekly_video": "📺 Weekly YouTube video"}
+TELEGRAM_VIDEO_LIMIT = 48_000_000  # bots may send videos up to 50 MB
 
 
 class TelegramError(RuntimeError):
@@ -80,6 +82,8 @@ class Bot:
 
     def item_text(self, item: Item) -> str:
         folder = Path(item.folder)
+        if item.format == "weekly_video":
+            return self._weekly_text(item)
         fact = json.loads((folder / "fact_check.json").read_text(encoding="utf-8"))
         warn = ""
         if item.fact_check == "needs_human_review":
@@ -91,6 +95,17 @@ class Bot:
         return (f"{FORMAT_LABEL.get(item.format, item.format)} · {item.pillar} · for "
                 f"{item.for_date}\n\n{item.hook}\n\n{item.caption[:500]}{warn}\n\n{status}"
                 f"\nid: {item.id}")
+
+    def _weekly_text(self, item: Item) -> str:
+        meta = json.loads((Path(item.folder) / "meta.json").read_text(encoding="utf-8"))
+        base = get_settings().public_base_url
+        status = {"approved": f"✅ Approved, goes to YouTube {approvals.local_time_label(item)}"
+                  }.get(item.status, "")
+        chapters = "\n".join(f"{c[1]}" for c in meta["chapters"][:12])
+        return (f"📺 Weekly YouTube video · {meta['duration'] / 60:.1f} min · "
+                f"{len(meta['posts'])} posts\n\n{meta['title']}\n\nChapters:\n{chapters}\n\n"
+                + (f"Watch it: {base}/items/{item.id}\n" if base else "")
+                + f"Approve to upload it to YouTube.\n{status}\nid: {item.id}")
 
     def keyboard(self, item: Item) -> dict | None:
         if item.status != ItemStatus.NEEDS_REVIEW:
@@ -114,7 +129,17 @@ class Bot:
             folder = Path(item.folder)
             text, kb = self.item_text(item), self.keyboard(item)
             caption = text[:1000]
-            if (folder / "reel.mp4").exists():
+            video = folder / "video.mp4"
+            if item.format == "weekly_video" and video.exists() \
+                    and video.stat().st_size < TELEGRAM_VIDEO_LIMIT:
+                with open(video, "rb") as f:
+                    msg = self.call("sendVideo", files={"video": f}, chat_id=self.admin,
+                                    caption=caption, reply_markup=kb, supports_streaming="true")
+            elif item.format == "weekly_video":  # too big for a bot: thumbnail + link
+                with open(folder / "cover.jpg", "rb") as f:
+                    msg = self.call("sendPhoto", files={"photo": f}, chat_id=self.admin,
+                                    caption=caption, reply_markup=kb)
+            elif (folder / "reel.mp4").exists():
                 with open(folder / "reel.mp4", "rb") as f:
                     msg = self.call("sendVideo", files={"video": f}, chat_id=self.admin,
                                     caption=caption, reply_markup=kb, supports_streaming="true")
@@ -270,6 +295,11 @@ class Bot:
                         + (f" · {topic}" if topic else "")
                         + ". It arrives here in 2–4 minutes; tap 🚀 Post now to publish it.\n"
                         + quick.USAGE)
+            if cmd == "/weekly":
+                from instapost import jobs
+                jobs.enqueue("weekly_video", "weekly video (Telegram)", actor=actor)
+                return ("📺 Making this week's YouTube video from the published posts. It takes "
+                        "a few minutes and arrives here for approval.")
             if cmd == "/posted":
                 if len(args) < 2:
                     return "Use /posted <id> <instagram reel link>."

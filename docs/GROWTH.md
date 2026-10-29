@@ -23,7 +23,7 @@ minutes by 600 people is 100 hours. A devotional channel needs some long videos.
    - Monthly: a 30–60 minute meditation or chant (royalty-free om/flute music + slow Shiva visuals).
      These earn watch hours fastest. YouTube rejects channels full of near-identical loops
      ("reused/repetitive content"), so each one needs its own visuals, title and description.
-   The agent can build the compilation from existing reels (ffmpeg), so the extra cost is close to $0.
+   **Built:** the weekly compilation is made automatically (see "Weekly YouTube video" below).
 2. **Carousels to Facebook too.** Today carousels go to Instagram only (`schedule.yaml` →
    `targets`). Facebook photo posts reach a different, older audience that shares devotional
    content a lot.
@@ -59,3 +59,29 @@ minutes by 600 people is 100 hours. A devotional channel needs some long videos.
 
 These depend on post quality and consistency more than on anything else. The Analytics and
 Learning pages show which pillar, hook style and time slot work, and the weekly plan follows them.
+
+## Weekly YouTube video (built)
+
+Every Sunday at 16:30 (`schedule.yaml` → `weekly_video`) the worker turns the week's
+**published** reels, carousels and stories into one landscape video (1920x1080):
+
+- intro card "इस हफ़्ते के N जीवन सूत्र" with the dates, then one chapter per reel and carousel
+  ("सूत्र 1", "सूत्र 2"...), the stories as one "छोटी बातें, बड़ी सीख" chapter, and an outro asking to
+  subscribe;
+- each vertical post sits in the middle over a blurred copy of itself, its number, theme and
+  verse reference on the left, the page name and handle on the right; reels loop to about 30 s,
+  carousel slides show 8 s each, stories 7 s;
+- one continuous, levelled track from your music library under the whole video (the tanpura
+  ambience if the library is empty);
+- title, description with YouTube chapters (00:00 सूत्र 1 ...), hashtags, tags, and a 1280x720
+  thumbnail. Custom thumbnails need a phone-verified channel (youtube.com/verify).
+
+It costs nothing to make (no AI calls) and takes a few minutes of server time. It arrives in
+Telegram and the Inbox like any post: approve it and it goes to YouTube at 19:15 (or 10
+minutes after you approve, if that time has passed). It needs at least 3 published reels or
+carousels in the week. Make one any time with `/weekly` in Telegram, **Create → Make it now**
+on the dashboard, or `bash deploy/docker.sh weekly-video`.
+
+With the current plan (8 reels, 3 carousels and 14 stories a week) the video is about 7–9
+minutes. Ads in the middle of a video need 8 minutes or more; to be sure of that, raise
+`REEL_SECONDS` in `src/instapost/weekly.py` (each reel loops longer).
