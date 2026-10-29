@@ -27,6 +27,7 @@
     {{ nav("/calendar", "calendar", "Calendar", path.startswith("/calendar")) }}
     {{ nav("/create", "plus", "Create", path.startswith("/create")) }}
     {{ nav("/library", "library", "Library", path.startswith("/library") or path.startswith("/items")) }}
+    {{ nav("/backgrounds", "image", "Backgrounds", path.startswith("/backgrounds")) }}
     {{ nav("/music", "music", "Music", path.startswith("/music")) }}
     <div class="group">Growth</div>
     {{ nav("/analytics", "chart", "Analytics", path.startswith("/analytics") or path.startswith("/stats")) }}

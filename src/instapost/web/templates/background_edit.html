@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Page corners{% endblock %}
+{% block subtitle %}Click the four corners of the blank page: top-left, top-right, bottom-right, bottom-left{% endblock %}
+{% block actions %}<a class="btn" href="/backgrounds">← Backgrounds</a>{% endblock %}
+{% block content %}
+<div class="cols c-2-1">
+  <div class="card">
+    <div class="corner-editor" id="corner-editor" data-w="{{ entry.size[0] }}" data-h="{{ entry.size[1] }}"
+         data-quad='{{ (entry.quad or [])|tojson }}'>
+      <img id="corner-photo" src="/backgrounds/{{ plate_id }}/photo.jpg" alt="book photo">
+      <svg id="corner-svg" viewBox="0 0 {{ entry.size[0] }} {{ entry.size[1] }}" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("plan") }}<h2>Corners</h2></div>
+    <p class="muted">Click on the photo: <b>1</b> top-left, <b>2</b> top-right, <b>3</b> bottom-right, <b>4</b> bottom-left of the page your post goes on (the right-hand page of an open book). Use the paper's edge, under a thumb if needed.</p>
+    <p class="tiny" id="corner-status">Corners: <span id="corner-count">0</span> of 4</p>
+    <form method="post" action="/backgrounds/{{ plate_id }}/corners" class="row">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input type="hidden" name="quad" id="corner-quad">
+      <button class="primary" id="corner-save" disabled>{{ icon("check", "sm") }} Save and use</button>
+      <button type="button" class="ghost" id="corner-reset">{{ icon("refresh", "sm") }} Start again</button>
+    </form>
+  </div>
+</div>
+<script src="/static/corners.js?v={{ static_v }}" defer></script>
+{% endblock %}

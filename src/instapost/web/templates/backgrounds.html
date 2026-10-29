@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Backgrounds{% endblock %}
+{% block subtitle %}Book photos for reels: your page is printed onto the blank page, in the photo's own light{% endblock %}
+{% block actions %}
+  {% if unsplash %}<form method="post" action="/backgrounds/fetch" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+    <button>{{ icon("refresh", "sm") }} Find more on Unsplash</button></form>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("check", "sm") }} In use</div><div class="v">{{ counts.on }}</div>
+    <div class="d">{% if counts.on < 8 %}<span class="pill warn">aim for 8+</span>{% else %}<span class="pill ok">good</span>{% endif %}</div></div>
+  <div class="kpi"><div class="k">{{ icon("eye", "sm") }} Waiting for your check</div><div class="v">{{ counts.review }}</div><div class="d">approve or fix the corners</div></div>
+  <div class="kpi"><div class="k">{{ icon("x", "sm") }} Not used</div><div class="v">{{ counts.off }}</div><div class="d">unclear page, not blank, too small</div></div>
+  <div class="kpi"><div class="k">{{ icon("image", "sm") }} Reel look</div><div class="v" style="font-size:18px">{{ "Book photo" if style == "plate" else "Classic" }}</div>
+    <div class="d">REEL_STYLE={{ style }}{% if style == "plate" and not counts.on %} · classic until a photo is in use{% endif %}</div></div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("info") }}<h2>What makes a good photo</h2></div>
+    <ul class="checklist">
+      <li><span class="lvl ok">{{ icon("check") }}</span><div><b>An open book or notebook with a blank page</b><div class="tiny">The page must be empty: any print or lines show through.</div></div></li>
+      <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Upright (9:16), page about half to three-quarters of the width</b><div class="tiny">Held in hands or on a table; warm home or window light; a cup, diya or plant around it.</div></div></li>
+      <li><span class="lvl ok">{{ icon("check") }}</span><div><b>Your own photos are best</b><div class="tiny">Unique to your page and free. 10–15 photos are enough; the least recently used one goes first.</div></div></li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("plus") }}<h2>Add your own</h2></div>
+    <form method="post" action="/backgrounds/upload" enctype="multipart/form-data" class="stack" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <input type="file" name="files" multiple accept=".jpg,.jpeg,.png,.webp,image/*">
+      <button class="primary">{{ icon("plus", "sm") }} Upload photos</button>
+      <p class="tiny">Each photo is checked automatically; if the page outline is not certain it waits below for you.</p>
+    </form>
+    {% if not unsplash %}<p class="tiny">Unsplash is not connected (UNSPLASH_ACCESS_KEY), so only your own photos are used.</p>
+    {% elif last_fetch %}<p class="tiny">Last Unsplash search: {{ last_fetch[:16].replace("T", " ") }} UTC</p>{% endif %}
+  </div>
+</div>
+
+<div class="plates section">
+  {% for pid, e in rows %}
+  <div class="card plate-card {{ e.status }}">
+    <div class="pics">
+      <a href="/backgrounds/{{ pid }}/preview.jpg" target="_blank" rel="noopener"><img loading="lazy" src="/backgrounds/{{ pid }}/preview.jpg" alt="photo with the page outline"></a>
+      {% if e.quad and e.status != "off" %}<a href="/backgrounds/{{ pid }}/sample.jpg" target="_blank" rel="noopener"><img loading="lazy" src="/backgrounds/{{ pid }}/sample.jpg" alt="example post on this photo"></a>{% endif %}
+    </div>
+    <div class="row" style="margin-top:8px">
+      {% if e.status == "on" %}<span class="pill ok">in use</span>{% elif e.status == "review" %}<span class="pill warn">check it</span>{% else %}<span class="pill">not used</span>{% endif %}
+      <span class="tiny">{{ e.source }}{% if last_used[pid] %} · last used {{ last_used[pid][:10] }}{% endif %}</span>
+    </div>
+    {% if e.reason %}<p class="tiny">{{ e.reason }}</p>{% endif %}
+    {% if e.credit %}<p class="tiny">{{ e.credit.split(": ")[0] }}</p>{% endif %}
+    <div class="row" style="margin-top:6px">
+      {% if e.status != "on" and e.quad %}<form method="post" action="/backgrounds/{{ pid }}/status" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="status" value="on"><button class="sm primary">{{ icon("check", "sm") }} Use it</button></form>{% endif %}
+      <a class="btn sm" href="/backgrounds/{{ pid }}/edit">{{ icon("plan", "sm") }} Corners</a>
+      {% if e.status != "off" %}<form method="post" action="/backgrounds/{{ pid }}/status" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="status" value="off"><button class="sm ghost">{{ icon("x", "sm") }} Don't use</button></form>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card"><div class="empty">{{ icon("image") }}<div>No book photos yet. Upload your own{% if unsplash %} or find some on Unsplash{% endif %}.</div></div></div>
+  {% endfor %}
+</div>
+{% endblock %}

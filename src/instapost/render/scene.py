@@ -104,6 +104,8 @@ class Composition:
     layers: list[FrameLayer]
     hook_boxes: list[Box]
     text_boxes: list[Box]
+    page_box: Box | None = None  # where the page is in the frame (book photos)
+    style: str = "classic"       # "classic" (drawn book on a blurred scene) or "plate"
 
 
 def compose_reel(brand: Brand, scene: Image.Image, page: RenderedPage,

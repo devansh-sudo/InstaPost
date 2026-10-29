@@ -78,6 +78,18 @@ def alerts(s: Session) -> list[Notification]:
     if todo:
         out.append(Notification("warn", f"Setup: {len(todo)} step(s) left",
                                 ", ".join(todo[:3]), "/settings"))
+    if st.reel_style == "plate":
+        from instapost.studio import plates
+        data = plates.load_index()  # reads the index only; photos are checked elsewhere
+        review = sum(1 for e in data["plates"].values() if e.get("status") == "review")
+        in_use = len(plates.ready(data))
+        if review:
+            out.append(Notification("info", f"{review} book photo(s) waiting for your check",
+                                    "Approve them or set the page corners.", "/backgrounds"))
+        elif not in_use:
+            out.append(Notification("info", "No book photos yet",
+                                    "Reels use the classic look until you add some.",
+                                    "/backgrounds"))
     waiting = len(approvals.pending_review(s))
     if waiting:
         out.append(Notification("info", f"{waiting} post(s) waiting for your approval",

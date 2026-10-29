@@ -130,7 +130,6 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
         illus = provider.generate(
             images.illustration_prompt(draft.illustration_prompt, brand.illustration_style),
             portrait=False)
-        scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
         step("rendering")
         page_no = 108 if pillar == Pillar.SHIV_DHYAN else random.Random(seed).randint(12, 240)
         page = render_page(brand, PageContent(
@@ -138,7 +137,12 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
             body=draft.body, reference_label=fact.reference_label,
             reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
         ), seed)
-        comp = compose_reel(brand, scene, page, seed)
+        comp = None
+        if get_settings().reel_style == "plate":
+            comp = _on_book_photo(brand, page, seed, folder, search=not offline)
+        if comp is None:  # classic look: our drawn book over a blurred scene photo
+            scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
+            comp = compose_reel(brand, scene, page, seed)
         still, text_boxes = comp.still, comp.text_boxes
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
         motion = video.Motion(still, brand, duration, seed, comp)
@@ -179,6 +183,26 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
             checks.append(qa.check_vision(story, brand))
 
     return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
+
+
+def _on_book_photo(brand: Brand, page, seed: int, folder: Path, search: bool = True):
+    """The page printed onto a real book photo (render/plate.py); None if no photo fits."""
+    from instapost.render.plate import compose_on_plate
+    from instapost.studio import plates
+
+    for n, book in enumerate(plates.candidates(seed, search=search)):
+        if n >= 3:
+            break
+        comp = compose_on_plate(brand, book, page, seed)
+        if qa.unsafe_boxes(comp.text_boxes):
+            continue  # text would sit under Instagram's buttons on this photo
+        plates.mark_used(book.id)
+        (folder / "book_photo.txt").write_text(f"{book.id}\n{book.credit}\n", encoding="utf-8")
+        if book.credit:
+            with open(folder / "image_credits.txt", "a", encoding="utf-8") as f:
+                f.write(f"book photo: {book.credit}\n")
+        return comp
+    return None
 
 
 def _finish(folder: Path, item_id: str, fmt: Format, pillar: Pillar, draft: Draft,

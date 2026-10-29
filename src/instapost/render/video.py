@@ -48,12 +48,14 @@ def _glow(brand: Brand) -> np.ndarray:
     return np.exp(-d2)[..., None] * color[None, None, :] * 38
 
 
-def _dust(seed: int, duration: float):
+def _dust(seed: int, duration: float, page=None, count: int = 26):
     rng = np.random.default_rng(seed)
     specks = []
-    while len(specks) < 26:
+    if page is None:  # the classic layout's page
+        page = (PAGE_X - 160, PAGE_Y, PAGE_X + PAGE_W + 20, PAGE_Y + PAGE_H + 40)
+    while len(specks) < count:
         x, y = rng.uniform(0, FRAME_W), rng.uniform(0, FRAME_H)
-        inside_page = PAGE_X - 160 < x < PAGE_X + PAGE_W + 20 and PAGE_Y < y < PAGE_Y + PAGE_H + 40
+        inside_page = page[0] < x < page[2] and page[1] < y < page[3]
         if not inside_page:
             specks.append((x, y, rng.uniform(15, 60), int(rng.integers(1, 3)),
                            rng.uniform(0, 2 * math.pi), rng.uniform(0.25, 0.7)))
@@ -94,8 +96,13 @@ class Motion:
                  comp: Composition | None = None):
         self.still = still  # everything visible (cover)
         self.duration = duration
-        self.glow = _glow(brand)
-        self.specks = _dust(seed, duration)
+        photo = comp is not None and comp.style == "plate"
+        # A real photo has its own light: a softer glow and fewer specks, never on the page.
+        self.glow = _glow(brand) * (0.45 if photo else 1.0)
+        box = comp.page_box if photo and comp.page_box else None
+        self.specks = _dust(seed, duration,
+                            (box.x0 - 20, box.y0 - 20, box.x1 + 20, box.y1 + 20) if box else None,
+                            count=14 if photo else 26)
         self.sprite = _sprite()
         self.layers = comp.layers if comp else []
         self.base = np.asarray(comp.base if comp and comp.layers else still, np.float32)

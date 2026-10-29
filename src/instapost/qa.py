@@ -61,12 +61,17 @@ def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) ->
     ]
 
 
+def unsafe_boxes(text_boxes: list[Box]) -> list[Box]:
+    """Text lines that would sit outside the safe area at the strongest zoom of the reel."""
+    z = 1 + ZOOM_AMPLITUDE
+    return [b for b in (_zoomed(b, z) for b in text_boxes)
+            if b.y0 < SAFE_TOP or b.y1 > SAFE_BOTTOM or b.x0 < SAFE_SIDE
+            or b.x1 > FRAME_W - SAFE_SIDE or _overlaps(b, RIGHT_RAIL)]
+
+
 def check_reel(draft: Draft, motion: Motion, text_boxes: list[Box]) -> list[QACheck]:
     checks = []
-    z = 1 + ZOOM_AMPLITUDE
-    bad = [b for b in (_zoomed(b, z) for b in text_boxes)
-           if b.y0 < SAFE_TOP or b.y1 > SAFE_BOTTOM or b.x0 < SAFE_SIDE
-           or b.x1 > FRAME_W - SAFE_SIDE or _overlaps(b, RIGHT_RAIL)]
+    bad = unsafe_boxes(text_boxes)
     checks.append(QACheck(name="safe_area", passed=not bad,
                           detail=f"{len(bad)} text lines outside the safe area" if bad else ""))
 

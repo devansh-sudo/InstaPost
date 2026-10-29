@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # them in the Instagram app with a trending sound (the agent sends you the video, caption
     # and sound ideas at the slot time); Facebook and YouTube stay automatic either way.
     instagram_reels: str = "auto"
+    # Reel look: "plate" = our page printed onto a real photo of an open book (Backgrounds on
+    # the dashboard; falls back to "classic" when no photo fits), "classic" = drawn book page
+    # over a blurred scene photo.
+    reel_style: str = "plate"
     unsplash_access_key: str | None = None
 
     daily_budget_usd: float = 0.60

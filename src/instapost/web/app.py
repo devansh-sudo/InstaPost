@@ -607,6 +607,109 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                                   "story": st.story_writer_model
                                   if st.story_writer_model != st.writer_model else ""})
 
+    # Book photos for reels
+    def _plate_entry(plate_id: str) -> dict:
+        from instapost.studio import plates
+        entry = plates.load_index()["plates"].get(plate_id)
+        if entry is None:
+            raise HTTPException(404)
+        return entry
+
+    @app.get("/backgrounds", response_class=HTMLResponse)
+    def backgrounds(request: Request, who: str = Depends(user)):
+        from instapost.studio import plates
+        from instapost.studio.free_images import _load_usage
+        data = plates.sync_library()
+        usage = _load_usage()
+        rank = {"review": 0, "on": 1, "off": 2}
+        rows = sorted(data["plates"].items(),
+                      key=lambda kv: (rank.get(kv[1].get("status"), 3), kv[0]))
+        counts = {s: sum(1 for _, e in rows if e.get("status") == s) for s in rank}
+        return render(request, "backgrounds.html", rows=rows, counts=counts,
+                      last_used={k: usage.get(f"plate:{k}") for k, _ in rows},
+                      style=get_settings().reel_style,
+                      unsplash=bool(get_settings().unsplash_access_key),
+                      last_fetch=data["meta"].get("last_fetch"))
+
+    @app.get("/backgrounds/{plate_id}/{kind}.jpg")
+    def background_image(plate_id: str, kind: str, who: str = Depends(user)):
+        from instapost.studio import plates
+        entry = _plate_entry(plate_id)
+        if kind == "preview":
+            path = plates.preview(plate_id)
+        elif kind == "sample":
+            path = plates.sample(plate_id)
+        elif kind == "photo":
+            path = Path(entry["file"])
+        else:
+            raise HTTPException(404)
+        if path is None or not path.exists():
+            raise HTTPException(404)
+        return FileResponse(path, headers={"Cache-Control": "private, max-age=60"})
+
+    @app.post("/backgrounds/{plate_id}/status")
+    def background_status(request: Request, plate_id: str, status: str = Form(...),
+                          who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import plates
+        _plate_entry(plate_id)
+        if status not in ("on", "off"):
+            raise HTTPException(400)
+        plates.set_status(plate_id, status)
+        return back(request, "Saved." if status == "on" else "This photo will not be used.")
+
+    @app.get("/backgrounds/{plate_id}/edit", response_class=HTMLResponse)
+    def background_edit(request: Request, plate_id: str, who: str = Depends(user)):
+        return render(request, "background_edit.html", plate_id=plate_id,
+                      entry=_plate_entry(plate_id))
+
+    @app.post("/backgrounds/{plate_id}/corners")
+    def background_corners(request: Request, plate_id: str, quad: str = Form(...),
+                           who: str = Depends(user), _=Depends(csrf)):
+        import json as _json
+
+        from instapost.studio import plates
+        entry = _plate_entry(plate_id)
+        try:
+            pts = [[float(x), float(y)] for x, y in _json.loads(quad)]
+        except (ValueError, TypeError):
+            raise HTTPException(400, "four corners are needed") from None
+        w, h = entry.get("size", [10 ** 5, 10 ** 5])
+        if len(pts) != 4 or not all(0 <= x <= w and 0 <= y <= h for x, y in pts):
+            raise HTTPException(400, "four corners inside the photo are needed")
+        plates.set_status(plate_id, "on", pts)
+        return back(request, "Corners saved; the photo is in use.", "/backgrounds")
+
+    @app.post("/backgrounds/fetch")
+    def backgrounds_fetch(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        jobs.enqueue("fetch_plates", "find book photos on Unsplash", actor=f"web:{who}")
+        return back(request, "Searching Unsplash for book photos. New ones appear here in a "
+                    "minute.")
+
+    @app.post("/backgrounds/upload")
+    async def backgrounds_upload(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.render import music
+        from instapost.studio import plates
+        form = await request.form()
+        target = get_settings().state_dir / "plates" / "own"
+        target.mkdir(parents=True, exist_ok=True)
+        saved = 0
+        for f in form.getlist("files")[:20]:
+            name = music.safe_name(getattr(f, "filename", "") or "")
+            if Path(name).suffix.lower() not in plates.IMAGE_EXTENSIONS:
+                continue
+            data = await f.read(25 << 20)
+            try:
+                from io import BytesIO
+
+                from PIL import Image
+                Image.open(BytesIO(data)).verify()  # a real picture, not something else
+            except Exception:  # noqa: BLE001
+                continue
+            (target / name).write_bytes(data)
+            saved += 1
+        plates.sync_library()
+        return back(request, f"Added {saved} photo(s).", "/backgrounds")
+
     # Music library
     @app.get("/music", response_class=HTMLResponse)
     def music_page(request: Request, pillar: str = "", who: str = Depends(user)):

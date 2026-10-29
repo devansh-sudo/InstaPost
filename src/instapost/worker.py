@@ -169,6 +169,11 @@ class Worker:
                 elif job.kind == "weekly_review":
                     ws = date.fromisoformat(p["week_start"])
                     self.weekly(ws - timedelta(days=7), ws, actor=p.get("actor", "web"))
+                elif job.kind == "fetch_plates":
+                    from instapost.studio import plates
+                    added = plates.fetch_unsplash(force=True)
+                    self.notify(f"📚 Book photos: {added} new from Unsplash. Check them on the "
+                                "dashboard's Backgrounds page.")
                 elif job.kind == "weekly_video":
                     self.make_weekly_video(date.fromisoformat(p["end_day"]) if p.get("end_day")
                                            else None, p.get("actor", "web"))
