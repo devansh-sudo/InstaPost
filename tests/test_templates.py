@@ -82,11 +82,52 @@ def test_templates_page_toggle_and_create_select(web):  # noqa: F811
     _login(web)
     page = web.get("/templates")
     assert page.status_code == 200 and "Night page" in page.text
-    assert web.get("/templates/sample/night").status_code == 200
-    assert web.get("/templates/sample/nope").status_code == 404
+    for kind, look in (("reel", "night"), ("carousel", "dusk"), ("story", "mandala")):
+        assert web.get(f"/templates/sample/{kind}/{look}").status_code == 200, (kind, look)
+    assert web.get("/templates/sample/reel/nope").status_code == 404
+    assert web.get("/templates/sample/story/book_photo").status_code == 404
     token = _csrf(web, "/templates")
-    r = web.post("/templates", data={"token": token, "on": ["paper", "night"]},
+    r = web.post("/templates", data={"token": token, "on": ["reel:paper", "reel:night",
+                                                             "story:dusk"]},
                  follow_redirects=False)
     assert r.status_code == 303 and templates.enabled() == ["paper", "night"]
+    assert templates.enabled("story") == ["dusk"]
+    assert templates.enabled("carousel") == ["paper"]  # none ticked: one stays on
     create = web.get("/create").text
     assert 'name="template"' in create and "Night page" in create and "Drawn book" not in create
+    assert 'value="story:dusk"' in create
+
+
+def test_carousel_and_story_looks(monkeypatch):
+    from instapost.render import carousel
+
+    brand = load_brand()
+    draft = pipeline.load_sample(Format.CAROUSEL_SHLOK)
+    for look in templates.BY_KIND["carousel"]:
+        slides = carousel.render_slides(brand, draft, templates._sample_drawing(), None, 2,
+                                        look=look)
+        assert slides[0].size == (1080, 1350)
+    dark = np.asarray(carousel.render_slides(brand, draft, None, None, 2, look="night")[1])
+    assert dark.mean() < 90
+    for look in ("paper", "mandala", "night", "dusk"):
+        story = carousel.render_story(brand, None, "मन शांत हो तो सब साफ़ दिखता है।", 2,
+                                      look=look)
+        assert story.size == (1080, 1920)
+        # The lower part stays free for the poll sticker: no text there.
+        low = np.asarray(story.convert("L"), np.float32)[1250:1700, 200:880]
+        assert low.std() < 30, look
+
+
+def test_story_and_carousel_record_their_look(monkeypatch):
+    from instapost import approvals
+    from instapost.db import utcnow
+
+    monkeypatch.setattr(pipeline.history, "most_similar", lambda hook: (0.0, None))
+    r = pipeline.make(Format.STORY_LINE, Pillar.GITA, offline=True, template="dusk")
+    assert (r.folder / "template.txt").read_text().strip() == "dusk"
+    c = pipeline.make(Format.CAROUSEL_SHLOK, Pillar.GITA, offline=True)
+    assert (c.folder / "template.txt").read_text().strip() in templates.BY_KIND["carousel"]
+    with session() as s:
+        item = approvals.register(s, r, Format.STORY_LINE, "gita", utcnow().date())
+        assert item.features["template"] == "story/dusk"
+    assert templates.order(["paper", "night"], 1, kind="story")[-1] == "paper"

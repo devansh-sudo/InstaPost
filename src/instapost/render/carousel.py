@@ -1,12 +1,14 @@
-"""Carousel slides (1080x1350) and story frames (1080x1920) in the same paper style."""
+"""Carousel slides (1080x1350) and story frames (1080x1920) in the same paper style, on any
+of the looks in render.templates (paper, mandala, night, dusk; stories also "card")."""
 
 import random
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from instapost.brand import Brand
 from instapost.models import Draft
-from instapost.render.page import _highlight, hex_rgb, paper_texture
+from instapost.render.backdrops import backdrop, look_brand
+from instapost.render.page import _highlight, _place_illustration, hex_rgb, paper_texture
 from instapost.render.text import Box, draw_centered, font, text_width, wrap_balanced
 
 SLIDE_W, SLIDE_H = 1080, 1350
@@ -23,8 +25,9 @@ def _fit(brand: Brand, role: str, text: str, max_w: int, max_h: int, start: int,
     raise ValueError(f"text does not fit: {text[:40]}...")
 
 
-def _base(brand: Brand, w: int, h: int, seed: int, index: int, total: int) -> Image.Image:
-    img = paper_texture(brand, w, h, seed + index).convert("RGB")
+def _base(brand: Brand, w: int, h: int, seed: int, index: int, total: int,
+          look: str = "paper") -> Image.Image:
+    img = backdrop(brand, look, w, h, seed + index, centre=(0.5, 0.5))
     d = ImageDraw.Draw(img)
     ink_soft = hex_rgb(brand.colors.ink_soft)
     head = font(brand.font_path("header"), 34)
@@ -67,15 +70,17 @@ def _accent(d: ImageDraw.ImageDraw, brand: Brand, cx: float, y: float) -> None:
 
 
 def render_slides(brand: Brand, draft: Draft, illustration: Image.Image | None,
-                  reference: tuple[str, str] | None, seed: int = 0) -> list[Image.Image]:
+                  reference: tuple[str, str] | None, seed: int = 0,
+                  look: str = "paper") -> list[Image.Image]:
     """Cover with illustration + hook, then one slide per draft slide, verse slide if cited."""
+    brand = look_brand(brand, look)
     ink = hex_rgb(brand.colors.ink)
     ink_soft = hex_rgb(brand.colors.ink_soft)
     slides_spec = list(draft.slides)
     total = len(slides_spec) + 1 + (1 if reference else 0)
     out = []
 
-    cover = _base(brand, SLIDE_W, SLIDE_H, seed, 0, total)
+    cover = _base(brand, SLIDE_W, SLIDE_H, seed, 0, total, look)
     hook = "\n".join(draft.hook_lines)
     f, lines = _fit(brand, "hook", hook, 880, 380, 68)
     hook_h = len(lines) * f.size * 1.45
@@ -87,9 +92,9 @@ def render_slides(brand: Brand, draft: Draft, illustration: Image.Image | None,
         group = sketch.height + 60 + hook_h
         y_ill = top + (bottom - top - group) / 2
         x0 = (SLIDE_W - sketch.width) // 2
-        region = cover.crop((x0, int(y_ill), x0 + sketch.width, int(y_ill) + sketch.height))
-        cover.paste(ImageChops.multiply(region, Image.merge("RGB", (sketch,) * 3)),
-                    (x0, int(y_ill)))
+        # Printed in the ink colour, so it shows on dark looks too.
+        _place_illustration(cover, illustration, (x0, int(y_ill), x0 + sketch.width,
+                                                  int(y_ill) + sketch.height), ink)
         y = y_ill + sketch.height + 60
     else:
         y = top + (bottom - top - hook_h) / 2
@@ -108,7 +113,7 @@ def render_slides(brand: Brand, draft: Draft, illustration: Image.Image | None,
 
     if reference:
         label, verse = reference
-        s = _base(brand, SLIDE_W, SLIDE_H, seed, len(out), total)
+        s = _base(brand, SLIDE_W, SLIDE_H, seed, len(out), total, look)
         d = ImageDraw.Draw(s)
         vf, vlines = _fit(brand, "hook", verse.replace("। ", "।\n"), 900, 620, 58, gap=1.6)
         block = len(vlines) * vf.size * 1.6 + 30 + 40
@@ -121,7 +126,7 @@ def render_slides(brand: Brand, draft: Draft, illustration: Image.Image | None,
 
     for i, spec in enumerate(slides_spec):
         last = i == len(slides_spec) - 1
-        s = _base(brand, SLIDE_W, SLIDE_H, seed, len(out), total)
+        s = _base(brand, SLIDE_W, SLIDE_H, seed, len(out), total, look)
         d = ImageDraw.Draw(s)
         tf, tlines = _fit(brand, "hook", spec.title, 880, 240, 64)
         bf, blines = _fit(brand, "body", spec.text, 860, 600, 48)
@@ -138,9 +143,14 @@ def render_slides(brand: Brand, draft: Draft, illustration: Image.Image | None,
     return out
 
 
-def render_story(brand: Brand, scene: Image.Image, line: str, seed: int = 0) -> Image.Image:
-    """Story frame: blurred scene, a paper card with the highlighted line, and the lower part
-    left free for a poll sticker (stickers cannot be added through the API)."""
+def render_story(brand: Brand, scene: Image.Image | None, line: str, seed: int = 0,
+                 look: str = "card") -> Image.Image:
+    """Story frame with the highlighted line; the lower part is left free for a poll sticker
+    (stickers cannot be added through the API). "card": a paper card on the blurred scene
+    photo; the other looks put the line straight onto a full-screen background."""
+    if look != "card" or scene is None:
+        return _story_full(look_brand(brand, look), line, seed,
+                           "paper" if look == "card" else look)
     bg = ImageOps.fit(scene.convert("RGB"), (STORY_W, STORY_H)).filter(ImageFilter.GaussianBlur(9))
     card_w, card_h = 940, 780
     card = paper_texture(brand, card_w, card_h, seed).convert("RGB")
@@ -154,7 +164,7 @@ def render_story(brand: Brand, scene: Image.Image, line: str, seed: int = 0) -> 
     d = ImageDraw.Draw(card)
     foot = font(brand.font_path("footer"), 26)
     draw_centered(d, [brand.printed_handle], foot, card_w / 2, card_h - 70, ink_soft)
-    x, y = (STORY_W - card_w) // 2, 330  # the area below the card is for the poll sticker
+    x, y = (STORY_W - card_w) // 2, STORY_CARD_Y
     shadow = Image.new("L", bg.size, 0)
     ImageDraw.Draw(shadow).rounded_rectangle([x, y + 24, x + card_w, y + card_h + 24],
                                              radius=18, fill=160)
@@ -163,3 +173,24 @@ def render_story(brand: Brand, scene: Image.Image, line: str, seed: int = 0) -> 
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, card_w, card_h], radius=18, fill=255)
     bg.paste(card, (x, y), mask)
     return bg
+
+
+STORY_CARD_Y = 330           # the text sits between here...
+STORY_TEXT_BOTTOM = 1110     # ...and here; below is for the poll sticker
+
+
+def _story_full(brand: Brand, line: str, seed: int, look: str) -> Image.Image:
+    img = backdrop(brand, look, STORY_W, STORY_H, seed, centre=(0.5, 0.37))
+    d = ImageDraw.Draw(img)
+    ink_soft = hex_rgb(brand.colors.ink_soft)
+    head = font(brand.font_path("header"), 36)
+    draw_centered(d, [brand.header_text], head, STORY_W / 2, STORY_CARD_Y, ink_soft)
+    top, bottom = STORY_CARD_Y + 90, STORY_TEXT_BOTTOM - 70
+    f, lines = _fit(brand, "hook", line, STORY_W - 220, bottom - top, 76)
+    block = len(lines) * f.size * 1.45
+    img, end = _highlighted(img, brand, lines, f, STORY_W / 2, top + (bottom - top - block) / 2,
+                            seed)
+    d = ImageDraw.Draw(img)
+    foot = font(brand.font_path("footer"), 28)
+    draw_centered(d, [brand.printed_handle], foot, STORY_W / 2, STORY_TEXT_BOTTOM - 20, ink_soft)
+    return img

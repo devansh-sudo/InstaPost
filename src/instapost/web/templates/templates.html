@@ -1,30 +1,34 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon %}
 {% block title %}Templates{% endblock %}
-{% block subtitle %}Reel looks · posts rotate between the ones switched on, the best performers come up more often{% endblock %}
+{% block subtitle %}Looks for reels, carousels and stories · posts rotate between the ones switched on, the best performers come up more often{% endblock %}
 {% block content %}
 <form method="post" action="/templates">
   <input type="hidden" name="token" value="{{ csrf }}">
   <div class="card section">
     <div class="card-head">{{ icon("info") }}<h2>How the looks are chosen</h2></div>
-    <p class="muted">Each new reel takes the switched-on look that has done best so far, with the last few used going to the back, so the feed never shows the same look many times in a row. On Create you can pick one look, and on any reel "Change look" re-makes it in another look with the same text (no new writing cost). "Full page" and "Night page" need no photo, so they are free.</p>
+    <p class="muted">Each new post takes the switched-on look that has done best so far, with the last few used going to the back, so the feed never shows the same look many times in a row. On Create you can pick one look, and on any post "Change look" re-makes it in another look with the same text (no new writing cost). Looks marked "free" use backgrounds drawn in code (paper, mandala, night lights, dusk sky): they cost nothing and shift a little with every post.</p>
   </div>
+  {% for kind, title, list, on in kinds %}
+  <h2 class="section">{{ title }}</h2>
   <div class="drawings section">
-    {% for t in looks %}
-    {% set sc = scores.get(t.id) %}
+    {% for t in list %}
+    {% set sc = scores.get(key(kind, t.id)) %}
+    {% set used = usage.get("template:" ~ key(kind, t.id)) %}
     <label class="card drawing-card look-card {{ '' if t.id in on else 'off' }}">
-      <img loading="lazy" src="/templates/sample/{{ t.id }}" alt="{{ t.name }} example">
-      <div class="row" style="margin-top:8px"><input type="checkbox" name="on" value="{{ t.id }}" {{ 'checked' if t.id in on }}>
+      <img loading="lazy" src="/templates/sample/{{ kind }}/{{ t.id }}" alt="{{ t.name }} example" class="{{ 'slide' if kind == 'carousel' }}">
+      <div class="row" style="margin-top:8px"><input type="checkbox" name="on" value="{{ kind }}:{{ t.id }}" {{ 'checked' if t.id in on }}>
         <b>{{ t.name }}</b>{% if t.needs == "photo" %}<span class="pill">needs book photos</span>{% elif t.needs == "scene" %}<span class="pill">uses the image API</span>{% else %}<span class="pill ok">free</span>{% endif %}</div>
       <div class="tiny">{{ t.about }}</div>
-      {% if t.id == "book_photo" and plate_style and not ready_photos %}<div class="tiny"><b>No approved book photo yet</b> (example shows the drawn book). Approve some on <a href="/backgrounds">Backgrounds</a>; until then this look is skipped.</div>{% endif %}
-      {% if t.id == "book_photo" and not plate_style %}<div class="tiny">Off on this server: REEL_STYLE is not "plate".</div>{% endif %}
+      {% if kind == "reel" and t.id == "book_photo" and plate_style and not ready_photos %}<div class="tiny"><b>No approved book photo yet</b> (example shows the drawn book). Approve some on <a href="/backgrounds">Backgrounds</a>; until then this look is skipped.</div>{% endif %}
+      {% if kind == "reel" and t.id == "book_photo" and not plate_style %}<div class="tiny">Off on this server: REEL_STYLE is not "plate".</div>{% endif %}
       <div class="tiny" style="margin-top:4px">
         {% if sc %}score {{ sc.mean }} ({{ sc.low }}–{{ sc.high }}) from {{ sc.posts }} post{{ 's' if sc.posts != 1 }}{% else %}no scored posts yet{% endif %}
-        · {% if last_used[t.id] %}last used {{ last_used[t.id][:10] }}{% else %}not used yet{% endif %}</div>
+        · {% if used %}last used {{ used[:10] }}{% else %}not used yet{% endif %}</div>
     </label>
     {% endfor %}
   </div>
-  <div class="row section"><button class="primary">{{ icon("check", "sm") }} Save</button><span class="tiny">at least one look stays on</span></div>
+  {% endfor %}
+  <div class="row section"><button class="primary">{{ icon("check", "sm") }} Save</button><span class="tiny">at least one look stays on for each kind</span></div>
 </form>
 {% endblock %}

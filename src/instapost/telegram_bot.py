@@ -114,9 +114,9 @@ class Bot:
             [{"text": "✅ Approve", "callback_data": f"ap:{item.id}"},
              {"text": "🚀 Post now", "callback_data": f"pn:{item.id}"}],
             *([[{"text": "📲 Trending song (I post it on Instagram)",
-                 "callback_data": f"ts:{item.id}"}],
-               [{"text": "🎨 Other look (same text)", "callback_data": f"rt:{item.id}"}]]
-              if item.format == "reel_book_pov" else []),
+                 "callback_data": f"ts:{item.id}"}]] if item.format == "reel_book_pov" else []),
+            *([[{"text": "🎨 Other look (same text)", "callback_data": f"rt:{item.id}"}]]
+              if item.format != approvals.WEEKLY_VIDEO else []),
             [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},

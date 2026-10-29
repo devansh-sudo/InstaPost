@@ -356,6 +356,7 @@ audio.player { width: 240px; height: 34px; display: block; }
 .drawing-card img { width: 100%; aspect-ratio: 7 / 5; object-fit: contain; background: #f3eadb; border-radius: 8px; display: block; }
 .drawing-card.off { opacity: .55; }
 .look-card img { aspect-ratio: 9 / 16; object-fit: cover; }
+.look-card img.slide { aspect-ratio: 4 / 5; }
 
 @media (max-width: 900px) {
   .month { grid-template-columns: 1fr; }

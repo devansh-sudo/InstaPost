@@ -66,7 +66,7 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
         fact_check=result.fact.verdict.value, for_date=for_date.isoformat(),
         qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
         duration_s=duration, preferred_slot=preferred_slot,
-        features=_features(result.folder, draft, pillar, duration, scene),
+        features=_features(result.folder, draft, pillar, duration, scene, fmt),
         music=(result.folder / "music.txt").read_text(encoding="utf-8").strip()
         if (result.folder / "music.txt").exists() else None,
     )
@@ -79,7 +79,7 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
     return item
 
 
-def _features(folder, draft: dict, pillar: str, duration, scene) -> dict:
+def _features(folder, draft: dict, pillar: str, duration, scene, fmt=None) -> dict:
     """What the learners track, plus the book photo, drawing and look this post used."""
     feats = item_features(draft, pillar, duration, scene)
     for kind, name in (("photo", "book_photo.txt"), ("drawing", "drawing.txt"),
@@ -89,6 +89,9 @@ def _features(folder, draft: dict, pillar: str, duration, scene) -> dict:
             first = path.read_text(encoding="utf-8").split("\n", 1)[0].strip()
             if first and first != "fallback":
                 feats[kind] = first
+    if "template" in feats and fmt is not None:  # carousel and story looks: "carousel/night"
+        from instapost.render import templates
+        feats["template"] = templates.key(templates.kind_of(fmt), feats["template"])
     return feats
 
 

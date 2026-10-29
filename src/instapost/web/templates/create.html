@@ -14,8 +14,8 @@
         <label class="field">Pillar
           <select name="pillar">{% for p in pillars %}<option value="{{ p.value }}">{{ pillar_labels.get(p.value, p.value) }}</option>{% endfor %}</select></label>
         <label class="field">For date <input type="date" name="for_date" value="{{ today }}"></label>
-        <label class="field">Reel look
-          <select name="template"><option value="">Auto (rotate, best first)</option>{% for t in looks %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></label>
+        <label class="field">Look
+          <select name="template"><option value="">Auto (rotate, best first)</option>{% for kind, title, list in looks %}<optgroup label="{{ title }}">{% for t in list %}<option value="{{ kind }}:{{ t.id }}">{{ t.name }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
       </div>
       <label class="field" style="margin-top:12px">Topic (optional)
         <input name="topic" placeholder="e.g. गुस्सा, धैर्य, माँ, नई शुरुआत"></label>

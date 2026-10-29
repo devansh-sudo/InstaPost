@@ -126,10 +126,13 @@ def _layer_from(draw_fn, size: tuple[int, int], order: int) -> RevealLayer | Non
 
 
 def render_page(brand: Brand, c: PageContent, seed: int = 0,
-                layout: Layout | None = None) -> RenderedPage:
+                layout: Layout | None = None,
+                paper: Image.Image | None = None) -> RenderedPage:
+    """`paper` replaces the paper texture (a background from render.backdrops)."""
     L = layout or Layout()
     rng = random.Random(seed)
-    page = paper_texture(brand, L.w, L.h, seed, L.spine).convert("RGB")
+    page = (paper.convert("RGB").copy() if paper is not None
+            else paper_texture(brand, L.w, L.h, seed, L.spine).convert("RGB"))
     ink = hex_rgb(brand.colors.ink)
     ink_soft = hex_rgb(brand.colors.ink_soft)
     cx = L.w / 2

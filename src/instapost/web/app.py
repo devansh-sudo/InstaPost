@@ -311,7 +311,10 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         today = load_schedule().local_now().date()
         return render(request, "create.html", formats=list(Format), pillars=list(Pillar),
                       pillar_labels=PILLAR_LABEL, today=today, tomorrow=today + timedelta(days=1),
-                      sched=load_schedule(), looks=[looks.TEMPLATES[t] for t in looks.enabled()])
+                      sched=load_schedule(),
+                      looks=[(kind, looks.KIND_NAMES[kind],
+                              [looks.BY_KIND[kind][t] for t in looks.enabled(kind)])
+                             for kind in looks.BY_KIND])
 
     @app.get("/notifications", response_class=HTMLResponse)
     def notifications_page(request: Request, who: str = Depends(user)):
@@ -350,11 +353,10 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     def make(request: Request, format: str = Form(...), pillar: str = Form(...),
              for_date: str = Form(...), topic: str = Form(""), template: str = Form(""),
              who: str = Depends(user), _=Depends(csrf)):
-        from instapost.render import templates as looks
         Format(format), Pillar(pillar), date.fromisoformat(for_date)  # validate
         jobs.enqueue("make", f"{format} / {pillar} for {for_date}", format=format,
                      pillar=pillar, for_date=for_date, topic=topic.strip() or None,
-                     template=template if template in looks.TEMPLATES else None,
+                     template=_look_for(format, template),
                      actor=f"web:{who}")
         return back(request, "Queued. The worker starts within 30 seconds; "
                     "the result appears in the approval queue and on Telegram.")
@@ -436,11 +438,17 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     def retemplate(request: Request, item_id: str, template: str = Form(""),
                    who: str = Depends(user), _=Depends(csrf)):
         from instapost.render import templates as looks
-        look = template if template in looks.TEMPLATES else None
+        with session() as s:
+            item = s.get(Item, item_id)
+            if item is None or item.format == approvals.WEEKLY_VIDEO:
+                raise HTTPException(404)
+            fmt = item.format
+        look = _look_for(fmt, template)
         jobs.enqueue("retemplate", f"new look for {item_id}", item_id=item_id, template=look,
                      actor=f"web:{who}")
-        return back(request, f"Making it again in the {looks.label(look) or 'next'} look "
-                    "(same text, no new writing cost). The new version replaces this one.")
+        name = looks.label(look, looks.kind_of(fmt)) or "next"
+        return back(request, f"Making it again in the {name} look (same text, no new writing "
+                    "cost). The new version replaces this one.")
 
     @app.post("/items/{item_id}/reschedule")
     def reschedule(request: Request, item_id: str, when: str = Form(...),
@@ -494,7 +502,8 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                           draft=read("draft.json"), pubs=list(item.publications),
                           history=history, now_local=load_schedule().local_now(),
                           cost=costs.item_cost(item_id), look=_look(folder),
-                          looks=looks.TEMPLATES)
+                          looks=looks.BY_KIND[looks.kind_of(item.format)]
+                          if item.format != approvals.WEEKLY_VIDEO else {})
 
     @app.get("/calendar", response_class=HTMLResponse)
     def calendar(request: Request, days: int = 14, start: str = "",
@@ -622,6 +631,13 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                                   "story": st.story_writer_model
                                   if st.story_writer_model != st.writer_model else ""})
 
+    def _look_for(fmt: str, value: str) -> str | None:
+        """A look id from a form ("reel:night", or a bare id) if it fits this format."""
+        from instapost.render import templates as looks
+        kind, _, look = value.rpartition(":")
+        own = looks.kind_of(fmt)
+        return look if (not kind or kind == own) and look in looks.BY_KIND[own] else None
+
     def _look(folder: Path) -> str:
         f = folder / "template.txt"
         return f.read_text(encoding="utf-8").strip() if f.exists() else ""
@@ -637,28 +653,33 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
             rows = queries.post_rows(s, since=utcnow() - timedelta(days=assets.HISTORY_DAYS))
         scores = {r["option"]: r for r in assets.table("template", rows=rows)}
         usage = _load_usage()
-        return render(request, "templates.html", looks=list(looks.TEMPLATES.values()),
-                      on=set(looks.enabled()), scores=scores,
-                      last_used={t: usage.get(f"template:{t}") for t in looks.TEMPLATES},
-                      plate_style=get_settings().reel_style == "plate",
+        kinds = [(kind, looks.KIND_NAMES[kind], list(by_id.values()), set(looks.enabled(kind)))
+                 for kind, by_id in looks.BY_KIND.items()]
+        return render(request, "templates.html", kinds=kinds, scores=scores, usage=usage,
+                      key=looks.key, plate_style=get_settings().reel_style == "plate",
                       ready_photos=len(plates.ready()))
 
-    @app.get("/templates/sample/{template_id}")
-    def template_sample(template_id: str, who: str = Depends(user)):
+    @app.get("/templates/sample/{kind}/{template_id}")
+    def template_sample(kind: str, template_id: str, who: str = Depends(user)):
         from instapost.render import templates as looks
-        if template_id not in looks.TEMPLATES:
+        if template_id not in looks.BY_KIND.get(kind, {}):
             raise HTTPException(404)
-        return FileResponse(looks.sample(template_id),
+        return FileResponse(looks.sample(template_id, kind),
                             headers={"Cache-Control": "private, max-age=3600"})
 
     @app.post("/templates")
     async def templates_save(request: Request, who: str = Depends(user), _=Depends(csrf)):
         from instapost.render import templates as looks
         form = await request.form()
+        chosen = [str(v).partition(":") for v in form.getlist("on")]
+        saved = []
         with session() as s:
-            ids = looks.set_enabled(s, [str(v) for v in form.getlist("on")], f"web:{who}")
-        return back(request, "Saved. Reels now rotate between: "
-                    + ", ".join(looks.label(t) for t in ids) + ".", "/templates")
+            for kind in looks.BY_KIND:
+                ids = looks.set_enabled(s, [t for k, _, t in chosen if k == kind], f"web:{who}",
+                                        kind)
+                saved.append(f"{looks.KIND_NAMES[kind]}: "
+                             + ", ".join(looks.label(t, kind) for t in ids))
+        return back(request, "Saved. " + " · ".join(saved), "/templates")
 
     # Ink drawings for the page
     def _drawing(drawing_id: str):
@@ -1073,7 +1094,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                 sections.append((fmt.value, dims))
             from instapost.learn import assets
             assets_charts = []
-            for kind, title in (("template", "Reel looks"), ("photo", "Book photos"),
+            for kind, title in (("template", "Looks"), ("photo", "Book photos"),
                                 ("drawing", "Drawings")):
                 rows_k = assets.table(kind, rows=rows)
                 assets_charts.append((title, len(rows_k), charts.interval_chart(

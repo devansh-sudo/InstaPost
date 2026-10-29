@@ -66,8 +66,8 @@ def make_one(fmt: Format, pillar: Pillar, for_date: date, topic: str | None,
 
 
 def retemplate(item_id: str, template: str | None, actor: str) -> str:
-    """The same reel text in another look: no new writing is paid for. The old item is
-    rejected ("new look") and the new one takes its date and slot."""
+    """The same text in another look (reel, carousel or story): no new writing is paid for.
+    The old item is rejected ("new look") and the new one takes its date and slot."""
     from pathlib import Path
 
     from instapost.models import Draft
@@ -77,21 +77,23 @@ def retemplate(item_id: str, template: str | None, actor: str) -> str:
         item = s.get(Item, item_id)
         if item is None:
             raise approvals.QueueError(f"unknown item {item_id}")
-        if item.format != Format.REEL_BOOK_POV.value:
-            raise approvals.QueueError("only reels have looks")
+        if item.format not in {f.value for f in Format}:
+            raise approvals.QueueError("this item has no looks")
+        kind = templates.kind_of(item.format)
         folder = Path(item.folder)
         draft = Draft.model_validate_json((folder / "draft.json").read_text(encoding="utf-8"))
         if template is None:  # "another look": anything but the current one
             current = (folder / "template.txt").read_text(encoding="utf-8").strip() \
                 if (folder / "template.txt").exists() else ""
-            others = [t for t in templates.order(templates.enabled(), sum(map(ord, item_id)))
-                      if t != current]
+            others = [t for t in templates.order(templates.enabled(kind), sum(map(ord, item_id)),
+                                                 kind=kind) if t != current]
             template = others[0] if others else None
         fmt, pillar = Format(item.format), Pillar(item.pillar)
         for_date, slot = date.fromisoformat(item.for_date), item.preferred_slot
         entry = s.scalars(select(PlanEntry).where(PlanEntry.item_id == item_id)).first()
         if item.status != ItemStatus.REJECTED:
-            approvals.reject(s, item, actor, reason=f"new look: {templates.label(template)}")
+            approvals.reject(s, item, actor,
+                             reason=f"new look: {templates.label(template, kind)}")
     history.remove(item_id)  # the same hook again is not a duplicate of itself
     new_id = _make_and_register(fmt, pillar, for_date, actor, draft.topic, template=template,
                                 draft=draft, slot=slot)

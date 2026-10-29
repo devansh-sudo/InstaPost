@@ -26,10 +26,10 @@
           <button class="{{ cls }}">{{ icon(ico, "sm") }} {{ label }}</button></form>
         {% endfor %}
       </div>
-      {% if item.format == 'reel_book_pov' and item.status in ('needs_review', 'approved', 'blocked') %}
+      {% if looks and item.status in ('needs_review', 'approved', 'blocked') %}
       <form method="post" action="/items/{{ item.id }}/retemplate" class="row" style="margin-top:10px">
         <input type="hidden" name="token" value="{{ csrf }}">
-        <span class="tiny">Look: <b>{{ looks[look].name if look in looks else "Drawn book" }}</b></span>
+        <span class="tiny">Look: <b>{{ looks[look].name if look in looks else "original" }}</b></span>
         <select name="template"><option value="">Another look (auto)</option>{% for t in looks.values() if t.id != look %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
         <button class="ghost">{{ icon("star", "sm") }} Change look</button><span class="tiny">same text, no writing cost</span>
       </form>

@@ -160,7 +160,8 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
 
     elif fmt == Format.CAROUSEL_SHLOK:
         illus = _drawing(draft, pillar, brand, provider, folder, offline)
-        slides = carousel.render_slides(brand, draft, illus, reference, seed)
+        look = _pick_look(fmt, seed, template, folder)
+        slides = carousel.render_slides(brand, draft, illus, reference, seed, look=look)
         for i, slide in enumerate(slides, 1):
             slide.save(folder / f"slide_{i:02d}.jpg", quality=92)
         checks.append(qa.QACheck(name="slide_count", passed=3 <= len(slides) <= 10,
@@ -170,8 +171,10 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
 
     elif fmt == Format.STORY_LINE:
         line = draft.story_line or draft.hook_lines[0]
-        scene = provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
-        story = carousel.render_story(brand, scene, line, seed)
+        look = _pick_look(fmt, seed, template, folder)
+        scene = (provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
+                 if look == "card" else None)  # the other looks need no photo
+        story = carousel.render_story(brand, scene, line, seed, look=look)
         story.save(folder / "story.jpg", quality=92)
         poll = "\n".join([draft.poll_question or "", *draft.poll_options])
         (folder / "story_poll.txt").write_text(
@@ -197,6 +200,17 @@ def _drawing(draft: Draft, pillar: Pillar, brand: Brand, provider, folder: Path,
                                         generate=False if offline else None)
     (folder / "drawing.txt").write_text(source + "\n", encoding="utf-8")
     return img
+
+
+def _pick_look(fmt: Format, seed: int, template: str | None, folder: Path) -> str:
+    """The carousel or story look for this post (rotating, see render.templates)."""
+    from instapost.render import templates
+
+    kind = templates.kind_of(fmt)
+    look = templates.order(templates.enabled(kind), seed, template, kind)[0]
+    templates.mark_used(look, kind)
+    (folder / "template.txt").write_text(look + "\n", encoding="utf-8")
+    return look
 
 
 def _reel_look(brand: Brand, content: PageContent, draft: Draft, seed: int, folder: Path,
