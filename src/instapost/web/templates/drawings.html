@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Drawings{% endblock %}
+{% block subtitle %}Ink drawings for the page, all in one engraving style · the best match for each post, least recently used first{% endblock %}
+{% block content %}
+{% set counts = {"starter": 0, "own": 0, "made": 0, "library": 0} %}
+{% for d in items if d.id not in off %}{% set _ = counts.update({d.source: counts.get(d.source, 0) + 1}) %}{% endfor %}
+<div class="kpis">
+  <div class="kpi"><div class="k">{{ icon("pen", "sm") }} In use</div><div class="v">{{ items|length - off|length }}</div><div class="d">{{ off|length }} switched off</div></div>
+  <div class="kpi"><div class="k">Starter set</div><div class="v">{{ counts.starter }}</div><div class="d">symbols drawn in code</div></div>
+  <div class="kpi"><div class="k">Yours</div><div class="v">{{ counts.own + counts.library }}</div><div class="d">uploads and data/drawings</div></div>
+  <div class="kpi"><div class="k">Made by Gemini</div><div class="v">{{ counts.made }}</div>
+    <div class="d">{% if not gemini %}no Gemini key{% elif not generate %}off (DRAWINGS_GENERATE){% else %}~$0.04 each, kept for reuse{% endif %}</div></div>
+  <div class="kpi"><div class="k">Prompt pack</div><div class="v">{{ pack|length - missing }}<small> / {{ pack|length }}</small></div><div class="d">subjects with a drawing</div></div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("info") }}<h2>Make more drawings (free)</h2></div>
+    <p class="muted">Open the Gemini or ChatGPT app, paste the style below after any subject from the pack, save the picture and upload it here with its tags. Every drawing is cleaned to the same black-ink look before use; photos are refused.</p>
+    <pre class="caption" style="white-space:pre-wrap">{{ style }}</pre>
+    <details style="margin-top:10px"><summary class="muted">The prompt pack ({{ missing }} without a drawing yet)</summary>
+      <div class="list">{% for subject, tags, have in pack %}
+        <div class="li"><div class="grow"><div class="t">{{ subject }}</div><div class="s">tags: {{ tags|join(", ") }}</div></div>
+          {% if have %}<span class="pill ok">have it</span>{% else %}<span class="pill">missing</span>{% endif %}</div>
+      {% endfor %}</div>
+    </details>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("plus") }}<h2>Upload drawings</h2></div>
+      <form method="post" action="/drawings/upload" enctype="multipart/form-data" class="stack" style="gap:10px">
+        <input type="hidden" name="token" value="{{ csrf }}">
+        <input type="file" name="files" multiple accept=".png,.jpg,.jpeg,.webp,image/*">
+        <label>Tags (what is in it) <input name="tags" placeholder="e.g. shiva meditation himalaya"></label>
+        <button class="primary">{{ icon("plus", "sm") }} Upload</button>
+      </form>
+    </div>
+    {% if gemini %}
+    <div class="card">
+      <div class="card-head">{{ icon("refresh") }}<h2>Make the pack with Gemini</h2></div>
+      <p class="tiny">One-time, about $0.04 each, inside your budget. Needs billing on the Gemini key.</p>
+      <form method="post" action="/drawings/pack" class="row">
+        <input type="hidden" name="token" value="{{ csrf }}">
+        <select name="limit">{% for n in (5, 10, 20, 32) %}<option value="{{ n }}">{{ n }} drawings (~${{ "%.2f"|format(n * 0.039) }})</option>{% endfor %}</select>
+        <button>{{ icon("pen", "sm") }} Make</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="drawings section">
+  {% for d in items %}
+  <div class="card drawing-card {{ 'off' if d.id in off }}">
+    <img loading="lazy" src="/drawings/preview?id={{ d.id|urlencode }}" alt="{{ d.id }}">
+    <div class="t" style="margin-top:8px"><b>{{ d.path.stem }}</b> <span class="pill">{{ d.source }}</span></div>
+    <div class="tiny">{{ d.tags|sort|join(", ") }}</div>
+    <div class="row" style="margin-top:6px">
+      <span class="tiny">{% if last_used[d.id] %}last used {{ last_used[d.id][:10] }}{% else %}not used yet{% endif %}</span>
+      <form method="post" action="/drawings/toggle" class="inline" style="margin-left:auto"><input type="hidden" name="token" value="{{ csrf }}">
+        <input type="hidden" name="id" value="{{ d.id }}"><input type="hidden" name="on" value="{{ '1' if d.id in off else '0' }}">
+        <button class="sm {{ '' if d.id in off else 'ghost' }}">{{ "Use it" if d.id in off else "Don't use" }}</button></form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

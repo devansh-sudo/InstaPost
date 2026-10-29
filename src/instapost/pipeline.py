@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from PIL import Image
+
 from instapost import budget, history, qa
 from instapost.brand import Brand, load_brand
 from instapost.config import IMAGE_KEYS, get_settings, require
@@ -127,9 +129,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
                  if fact.reference_label and fact.reference_text else None)
 
     if fmt == Format.REEL_BOOK_POV:
-        illus = provider.generate(
-            images.illustration_prompt(draft.illustration_prompt, brand.illustration_style),
-            portrait=False)
+        illus = _drawing(draft, pillar, brand, provider, folder, offline)
         step("rendering")
         page_no = 108 if pillar == Pillar.SHIV_DHYAN else random.Random(seed).randint(12, 240)
         page = render_page(brand, PageContent(
@@ -159,9 +159,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
                 (folder / "music.txt").write_text(music.rel(track) + "\n", encoding="utf-8")
 
     elif fmt == Format.CAROUSEL_SHLOK:
-        illus = provider.generate(
-            images.illustration_prompt(draft.illustration_prompt, brand.illustration_style),
-            portrait=False)
+        illus = _drawing(draft, pillar, brand, provider, folder, offline)
         slides = carousel.render_slides(brand, draft, illus, reference, seed)
         for i, slide in enumerate(slides, 1):
             slide.save(folder / f"slide_{i:02d}.jpg", quality=92)
@@ -183,6 +181,22 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
             checks.append(qa.check_vision(story, brand))
 
     return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
+
+
+def _drawing(draft: Draft, pillar: Pillar, brand: Brand, provider, folder: Path,
+             offline: bool) -> Image.Image:
+    """The page's ink drawing: library match, new Gemini drawing, pillar drawing, old way."""
+    from instapost.studio import drawings
+
+    def old_way() -> Image.Image:
+        return provider.generate(
+            images.illustration_prompt(draft.illustration_prompt, brand.illustration_style),
+            portrait=False)
+
+    img, source = drawings.illustration(draft.illustration_prompt, pillar, fallback=old_way,
+                                        generate=False if offline else None)
+    (folder / "drawing.txt").write_text(source + "\n", encoding="utf-8")
+    return img
 
 
 def _on_book_photo(brand: Brand, page, seed: int, folder: Path, search: bool = True):

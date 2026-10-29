@@ -351,6 +351,11 @@ audio.player { width: 240px; height: 34px; display: block; }
 .corner-dot { fill: #ff6a2b; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .corner-num { fill: #fff; font-weight: 700; paint-order: stroke; stroke: #000; stroke-width: 3; vector-effect: non-scaling-stroke; }
 
+/* Drawings library */
+.drawings { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.drawing-card img { width: 100%; aspect-ratio: 7 / 5; object-fit: contain; background: #f3eadb; border-radius: 8px; display: block; }
+.drawing-card.off { opacity: .55; }
+
 @media (max-width: 900px) {
   .month { grid-template-columns: 1fr; }
   .month .dow, .month .day.blank { display: none; }

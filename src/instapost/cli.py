@@ -182,6 +182,37 @@ def _weekly_video(args) -> int:
     return 0
 
 
+def _drawings(args) -> int:
+    from instapost.config import get_settings
+    from instapost.studio import drawings
+
+    if args.action == "starter":
+        from instapost.render import motifs
+        folder = get_settings().data_dir / "drawings" / "starter"
+        paths = motifs.write_starters(folder)
+        print(f"Wrote {len(paths)} starter drawings to {folder}")
+        return 0
+    if args.action == "list":
+        for d in drawings.library(include_disabled=True):
+            print(f"{d.id:40} {d.source:8} {', '.join(sorted(d.tags))}")
+        return 0
+    # pack: make the missing prompt-pack drawings with Gemini, once.
+    todo = [s for s, _, have in drawings.pack_status() if not have]
+    if not todo:
+        print("Every prompt-pack drawing exists already.")
+        return 0
+    n = min(len(todo), args.limit)
+    if not args.yes:
+        print(f"{n} drawings to make, about ${n * 0.039:.2f} with Gemini. "
+              "Run again with --yes to make them.")
+        return 0
+    made, problems = drawings.make_pack(args.limit)
+    for p in problems:
+        print("  " + p)
+    print(f"Made {made} drawings.")
+    return 0
+
+
 def _plan_month(args) -> int:
     from instapost.db import session
     from instapost.learn import planner
@@ -341,6 +372,11 @@ def main(argv: list[str] | None = None) -> int:
                          "Telegram with 🚀 Post now")
     new.add_argument("words", nargs="*", help="[reel|carousel|story] [pillar] [topic ...]")
     new.set_defaults(func=_new)
+    dr = sub.add_parser("drawings", help="ink drawing library: starter, list, pack")
+    dr.add_argument("action", choices=["starter", "list", "pack"])
+    dr.add_argument("--yes", action="store_true", help="pack: really make them (costs money)")
+    dr.add_argument("--limit", type=int, default=40, help="pack: at most this many")
+    dr.set_defaults(func=_drawings)
     wv = sub.add_parser("weekly-video", help="make the long YouTube video of the week's posts")
     wv.add_argument("--end", help="last day (YYYY-MM-DD), default today")
     wv.set_defaults(func=_weekly_video)

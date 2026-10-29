@@ -43,6 +43,8 @@ alt_text: one plain Hindi sentence describing the image for screen readers.
 illustration_prompt (English): subject only for a pencil sketch, for example
 "Lord Shiva meditating on a rock facing the Himalayas, trishul beside him, crescent moon".
 No text, letters or words in the image. Respectful and traditional depiction.
+If the request lists drawings_on_hand, describe one of those subjects when it fits the message
+(the page then uses a drawing we already have); otherwise describe the subject that fits best.
 scene_prompt (English): pick or lightly vary one of the scene presets in the request.
 
 slides: only for format carousel_shlok, 5 slides (cover hook, the verse idea, meaning,
@@ -60,6 +62,15 @@ MAX_REEL_WORDS = int((12.0 - 1.0) * 2.7)  # 29 words at 2.7 words per second
 
 def reel_words(draft: Draft) -> int:
     return sum(len(t.split()) for t in [*draft.hook_lines, draft.body] if t)
+
+
+def _drawings_on_hand() -> list[str]:
+    """Short names of the drawings in the library (e.g. "kailash moon", "bansuri feather")."""
+    from instapost.studio import drawings
+
+    names = {d.path.stem.rsplit("-", 1)[0] if d.source == "made" else d.path.stem
+             for d in drawings.library()}
+    return sorted(n.replace("-", " ").replace("_", " ") for n in names)[:60]
 
 
 def write(
@@ -80,6 +91,8 @@ def write(
     }
     if plan:
         request["plan"] = plan
+    if on_hand := _drawings_on_hand():
+        request["drawings_on_hand"] = on_hand
     # The verse list is the same for every post, so it sits in the cached system prompt;
     # only the short request below is new (and fully priced) on each call.
     system = SYSTEM + "\n\nVerified references you may cite (by id):\n" + catalogue_for_prompt()

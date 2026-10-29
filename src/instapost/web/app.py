@@ -607,6 +607,71 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                                   "story": st.story_writer_model
                                   if st.story_writer_model != st.writer_model else ""})
 
+    # Ink drawings for the page
+    def _drawing(drawing_id: str):
+        from instapost.studio import drawings
+        for d in drawings.library(include_disabled=True):
+            if d.id == drawing_id:
+                return d
+        raise HTTPException(404)
+
+    @app.get("/drawings", response_class=HTMLResponse)
+    def drawings_page(request: Request, who: str = Depends(user)):
+        from instapost.studio import drawings
+        from instapost.studio.free_images import _load_usage
+        usage = _load_usage()
+        off = drawings.disabled()
+        items = drawings.library(include_disabled=True)
+        rank = {"own": 0, "made": 1, "library": 2, "starter": 3}
+        items.sort(key=lambda d: (d.id in off, rank.get(d.source, 4), d.id))
+        st = get_settings()
+        pack = drawings.pack_status()
+        return render(request, "drawings.html", items=items, off=off,
+                      last_used={d.id: usage.get(f"drawing:{d.id}") for d in items},
+                      pack=pack, missing=sum(1 for _, _, have in pack if not have),
+                      style=drawings.INK_STYLE, gemini=bool(st.gemini_api_key),
+                      generate=st.drawings_generate)
+
+    @app.get("/drawings/preview")
+    def drawing_preview(id: str, who: str = Depends(user)):
+        from instapost.studio import drawings
+        return FileResponse(drawings.preview(_drawing(id)),
+                            headers={"Cache-Control": "private, max-age=3600"})
+
+    @app.post("/drawings/toggle")
+    def drawing_toggle(request: Request, id: str = Form(...), on: str = Form(...),
+                       who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import drawings
+        _drawing(id)
+        drawings.set_enabled(id, on == "1")
+        return back(request, "Saved.")
+
+    @app.post("/drawings/upload")
+    async def drawing_upload(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import drawings
+        form = await request.form()
+        tags = [w.strip().lower() for w in str(form.get("tags") or "").replace(",", " ").split()]
+        saved, problems = 0, []
+        for f in form.getlist("files")[:20]:
+            if not getattr(f, "filename", ""):
+                continue
+            d, why = drawings.add_upload(f.filename, await f.read(15 << 20), tags)
+            if d:
+                saved += 1
+            else:
+                problems.append(f"{f.filename}: {why}")
+        msg = f"Added {saved} drawing(s)." + (" " + "; ".join(problems[:3]) if problems else "")
+        return back(request, msg, "/drawings")
+
+    @app.post("/drawings/pack")
+    def drawing_pack(request: Request, limit: int = Form(10), who: str = Depends(user),
+                     _=Depends(csrf)):
+        limit = max(1, min(limit, 40))
+        jobs.enqueue("drawings_pack", f"make {limit} drawings with Gemini", limit=limit,
+                     actor=f"web:{who}")
+        return back(request, f"Making up to {limit} drawings with Gemini (about "
+                    f"${limit * 0.039:.2f}). They appear here as they are made.")
+
     # Book photos for reels
     def _plate_entry(plate_id: str) -> dict:
         from instapost.studio import plates

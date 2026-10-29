@@ -169,6 +169,11 @@ class Worker:
                 elif job.kind == "weekly_review":
                     ws = date.fromisoformat(p["week_start"])
                     self.weekly(ws - timedelta(days=7), ws, actor=p.get("actor", "web"))
+                elif job.kind == "drawings_pack":
+                    from instapost.studio import drawings
+                    made, problems = drawings.make_pack(int(p.get("limit", 10)))
+                    self.notify(f"🖋 Drawings: {made} new in the library."
+                                + (f"\n{problems[0]}" if problems else ""))
                 elif job.kind == "fetch_plates":
                     from instapost.studio import plates
                     added = plates.fetch_unsplash(force=True)
