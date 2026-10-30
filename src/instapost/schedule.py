@@ -61,10 +61,32 @@ class Schedule(BaseModel):
         return plan
 
 
+def schedule_file_data() -> dict:
+    """schedule.yaml as written, before any dashboard changes."""
+    return yaml.safe_load(get_settings().schedule_file.read_text(encoding="utf-8"))
+
+
 @lru_cache
+def _load(_file: str, _mtime: int, _overrides) -> Schedule:
+    from instapost import overrides
+
+    # Changes made on the dashboard win over schedule.yaml (instapost.overrides).
+    return Schedule.model_validate(overrides.merge(schedule_file_data(),
+                                                   overrides.load()["schedule"]))
+
+
 def load_schedule() -> Schedule:
+    from instapost import overrides
+
     path = get_settings().schedule_file
-    return Schedule.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    return _load(str(path), mtime, overrides.stamp())
+
+
+load_schedule.cache_clear = _load.cache_clear  # type: ignore[attr-defined]
 
 
 def to_utc_naive(local: datetime) -> datetime:

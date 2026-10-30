@@ -600,6 +600,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request, who: str = Depends(user)):
+        from instapost import agent_settings
         s = get_settings()
         sched = load_schedule()
         ig = tokens.info("ig_access_token")
@@ -612,7 +613,31 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                       platforms=sorted(publisher.configured_platforms()),
                       ig_token=ig, youtube_ok=youtube.is_configured(), links=links,
                       image_chain=chain_names(), music_tracks=len(music.tracks()),
-                      spend_day=budget.spent("day"), spend_month=budget.spent("month"))
+                      spend_day=budget.spent("day"), spend_month=budget.spent("month"),
+                      agent=agent_settings.grouped(agent_settings.current_values(),
+                                                   agent_settings.file_values(),
+                                                   agent_settings.changed_keys()),
+                      platform_names=agent_settings.PLATFORMS,
+                      weekdays=list(agent_settings.DAY_NAMES.items()),
+                      format_names=agent_settings.FORMAT_NAMES)
+
+    @app.post("/settings/agent")
+    async def agent_settings_save(request: Request, who: str = Depends(user),
+                                  _=Depends(csrf)):
+        from instapost import agent_settings
+        form = await request.form()
+        before = agent_settings.current_values()
+        res = agent_settings.apply(form, reset=form.get("reset") == "1")
+        if res.errors:
+            return back(request, "Not saved: " + "; ".join(res.errors[:4]), "/settings#agent")
+        after = agent_settings.current_values()
+        diff = {k: [str(before[k]), str(after[k])] for k in after if before[k] != after[k]}
+        with session() as s:
+            audit(s, f"web:{who}", "settings_changed", changes=diff)
+        if not diff:
+            return back(request, "Nothing changed.", "/settings#agent")
+        return back(request, f"Saved {len(diff)} change(s). The worker uses them within a "
+                    "minute; no restart needed.", "/settings#agent")
 
     @app.get("/costs", response_class=HTMLResponse)
     def costs_page(request: Request, days: int = 30, who: str = Depends(user)):

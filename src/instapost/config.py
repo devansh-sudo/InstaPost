@@ -131,8 +131,20 @@ class Settings(BaseSettings):
 
 
 @lru_cache
+def _settings(_stamp) -> Settings:
+    from instapost import overrides
+
+    # Changes made on the dashboard win over .env (instapost.overrides).
+    return Settings(**overrides.load()["settings"])
+
+
 def get_settings() -> Settings:
-    return Settings()
+    from instapost import overrides
+
+    return _settings(overrides.stamp())
+
+
+get_settings.cache_clear = _settings.cache_clear  # type: ignore[attr-defined]
 
 
 # Names people often use for the keys InstaPost expects.

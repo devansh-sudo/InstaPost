@@ -83,4 +83,45 @@
     </div>
   </div>
 </div>
+
+<div class="card section" id="agent">
+  <div class="card-head">{{ icon("settings") }}<h2>Agent settings</h2><span class="more tiny">saved on the dashboard · they win over .env and schedule.yaml</span></div>
+  <p class="muted">Change how much is posted, when, where, and what it may spend. A value you change shows <span class="pill accent">changed</span>; the files keep their own value, and "Reset" brings it back. Keys and passwords stay in .env and are never shown here.</p>
+  <form method="post" action="/settings/agent" class="stack" style="gap:18px">
+    <input type="hidden" name="token" value="{{ csrf }}">
+    {% for gid, title, help, rows in agent %}
+    <div>
+      <h3 style="margin:0 0 4px">{{ title }}</h3>
+      {% if help %}<p class="tiny" style="margin:0 0 10px">{{ help }}</p>{% endif %}
+      {% if gid == "plan" %}
+      <div class="table-wrap"><table style="max-width:560px">
+        <tr><th></th>{% for fid, fname in format_names.items() %}<th>{{ fname }}</th>{% endfor %}</tr>
+        {% for d, dname in weekdays %}<tr><td>{{ dname }}</td>
+          {% for f, value, filev, changed in rows if f.key.startswith("schedule:daily_plan." ~ d ~ ".") %}
+          <td><input type="number" name="{{ f.name }}" value="{{ value }}" min="0" max="4" style="width:70px{{ ';border-color:var(--accent)' if changed }}" title="file: {{ filev }}"></td>{% endfor %}</tr>{% endfor %}
+      </table></div>
+      {% else %}
+      <div class="form-grid">
+        {% for f, value, filev, changed in rows %}
+        <label class="field">{{ f.label }}{% if changed %} <span class="pill accent" title="file says: {{ filev }}">changed</span>{% endif %}
+          {% if f.kind == "bool" %}<span class="row" style="gap:8px"><input type="checkbox" name="{{ f.name }}" value="1" {{ 'checked' if value }}> on</span>
+          {% elif f.kind == "choice" %}<select name="{{ f.name }}">{% for c in f.choices %}<option value="{{ c }}" {{ 'selected' if c == value }}>{{ c or "off" }}</option>{% endfor %}</select>
+          {% elif f.kind == "platforms" %}<span class="row" style="gap:10px">{% for p in platform_names %}<label class="row" style="gap:4px"><input type="checkbox" name="{{ f.name }}" value="{{ p }}" {{ 'checked' if p in value }}> {{ p }}</label>{% endfor %}</span>
+          {% elif f.kind == "times" %}<input name="{{ f.name }}" value="{{ value|join(', ') }}">
+          {% elif f.kind == "time" %}<input name="{{ f.name }}" value="{{ value }}" placeholder="HH:MM" maxlength="5">
+          {% else %}<input type="number" name="{{ f.name }}" value="{{ value }}" min="{{ f.low }}" max="{{ f.high }}" step="{{ '0.01' if f.kind == 'float' else '1' }}">{% endif %}
+          {% if f.help %}<span class="tiny">{{ f.help }}</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="row" style="gap:10px">
+      <button class="primary">{{ icon("check", "sm") }} Save settings</button>
+      <button class="ghost" name="reset" value="1">Reset all to the files</button>
+      <span class="tiny">Every change is recorded in Activity.</span>
+    </div>
+  </form>
+</div>
 {% endblock %}
