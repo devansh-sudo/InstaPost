@@ -12,6 +12,10 @@
 # them on drikpanchang.com; if one is wrong, move that day's festival entry before it is
 # generated (the evening before), or edit it on the dashboard's Plan page.
 #
+# Shiva: every Monday (Somvar) has a Shiva reel (three of the four have two), plus Pradosh days,
+# three Shiva carousels and Shiva stories through the week (about 1 post in 5). Edited on
+# 30 Oct; loading the file again leaves days that were already made as they are.
+#
 # Volume follows schedule.yaml: Monday 2 reels, other days 1; carousels Tue/Thu/Sat; 2 stories
 # a day. Slots, hook style, background scene and reel length are still chosen by the learner.
 
@@ -41,7 +45,7 @@ days:
       - {pillar: kabir, topic: "बुरा जो देखन मैं चला — दूसरों से पहले खुद को देखने की कला (श्लोक: kabir-bura-jo-dekhan)"}
     story_line:
       - {pillar: life_lesson, topic: "शनिवार: हफ़्ते की एक अच्छी बात याद कीजिए।"}
-      - {pillar: jeevan_sutra, topic: "कल के लिए एक छोटी-सी तैयारी आज कर लीजिए।"}
+      - {pillar: shiv_dhyan, topic: "शनिवार की रात: ॐ नमः शिवाय — दिन की हर चिंता महादेव को सौंपकर सोइए।"}
 
   "2026-11-01":   # Sunday
     reel_book_pov:
@@ -53,10 +57,10 @@ days:
   "2026-11-02":   # Monday · Somvar
     reel_book_pov:
       - {pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: शिव की तरह स्थिर रहना — तूफ़ान में भी भीतर शांत (श्लोक: shiv-panchakshari)"}
-      - {pillar: jeevan_sutra, audio: "morning flute", topic: "सुबह के पहले पाँच मिनट: फ़ोन नहीं, तीन गहरी साँसें और एक संकल्प"}
+      - {pillar: shiv_dhyan, audio: "morning om, soft bells", topic: "भोलेनाथ की सादगी: कम चीज़ों में भी पूरा संतोष — ज़रूरत और चाहत का फ़र्क"}
     story_line:
       - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — आज का दिन शांति से शुरू।"}
-      - {pillar: life_lesson, topic: "आज एक बात छोड़ दीजिए जो आपके बस में नहीं।"}
+      - {pillar: shiv_dhyan, topic: "सोमवार: शिवलिंग पर जल के साथ एक पुरानी शिकायत भी बहा दीजिए।"}
 
   "2026-11-03":   # Tuesday
     reel_book_pov:
@@ -71,25 +75,25 @@ days:
     reel_book_pov:
       - {pillar: kabir, audio: "sitar, gentle", topic: "ऐसी वाणी बोलिए — शब्द जो दूसरे को भी ठंडक दें और खुद को भी (श्लोक: kabir-aisi-vani)"}
     story_line:
-      - {pillar: jeevan_sutra, topic: "आज की बात: कम बोलें, मीठा बोलें।"}
+      - {pillar: shiv_dhyan, topic: "नंदी की तरह धैर्य: सच्चे मन का इंतज़ार कभी व्यर्थ नहीं जाता।"}
       - {pillar: life_lesson, topic: "जिसे माफ़ करना है, उसे आज मन ही मन माफ़ कर दीजिए।"}
 
   "2026-11-05":   # Thursday
     reel_book_pov:
       - {pillar: life_lesson, audio: "soft piano", topic: "माता-पिता के साथ बिताया एक घंटा — वह निवेश जो कभी घाटा नहीं देता"}
     carousel_shlok:
-      - {pillar: kabir, topic: "काल करे सो आज कर — टालने की आदत से निकलने के छोटे कदम (श्लोक: kabir-kaal-kare)"}
+      - {pillar: shiv_dhyan, topic: "शिव के प्रतीक और उनकी सीख: चंद्रमा, गंगा, त्रिशूल, डमरू, नंदी — हर एक का अर्थ आज के जीवन में (श्लोक: shiv-panchakshari)"}
     story_line:
       - {pillar: life_lesson, topic: "आज कौन-सा काम कल पर नहीं टालेंगे?"}
       - {pillar: jeevan_sutra, topic: "दिवाली से पहले मन की सफ़ाई भी ज़रूरी है।"}
 
-  "2026-11-06":   # Friday · ⚠️ Dhanteras (estimate)
-    note: "धनतेरस (अनुमानित तिथि)"
+  "2026-11-06":   # Friday · ⚠️ Dhanteras + Pradosh (estimate)
+    note: "धनतेरस, प्रदोष (अनुमानित तिथि)"
     reel_book_pov:
       - {pillar: life_lesson, audio: "festive diya, soft bells", topic: "धनतेरस: असली धन — संतोष, स्वास्थ्य और परिवार का साथ"}
     story_line:
       - {pillar: jeevan_sutra, topic: "धनतेरस की शुभकामनाएँ — आज सेहत को सबसे बड़ा धन मानिए।"}
-      - {pillar: life_lesson, topic: "आपके जीवन का सबसे बड़ा धन कौन है?"}
+      - {pillar: shiv_dhyan, topic: "आज प्रदोष भी (अनुमानित): सूर्यास्त के समय दो मिनट — ॐ नमः शिवाय।"}
 
   "2026-11-07":   # Saturday · ⚠️ Choti Diwali / Narak Chaturdashi (estimate)
     note: "छोटी दिवाली (अनुमानित तिथि)"
@@ -142,7 +146,7 @@ days:
       - {pillar: gita, topic: "समत्व योग: सफलता और असफलता में एक-सा रहना (श्लोक: gita-2.48)"}
     story_line:
       - {pillar: life_lesson, topic: "आज बिना शिकायत का दिन — कोशिश करेंगे?"}
-      - {pillar: jeevan_sutra, topic: "रात की बात: आज की एक छोटी जीत लिखिए।"}
+      - {pillar: shiv_dhyan, topic: "रात की बात: कैलाश जैसी स्थिरता — आज किस बात पर आप डगमगाए नहीं?"}
 
   "2026-11-13":   # Friday
     reel_book_pov:
@@ -153,7 +157,7 @@ days:
 
   "2026-11-14":   # Saturday
     reel_book_pov:
-      - {pillar: life_lesson, audio: "calm piano", topic: "हर बात पर लड़ना ज़रूरी नहीं — शांति चुनना हार नहीं"}
+      - {pillar: shiv_dhyan, audio: "om chant, calm", topic: "शिव का मौन: हर बात पर लड़ना ज़रूरी नहीं — शांति चुनना हार नहीं"}
     carousel_shlok:
       - {pillar: kabir, topic: "पोथी पढ़ि पढ़ि जग मुआ — किताबों से बड़ा प्रेम का ढाई आखर (श्लोक: kabir-pothi-padhi)"}
     story_line:
@@ -171,7 +175,7 @@ days:
   "2026-11-16":   # Monday · Somvar
     reel_book_pov:
       - {pillar: shiv_dhyan, audio: "om chant, damru soft", topic: "सोमवार: शिव का नीलकंठ रूप — कड़वाहट पी लेना, पर फैलाना नहीं"}
-      - {pillar: gita, audio: "bansuri", topic: "जो बदल नहीं सकते, उसे स्वीकार करना — गीता की समता (श्लोक: gita-2.48)"}
+      - {pillar: shiv_dhyan, audio: "devotional strings, warm", topic: "अर्धनारीश्वर: शिव और शक्ति एक-दूसरे के बिना अधूरे — रिश्ते में बराबरी और संतुलन"}
     story_line:
       - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — इस हफ़्ते की शुरुआत शांत मन से।"}
       - {pillar: life_lesson, topic: "किसी की कड़वी बात को आज दिल पर मत लीजिए।"}
@@ -182,7 +186,7 @@ days:
     carousel_shlok:
       - {pillar: gita, topic: "मन को कैसे साधें: अभ्यास के 5 छोटे कदम (श्लोक: gita-6.35)"}
     story_line:
-      - {pillar: life_lesson, topic: "आज दस मिनट बिना फ़ोन, बस खुद के साथ।"}
+      - {pillar: shiv_dhyan, topic: "आज दस मिनट शिव-ध्यान: आँखें बंद, बस साँस और ॐ।"}
       - {pillar: jeevan_sutra, topic: "रात की बात: आज मन किस बात पर अटका रहा?"}
 
   "2026-11-18":   # Wednesday
@@ -196,7 +200,7 @@ days:
     reel_book_pov:
       - {pillar: life_lesson, audio: "hopeful piano", topic: "असफलता अंत नहीं, अगली कोशिश का पहला कदम है"}
     carousel_shlok:
-      - {pillar: gita, topic: "कर्म करो, फल छोड़ो: परीक्षा और नौकरी के तनाव के लिए गीता (श्लोक: gita-2.47)"}
+      - {pillar: shiv_dhyan, topic: "महादेव से 5 जीवन-सूत्र: धैर्य (नंदी), संतुलन (अर्धनारीश्वर), सहनशीलता (नीलकंठ), सादगी (भोलेनाथ), स्थिरता (कैलाश)"}
     story_line:
       - {pillar: life_lesson, topic: "पिछली असफलता ने आपको क्या सिखाया?"}
       - {pillar: jeevan_sutra, topic: "कल देवउठनी एकादशी: नई शुरुआत का दिन।"}
@@ -218,17 +222,17 @@ days:
       - {pillar: life_lesson, topic: "शनिवार: हफ़्ते की सबसे अच्छी बातचीत कौन-सी थी?"}
       - {pillar: jeevan_sutra, topic: "आज की रात: तीन बातें जिनके लिए आप आभारी हैं।"}
 
-  "2026-11-22":   # Sunday
+  "2026-11-22":   # Sunday · ⚠️ Pradosh (estimate)
     reel_book_pov:
       - {pillar: life_lesson, audio: "soft piano", topic: "माँ की वह बात जो तब समझ नहीं आई, अब हर दिन काम आती है"}
     story_line:
-      - {pillar: jeevan_sutra, topic: "रविवार: परिवार के साथ एक भोजन, बिना फ़ोन।"}
+      - {pillar: shiv_dhyan, topic: "आज प्रदोष (अनुमानित): शाम के दीये के साथ ॐ नमः शिवाय।"}
       - {pillar: life_lesson, topic: "आपकी माँ की कौन-सी सीख आज भी साथ है?"}
 
   "2026-11-23":   # Monday · Somvar
     reel_book_pov:
       - {pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: ध्यान में बैठे शिव — मौन भी एक उत्तर है (श्लोक: shiv-panchakshari)"}
-      - {pillar: kabir, audio: "bhajan instrumental", topic: "काल करे सो आज कर — जो कहना है, आज कह दीजिए (श्लोक: kabir-kaal-kare)"}
+      - {pillar: shiv_dhyan, audio: "damru soft, deep drone", topic: "गंगा को जटाओं में थामना: तेज़ भावनाओं को शांत मन से संभालना"}
     story_line:
       - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — आज कम बोलें, ज़्यादा सुनें।"}
       - {pillar: life_lesson, topic: "कल कार्तिक पूर्णिमा: दीपदान और प्रकाश का पर्व।"}
@@ -248,7 +252,7 @@ days:
       - {pillar: gita, audio: "bansuri, calm", topic: "सुख-दुःख मौसम की तरह हैं — आते-जाते रहेंगे, आप टिके रहिए (श्लोक: gita-2.14)"}
     story_line:
       - {pillar: life_lesson, topic: "आज जो भी हो, एक बार मुस्कुराइए।"}
-      - {pillar: jeevan_sutra, topic: "रात की बात: आज किस बात को आपने सहजता से लिया?"}
+      - {pillar: shiv_dhyan, topic: "रात की बात: महामृत्युंजय मंत्र — आज कौन-सा डर छोड़ना चाहेंगे?"}
 
   "2026-11-26":   # Thursday
     reel_book_pov:

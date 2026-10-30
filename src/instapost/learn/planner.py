@@ -190,8 +190,15 @@ def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
         s.delete(e)
     s.flush()
 
+    from instapost.db import get_kv
+
     summary = {"days": len(days), "entries": 0, "warnings": []}
     for day, spec in sorted(days.items()):
+        # Posts already made for this day stay as they are, so loading the file again
+        # (e.g. after editing it mid-month) never adds a second set for a past day.
+        if get_kv(s, f"generated:{day.isoformat()}", "") in ("done", "running"):
+            summary["warnings"].append(f"{day}: already made, left as it is")
+            continue
         for fmt in Format:
             wanted = spec.get(fmt.value) or []
             entries = list(s.scalars(select(PlanEntry).where(

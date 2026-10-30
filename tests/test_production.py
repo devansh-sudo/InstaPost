@@ -28,6 +28,13 @@ def test_month_plan_loads_and_reloads_without_duplicates():
         again = s.scalars(select(PlanEntry).where(PlanEntry.edited_by == planner.MONTH_PLAN_ACTOR,
                                                   PlanEntry.status == "planned")).all()
         assert len(again) == 107
+        # Days already made are left alone when the file is loaded again mid-month.
+        from instapost.db import set_kv
+        set_kv(s, "generated:2026-10-29", "done")
+        s.flush()
+        third = planner.load_month(s, MONTH)
+        assert third["entries"] == 107 - 4
+        assert any("2026-10-29: already made" in w for w in third["warnings"])
 
 
 def test_trending_suggestions_match_pillar_and_mood(tmp_path, monkeypatch):
