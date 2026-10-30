@@ -155,6 +155,8 @@ def regenerate(item_id: str, actor: str) -> str:
             raise approvals.QueueError(f"unknown item {item_id}")
         if item.status != ItemStatus.REJECTED:
             approvals.reject(s, item, actor, reason="regenerate")
+        if item.format == approvals.LONG_VIDEO:
+            raise approvals.QueueError("make a new long video on the dashboard's Long videos page")
         if item.format == approvals.WEEKLY_VIDEO:
             end_day = date.fromisoformat(item.for_date)
         else:
@@ -192,3 +194,30 @@ def make_scene(scene_id: str, actor: str) -> str:
         with session() as s:
             return scene_maker.make(s, scene_id, actor=actor,
                                     offline=get_settings().demo_mode, on_step=job.step).id
+
+
+def make_long(kind: str, actor: str, **opts) -> str:
+    """A long YouTube video (instapost.longform): "audio" or "collection"."""
+    from instapost import longform
+
+    label = opts.get("title") or opts.get("pillar") or kind
+    with track("long_video", f"long video: {label}") as job:
+        job.step("making the video (a long one takes a few minutes)")
+        with session() as s:
+            if kind == "audio":
+                item = longform.make_audio_video(s, actor=actor, **opts)
+            else:
+                item = longform.make_collection(s, actor=actor, **opts)
+            return item.id
+
+
+def make_ebook(start: date, end: date, pillar: str | None, title: str | None,
+               actor: str) -> dict:
+    from instapost.studio import ebook
+
+    with track("ebook", f"e-book {start} – {end}") as job:
+        job.step("laying out the pages")
+        with session() as s:
+            meta = ebook.build(s, start, end, pillar, title)
+            audit(s, actor, "ebook_made", book=meta["id"], sutras=meta["sutras"])
+        return meta

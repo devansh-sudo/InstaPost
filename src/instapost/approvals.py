@@ -133,6 +133,8 @@ def next_free_slot(s: Session, fmt: str, start_day: date, sched: Schedule | None
 
 
 WEEKLY_VIDEO = "weekly_video"  # instapost.weekly.WEEKLY (not a Format: never planned daily)
+LONG_VIDEO = "long_video"      # instapost.longform: audio videos and theme collections
+LONG_VIDEOS = (WEEKLY_VIDEO, LONG_VIDEO)  # landscape videos for YouTube only
 REEL_FORMATS = (Format.REEL_BOOK_POV.value, SCENE_REEL)
 
 
@@ -149,7 +151,7 @@ def approve(s: Session, item: Item, actor: str, when: datetime | None = None) ->
     if item.status != ItemStatus.NEEDS_REVIEW:
         raise QueueError(f"{item.id} is {item.status}, not waiting for review")
     start = date.fromisoformat(item.for_date) if item.for_date else utcnow().date()
-    if item.format == WEEKLY_VIDEO:
+    if item.format in LONG_VIDEOS:
         from instapost import weekly
         item.scheduled_at = when or weekly.publish_time()
     else:

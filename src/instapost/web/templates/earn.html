@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Earn{% endblock %}
+{% block subtitle %}Affiliate links under your posts, your public link page, and the sutra e-book{% endblock %}
+{% block content %}
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("coins") }}<h2>Affiliate links</h2></div>
+    <p class="muted">Add product links (Amazon Associates, Flipkart, a book shop …). Each post gets the link that fits its theme best, under the YouTube description and the Facebook caption, with a short disclosure. Instagram posts say "bio के लिंक में".</p>
+    <form method="post" action="/earn/links" class="stack" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <div class="form-grid">
+        <label class="field">Name (Hindi is best)<input name="title" placeholder="श्रीमद्भगवद्गीता (गीता प्रेस)" required></label>
+        <label class="field" style="grid-column: span 2">Link (https://…)<input name="url" placeholder="https://amzn.to/…" required></label>
+      </div>
+      <div class="row" style="gap:14px;flex-wrap:wrap">
+        <span class="tiny">Fits:</span>
+        {% for key, label in pillars.items() %}<label class="row" style="gap:6px"><input type="checkbox" name="pillars" value="{{ key }}"> {{ label }}</label>{% endfor %}
+      </div>
+      <label class="field">Words it fits (optional)<input name="tags" placeholder="गीता, किताब, krishna, book"></label>
+      <button class="primary">{{ icon("plus", "sm") }} Add link</button>
+    </form>
+    <div class="list" style="margin-top:14px">
+      {% for x in data.links %}
+      <div class="li"><div class="grow"><div class="t">{{ x.title }} {% if not x.on %}<span class="pill">off</span>{% endif %}</div>
+        <div class="s">{{ x.url[:70] }} · {{ x.pillars|map("replace", "_", " ")|join(", ") or "every theme" }}{% if data.used.get(x.id) %} · last used {{ data.used[x.id][:10] }}{% endif %}</div></div>
+        <form method="post" action="/earn/links/{{ x.id }}" class="inline"><input type="hidden" name="token" value="{{ csrf }}">
+          <button class="sm ghost" name="action" value="{{ 'off' if x.on else 'on' }}">{{ "Pause" if x.on else "Use" }}</button>
+          <button class="sm ghost" name="action" value="delete">{{ icon("x", "sm") }}</button></form>
+      </div>
+      {% else %}<p class="muted">No links yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">{{ icon("external") }}<h2>Your link page</h2></div>
+      {% if page %}<p>Put this in your Instagram bio:<br><a href="/links" target="_blank"><b>{{ page }}</b></a></p>
+      {% else %}<p class="tiny">Set PUBLIC_BASE_URL in .env (your dashboard's https address) to get a public link page for your Instagram bio.</p>{% endif %}
+      <form method="post" action="/earn/options" class="stack" style="gap:10px">
+        <input type="hidden" name="token" value="{{ csrf }}">
+        <label class="row" style="gap:8px"><input type="checkbox" name="links_on" value="1" {{ 'checked' if data.links_on }}> Add links to new posts</label>
+        <label class="field">E-book buy link (Instamojo, Razorpay, Gumroad …)<input name="ebook_url" value="{{ data.ebook_url }}" placeholder="https://…"></label>
+        <button>{{ icon("check", "sm") }} Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-head">{{ icon("library") }}<h2>Sutra e-book (free to make)</h2></div>
+  <p class="muted">Your approved posts of a period as a book: one sutra per page in the same book-page style, with a cover and closing page. Sell the PDF on a payment page and share the 4-page preview free. Needs at least {{ min_sutras }} approved posts.</p>
+  <form method="post" action="/earn/ebook" class="form-grid">
+    <input type="hidden" name="token" value="{{ csrf }}">
+    <label class="field">From<input type="date" name="start" value="{{ month_start }}"></label>
+    <label class="field">To<input type="date" name="end" value="{{ month_end }}"></label>
+    <label class="field">Theme<select name="pillar"><option value="">all themes</option>{% for key, label in pillars.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+    <label class="field">Title (optional)<input name="title" placeholder="e.g. गीता के 30 सूत्र"></label>
+    <div class="row"><button class="primary">{{ icon("library", "sm") }} Make e-book</button></div>
+  </form>
+  <div class="list" style="margin-top:14px">
+    {% for b in books %}
+    <div class="li"><div class="grow"><div class="t">{{ b.title }}</div><div class="s">{{ b.start }} – {{ b.end }} · {{ b.sutras }} sutras · {{ b.pages }} pages · {{ b.size_mb }} MB</div></div>
+      <a class="btn sm" href="/earn/ebook/{{ b.id }}/ebook.pdf">PDF</a>
+      <a class="btn sm ghost" href="/earn/ebook/{{ b.id }}/preview.pdf">Preview</a>
+      <a class="btn sm ghost" href="/earn/ebook/{{ b.id }}/cover.jpg">Cover</a></div>
+    {% else %}<p class="muted">No e-books yet.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

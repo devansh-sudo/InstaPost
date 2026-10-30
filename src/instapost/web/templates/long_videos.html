@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Long videos{% endblock %}
+{% block subtitle %}YouTube pays from 4,000 watch hours: long jaap, meditation and katha videos with your own audio, and theme collections · free to make{% endblock %}
+{% block content %}
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("music") }}<h2>1 · Your long audios</h2></div>
+    <p class="tiny">Upload a jaap, meditation, katha or bhajan <b>you made or have the rights to</b>. Film songs or other channels' bhajans get a copyright claim, and the claimant takes the money.</p>
+    <form method="post" action="/long-videos/audio" enctype="multipart/form-data" class="stack" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}">
+      <div class="form-grid">
+        <label class="field">Audio file (mp3, m4a, wav … up to 1.5 GB)<input type="file" name="file" accept="audio/*" required></label>
+        <label class="field">Name<input name="title" placeholder="ॐ नमः शिवाय 108 जाप"></label>
+      </div>
+      <label class="row" style="gap:8px"><input type="checkbox" name="rights" value="1" required> This audio is mine, or I have the right to use it on YouTube.</label>
+      <button class="primary">{{ icon("plus", "sm") }} Upload</button>
+    </form>
+    <div class="list" style="margin-top:14px">
+      {% for a in audios %}
+      <div class="li"><div class="grow"><div class="t">{{ a.title }}</div>
+        <div class="s">{{ a.name }} · {{ ts(a.duration or 0) }} · {{ a.size_mb }} MB</div>
+        <audio controls preload="none" src="/long-videos/audio/{{ a.name|urlencode }}" style="width:100%;margin-top:6px"></audio></div>
+        {% if not a.rights %}<form method="post" action="/long-videos/audio/{{ a.name|urlencode }}/rights" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="sm" title="Copied to the server by hand: confirm it is yours or licensed">I have the rights</button></form>{% endif %}
+        <form method="post" action="/long-videos/audio/{{ a.name|urlencode }}/delete" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="sm ghost">{{ icon("x", "sm") }}</button></form></div>
+      {% else %}<p class="muted">No long audio yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("info") }}<h2>Ideas that build watch hours</h2></div>
+    <ul class="tiny" style="line-height:1.7;padding-left:18px">
+      <li>ॐ नमः शिवाय 108 जाप (20–40 min)</li>
+      <li>महामृत्युंजय मंत्र 108 बार, सोने से पहले</li>
+      <li>गीता अध्याय पाठ, अर्थ के साथ (your voice)</li>
+      <li>सुबह का 30 मिनट ध्यान संगीत, बांसुरी</li>
+      <li>कबीर के दोहे, धीमे अर्थ के साथ</li>
+    </ul>
+    <p class="tiny">Long listening videos are watched for 20–60 minutes, which is how a small channel reaches 4,000 hours.</p>
+  </div>
+</div>
+
+<div class="cols c-2-1 section">
+  <div class="card">
+    <div class="card-head">{{ icon("rocket") }}<h2>2 · Make an audio video</h2></div>
+    <form method="post" action="/long-videos/make" class="stack" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="kind" value="audio">
+      <div class="form-grid">
+        <label class="field">Audio<select name="audio" required>{% for a in audios %}<option value="{{ a.name }}">{{ a.title }} ({{ ts(a.duration or 0) }})</option>{% endfor %}</select></label>
+        <label class="field">Look<select name="look">{% for id, name in looks %}<option value="{{ id }}" {{ 'selected' if id == 'ganga' }}>{{ name }}</option>{% endfor %}</select></label>
+        <label class="field">Theme<select name="pillar">{% for key, label in pillars.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      </div>
+      <label class="field">YouTube title (the search words matter)<input name="title" maxlength="100" placeholder="ॐ नमः शिवाय 108 जाप | शांत मन और गहरी नींद के लिए" required></label>
+      <div class="form-grid">
+        <label class="field">On screen (big)<input name="line" placeholder="ॐ नमः शिवाय"></label>
+        <label class="field" style="grid-column: span 2">Below it (small)<input name="meaning" placeholder="मैं शिव को नमन करता हूँ: कल्याणकारी, शांत चेतना को प्रणाम।"></label>
+      </div>
+      <label class="field">About (top of the description)<textarea name="about" rows="2" placeholder="इस जाप को सुबह या सोने से पहले सुनिए…"></textarea></label>
+      <label class="field">Chapters (optional: one per line, first at 00:00)<textarea name="chapters" rows="3" placeholder="00:00 आरंभ&#10;01:00 जाप&#10;25:00 मौन ध्यान"></textarea></label>
+      <button class="primary" {{ 'disabled' if not audios }}>{{ icon("rocket", "sm") }} Make video</button>
+    </form>
+  </div>
+  <div class="card">
+    <div class="card-head">{{ icon("library") }}<h2>Or: a theme collection</h2></div>
+    <p class="tiny">All published posts of one theme, as one chaptered video (like the weekly one). The worker also makes one per theme on the 1st of every month, when the theme had {{ min_posts }}+ posts.</p>
+    <form method="post" action="/long-videos/make" class="stack" style="gap:10px">
+      <input type="hidden" name="token" value="{{ csrf }}"><input type="hidden" name="kind" value="collection">
+      <label class="field">Theme<select name="pillar">{% for key, label in pillars.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      <label class="field">Posts from the last<select name="days"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select></label>
+      <button>{{ icon("rocket", "sm") }} Make collection</button>
+    </form>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-head">{{ icon("youtube") }}<h2>Made</h2></div>
+  <div class="list">
+    {% for i in made %}
+    <a class="li" href="/items/{{ i.id }}"><div class="grow"><div class="t">{{ i.hook }}</div><div class="s">{{ i.created_at.strftime('%d %b %Y') }} · {{ ts(i.duration_s or 0) }}</div></div><span class="pill">{{ i.status }}</span></a>
+    {% else %}<p class="muted">Nothing yet.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

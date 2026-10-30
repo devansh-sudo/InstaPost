@@ -67,6 +67,7 @@ class Plan:
     end_day: date
     posts: list[Item]
     segments: list[Segment] = field(default_factory=list)
+    pillar: str | None = None  # a theme collection (instapost.longform), not the weekly video
 
     @property
     def duration(self) -> float:
@@ -84,13 +85,18 @@ def ts(seconds: float) -> str:
 
 # --- what goes in ---------------------------------------------------------------------------
 
-def week_posts(s: Session, end_day: date, days: int = 7) -> list[Item]:
-    """Published posts whose day is in the `days` days ending on `end_day`, reels first."""
+def week_posts(s: Session, end_day: date, days: int = 7,
+               pillar: str | None = None) -> list[Item]:
+    """Published posts whose day is in the `days` days ending on `end_day`, reels first
+    (only one theme's posts when `pillar` is given)."""
     start = end_day - timedelta(days=days - 1)
-    items = s.scalars(select(Item).where(
+    q = select(Item).where(
         Item.status.in_((ItemStatus.PUBLISHED, ItemStatus.PARTIAL)),
         Item.format.in_(list(FORMAT_ORDER)),
-        Item.for_date >= start.isoformat(), Item.for_date <= end_day.isoformat()))
+        Item.for_date >= start.isoformat(), Item.for_date <= end_day.isoformat())
+    if pillar:
+        q = q.where(Item.pillar == pillar)
+    items = s.scalars(q)
     usable = [i for i in items if _media(i)]
     return sorted(usable, key=lambda i: (FORMAT_ORDER[i.format], i.for_date or "",
                                          i.scheduled_at or i.created_at))
@@ -108,16 +114,16 @@ def _media(item: Item) -> Path | list[Path] | None:
     return folder / "story.jpg" if (folder / "story.jpg").exists() else None
 
 
-def plan(s: Session, end_day: date, days: int = 7) -> Plan:
-    posts = week_posts(s, end_day, days)
+def plan(s: Session, end_day: date, days: int = 7, pillar: str | None = None) -> Plan:
+    posts = week_posts(s, end_day, days, pillar)
     chaptered = [p for p in posts if p.format != "story_line"]
     if len(chaptered) + (1 if any(p.format == "story_line" for p in posts) else 0) \
             < MIN_CHAPTER_POSTS:
         raise NotEnoughPosts(
             f"only {len(posts)} published post(s) between "
             f"{(end_day - timedelta(days=days - 1)).isoformat()} and {end_day.isoformat()}; "
-            f"a weekly video needs at least {MIN_CHAPTER_POSTS} reels or carousels")
-    p = Plan(end_day - timedelta(days=days - 1), end_day, posts)
+            f"a video needs at least {MIN_CHAPTER_POSTS} reels or carousels")
+    p = Plan(end_day - timedelta(days=days - 1), end_day, posts, pillar=pillar)
     p.segments.append(Segment("intro", INTRO_SECONDS))
     n = 0
     for item in chaptered:
@@ -137,6 +143,11 @@ def plan(s: Session, end_day: date, days: int = 7) -> Plan:
     for seg in p.segments:
         seg.start, t = t, t + seg.seconds
     return p
+
+
+def _theme(p: Plan) -> str:
+    return {"shiv_dhyan": "शिव", "gita": "गीता", "kabir": "कबीर", "jeevan_sutra": "जीवन",
+            "life_lesson": "जीवन की सीख"}.get(p.pillar or "", "जीवन")
 
 
 def _short(text: str, n: int = 60) -> str:
@@ -165,6 +176,8 @@ def metadata(p: Plan, brand: Brand) -> dict:
     themes = ", ".join(PILLAR_HI.get(x, x) for x in pillars[:3])
     span = f"{hindi_date(p.start_day)} – {hindi_date(p.end_day)}"
     title = f"इस हफ़्ते के {count} जीवन सूत्र | {themes} | {span}"[:100]
+    if p.pillar:
+        title = f"{_theme(p)} के {count} सूत्र | पूरा संग्रह | {span}"[:100]
     handle = brand.printed_handle
     hashtags: list[str] = ["#जीवनसूत्र", "#हिंदी"]
     for item in p.posts:
@@ -174,6 +187,7 @@ def metadata(p: Plan, brand: Brand) -> dict:
             if tag not in hashtags:
                 hashtags.append(tag)
     lines = [
+        f"{_theme(p)} के {count} सूत्र एक साथ।" if p.pillar else
         f"इस हफ़्ते के {count} सूत्र एक साथ: {themes}।",
         "शांत संगीत के साथ धीरे-धीरे पढ़िए, और जो बात दिल को छू जाए उसे किसी अपने को भेजिए।",
         "",
@@ -268,7 +282,8 @@ def panel(brand: Brand, content_w: int, number: int | None, item: Item) -> Image
     return img
 
 
-def thumbnail(brand: Brand, count: int, span: str, cover: Path | None) -> Image.Image:
+def thumbnail(brand: Brand, count: int, span: str, cover: Path | None,
+              theme: str | None = None) -> Image.Image:
     tw, th = 1280, 720
     img = _backdrop(cover, (tw, th), dim=0.6)
     if cover and cover.exists():
@@ -276,10 +291,11 @@ def thumbnail(brand: Brand, count: int, span: str, cover: Path | None) -> Image.
         img.paste(pic, (tw - 380 - 40, 22))
     d = ImageDraw.Draw(img)
     f = font(brand.font_path("hook"), 150)
-    d.text((70, 120), f"{count} जीवन", font=f, fill=CREAM, language="hi")
+    d.text((70, 120), f"{count} {theme or 'जीवन'}", font=f, fill=CREAM, language="hi")
     d.text((70, 300), "सूत्र", font=f, fill=GOLD, language="hi")
     f = font(brand.font_path("footer"), 44)
-    d.text((76, 520), f"इस हफ़्ते · {span}", font=f, fill=CREAM, language="hi")
+    d.text((76, 520), f"{'पूरा संग्रह' if theme else 'इस हफ़्ते'} · {span}", font=f,
+           fill=CREAM, language="hi")
     if brand.printed_handle:
         f = font(brand.font_path("footer"), 34)
         d.text((76, 600), brand.printed_handle, font=f, fill=SOFT, language="hi")
@@ -379,7 +395,9 @@ def render(p: Plan, brand: Brand, folder: Path) -> dict:
         for k, seg in enumerate(p.segments):
             clip = tmp / f"c{k:03d}.mp4"
             if seg.kind in ("intro", "section", "outro"):
-                text = {"intro": (f"इस हफ़्ते के {count} जीवन सूत्र", span),
+                heading = (f"{_theme(p)} के {count} सूत्र" if p.pillar
+                           else f"इस हफ़्ते के {count} जीवन सूत्र")
+                text = {"intro": (heading, span),
                         "section": (seg.title, "इस हफ़्ते की स्टोरी"),
                         "outro": ("अगले रविवार फिर मिलेंगे", "रोज़ नए Shorts के लिए Subscribe करें")}
                 title, sub = text[seg.kind]
@@ -414,7 +432,8 @@ def render(p: Plan, brand: Brand, folder: Path) -> dict:
         _ffmpeg(["-i", str(silent), "-i", str(bed), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
                  "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart",
                  str(folder / "video.mp4")], "sound")
-    thumbnail(brand, count, span, first_cover).save(folder / "cover.jpg", quality=90)
+    thumbnail(brand, count, span, first_cover, _theme(p) if p.pillar else None).save(
+        folder / "cover.jpg", quality=90)
     from instapost.render.video import probe_duration
     real = probe_duration(folder / "video.mp4") or 0
     meta["duration"] = real

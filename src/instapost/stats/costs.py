@@ -24,7 +24,7 @@ GROUPS = {"Writing": "Writing", "Fact check": "Checks", "Image check": "Checks",
           "Images": "Images & other", "Weekly review": "Images & other"}
 GROUP_SLOTS = {"Writing": 1, "Checks": 2, "Images & other": 3}
 FORMAT_LABEL = {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel",
-                "story_line": "Story"}
+                "story_line": "Story", "weekly_video": "Weekly video", "long_video": "Long video"}
 
 
 def stage_of(kind: str) -> str:

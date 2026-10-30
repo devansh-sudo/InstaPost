@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from instapost import approvals
-from instapost.approvals import WEEKLY_VIDEO, base_format
+from instapost.approvals import LONG_VIDEOS, base_format
 from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, Publication, audit, utcnow
 from instapost.models import Format
@@ -41,7 +41,7 @@ def configured_platforms() -> set[str]:
 
 
 def targets_for(item: Item) -> list[str]:
-    if item.format == WEEKLY_VIDEO:  # the long Sunday video is for YouTube only
+    if item.format in LONG_VIDEOS:  # the long landscape videos are for YouTube only
         wanted = ["youtube"]
     else:
         wanted = load_schedule().targets.get(base_format(item.format), [])
@@ -58,7 +58,7 @@ DEST_LABEL = {"published": "posted", "pending": "posting", "failed": "failed",
 
 def planned_platforms(fmt: str) -> list[str]:
     """Where a format is meant to go (schedule.yaml targets), connected or not."""
-    if fmt == WEEKLY_VIDEO:
+    if fmt in LONG_VIDEOS:
         return ["youtube"]
     try:
         return list(load_schedule().targets.get(base_format(fmt), []))
@@ -102,7 +102,7 @@ def published_today(s: Session, platform: str) -> int:
 
 def _files(item: Item) -> dict:
     folder = Path(item.folder)
-    if item.format == WEEKLY_VIDEO:
+    if item.format in LONG_VIDEOS:
         return {"video": folder / "video.mp4", "cover": folder / "cover.jpg",
                 "meta": json.loads((folder / "meta.json").read_text(encoding="utf-8"))}
     return {"video": folder / "reel.mp4", "cover": folder / "cover.jpg",
@@ -110,14 +110,26 @@ def _files(item: Item) -> dict:
             "draft": json.loads((folder / "draft.json").read_text(encoding="utf-8"))}
 
 
+def _earn(item: Item, platform: str, text: str) -> str:
+    """Affiliate link and e-book lines for this platform (studio.earn); never blocks a post."""
+    from instapost.studio import earn
+
+    try:
+        return earn.block(platform, item.pillar, f"{text} {item.caption}")
+    except Exception:  # noqa: BLE001 - a broken links file must not stop publishing
+        return ""
+
+
 def _publish_one(s: Session, item: Item, pub: Publication, files: dict, host) -> Published:
-    if item.format == WEEKLY_VIDEO:
+    if item.format in LONG_VIDEOS:
         if pub.platform != "youtube":
-            raise PublishError("the weekly video goes to YouTube only")
+            raise PublishError("long videos go to YouTube only")
         meta = files["meta"]
-        return youtube.upload_video(files["video"], meta["title"], meta["description"],
+        description = meta["description"] + _earn(item, "youtube", meta["title"])
+        return youtube.upload_video(files["video"], meta["title"], description[:4900],
                                     meta["tags"], thumbnail=files["cover"])
     fmt = base_format(item.format)
+    caption = item.caption + _earn(item, pub.platform, item.hook or "")
 
     def remember(container_id: str) -> None:
         pub.container_id = container_id
@@ -128,21 +140,21 @@ def _publish_one(s: Session, item: Item, pub: Publication, files: dict, host) ->
         if pub.container_id:
             return ig.resume(pub.container_id)
         if fmt == Format.REEL_BOOK_POV:
-            return ig.reel(host.url_for(files["video"]), item.caption,
+            return ig.reel(host.url_for(files["video"]), caption[:2200],
                            host.url_for(files["cover"]), on_container=remember)
         if fmt == Format.CAROUSEL_SHLOK:
-            return ig.carousel([host.url_for(p) for p in files["slides"]], item.caption,
+            return ig.carousel([host.url_for(p) for p in files["slides"]], caption[:2200],
                                on_container=remember)
         return ig.story(host.url_for(files["story"]), on_container=remember)
 
     if pub.platform == "facebook":
         from instapost.publish.facebook import Facebook
-        return Facebook().reel(host.url_for(files["video"]), item.caption)
+        return Facebook().reel(host.url_for(files["video"]), caption)
 
     if pub.platform == "youtube":
         draft = files["draft"]
         title = " ".join(draft["hook_lines"]) + " #Shorts"
-        return youtube.upload_short(files["video"], title, item.caption, draft["hashtags"])
+        return youtube.upload_short(files["video"], title, caption[:4900], draft["hashtags"])
 
     raise PublishError(f"unknown platform {pub.platform}")
 

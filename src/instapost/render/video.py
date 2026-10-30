@@ -222,12 +222,13 @@ class _Particles:
     number of times per loop (so the reel still loops without a seam). They dim over the text
     so it stays readable."""
 
-    def __init__(self, kind: str, seed: int, text_box=None):
+    def __init__(self, kind: str, seed: int, text_box=None, size=(FRAME_W, FRAME_H)):
+        self.w, self.h = size
         rng = np.random.default_rng(seed + 11)
         n = 22 if kind == "embers" else 16
         self.rise = kind == "embers"
-        self.x = rng.uniform(0, FRAME_W, n)
-        self.y = rng.uniform(0, FRAME_H, n)
+        self.x = rng.uniform(0, self.w, n)
+        self.y = rng.uniform(0, self.h, n)
         self.laps = rng.integers(1, 3, n)  # 1 or 2 trips across the frame per loop
         self.sway = rng.uniform(10, 40, n)
         self.sway_k = rng.integers(1, 4, n)
@@ -240,14 +241,14 @@ class _Particles:
         self.box = text_box
 
     def draw(self, arr: np.ndarray, u: float) -> None:
-        travel = self.laps * (FRAME_H + 40) * u * (-1 if self.rise else 1)
-        ys = (self.y + travel) % (FRAME_H + 40) - 20
+        travel = self.laps * (self.h + 40) * u * (-1 if self.rise else 1)
+        ys = (self.y + travel) % (self.h + 40) - 20
         xs = self.x + self.sway * np.sin(2 * math.pi * self.sway_k * u + self.phase)
         for x, y, b, sz in zip(xs, ys, self.bright, self.size, strict=True):
             sp = self.sprites[sz]
             r = sp.shape[0] // 2
             px, py = int(x), int(y)
-            if not (r <= px < FRAME_W - r and r <= py < FRAME_H - r):
+            if not (r <= px < self.w - r and r <= py < self.h - r):
                 continue
             if self.box is not None and (self.box.x0 - 30 < px < self.box.x1 + 30
                                          and self.box.y0 - 30 < py < self.box.y1 + 30):

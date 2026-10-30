@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ brand.page_name }} · लिंक</title>
+<style>
+  :root { --bg: #1C1714; --card: #2a221d; --ink: #F2E7D3; --soft: #C2B29A; --gold: #E0A95A; }
+  body { margin: 0; background: radial-gradient(circle at 50% 0%, #3a2a1f, var(--bg) 60%); color: var(--ink);
+         font-family: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif; min-height: 100vh; }
+  main { max-width: 520px; margin: 0 auto; padding: 40px 16px 60px; }
+  h1 { text-align: center; font-weight: 600; margin: 0 0 4px; font-size: 28px; }
+  .handle { text-align: center; color: var(--soft); margin-bottom: 28px; }
+  a.btn { display: block; background: var(--card); color: var(--ink); text-decoration: none; padding: 16px 18px;
+          border-radius: 14px; margin: 12px 0; border: 1px solid #4a3a2e; font-size: 18px; }
+  a.btn:hover { border-color: var(--gold); }
+  a.btn.ebook { background: linear-gradient(135deg, #8E5A12, #5a3410); border-color: var(--gold); }
+  small { display: block; color: var(--soft); font-size: 13px; margin-top: 28px; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body><main>
+  <h1>{{ brand.page_name }}</h1>
+  <div class="handle">{{ brand.printed_handle }}</div>
+  {% if ebook_url %}<a class="btn ebook" href="{{ ebook_url }}" rel="noopener">📖 जीवन सूत्र ई-बुक</a>{% endif %}
+  {% for x in links %}<a class="btn" href="{{ x.url }}" rel="sponsored noopener">📿 {{ x.title }}</a>{% endfor %}
+  {% if not links and not ebook_url %}<p class="handle">जल्द ही…</p>{% endif %}
+  {% if links %}<small>{{ disclosure }}{% if amazon %}<br>{{ amazon_note }}{% endif %}</small>{% endif %}
+</main></body>
+</html>

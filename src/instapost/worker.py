@@ -132,6 +132,31 @@ class Worker:
             return
         self.send_item(item_id)
 
+    def maybe_monthly_collections(self) -> None:
+        """On the 1st: one long video per theme with enough posts last month (free to make;
+        each waits for your approval)."""
+        from instapost import longform
+
+        sched = load_schedule()
+        now = sched.local_now()
+        hh, mm = map(int, sched.weekly_video.make_at.split(":"))
+        if (now.hour, now.minute) < (hh, mm):
+            return
+        with session() as s:
+            pillars = longform.monthly_due(s, now.date())
+            if not pillars:
+                return
+            set_kv(s, f"collections:{now:%Y-%m}", "done")
+        end = now.date() - timedelta(days=1)
+        for pillar in pillars:
+            try:
+                item_id = producer.make_long("collection", "agent", pillar=pillar,
+                                             days=end.day, end_day=end)
+            except Exception as e:  # noqa: BLE001 - the other themes still get theirs
+                self.notify(f"⚠️ Monthly {pillar} video failed: {tokens.redact(str(e))[:200]}")
+                continue
+            self.send_item(item_id)
+
     def maybe_refresh_token(self) -> None:
         if not tokens.get("ig_access_token"):
             return
@@ -170,6 +195,18 @@ class Worker:
                                 "the reel (about $0.15).")
                 elif job.kind == "scene_make":
                     self.send_item(producer.make_scene(p["scene_id"], p.get("actor", "web")))
+                elif job.kind == "long_video":
+                    opts = {k: v for k, v in p.items() if k not in ("video_kind", "actor")}
+                    if "end_day" in opts:
+                        opts["end_day"] = date.fromisoformat(opts["end_day"])
+                    self.send_item(producer.make_long(p["video_kind"], p.get("actor", "web"),
+                                                      **opts))
+                elif job.kind == "ebook":
+                    meta = producer.make_ebook(date.fromisoformat(p["start"]),
+                                               date.fromisoformat(p["end"]), p.get("pillar"),
+                                               p.get("title"), p.get("actor", "web"))
+                    self.notify(f"📖 E-book ready: {meta['title']} ({meta['sutras']} sutras, "
+                                f"{meta['pages']} pages). Download it on the dashboard: Earn.")
                 elif job.kind == "retemplate":
                     self.send_item(producer.retemplate(p["item_id"], p.get("template"),
                                                        p.get("actor", "web")))
@@ -252,7 +289,8 @@ class Worker:
             set_kv(s, "worker_heartbeat", utcnow().isoformat())
         for duty in (self.publish_due, self.run_requests, self.maybe_generate,
                      self.maybe_refresh_token, self.collect_stats, self.maybe_report,
-                     self.maybe_plan_week, self.maybe_weekly_video):
+                     self.maybe_plan_week, self.maybe_weekly_video,
+                     self.maybe_monthly_collections):
             try:
                 duty()
             except Exception as e:  # noqa: BLE001 - keep the worker alive, but tell the admin

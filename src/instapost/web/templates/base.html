@@ -29,12 +29,14 @@
     {{ nav("/library", "library", "Library", path.startswith("/library") or path.startswith("/items")) }}
     {{ nav("/backgrounds", "image", "Backgrounds", path.startswith("/backgrounds")) }}
     {{ nav("/scenes", "users", "Scenes", path.startswith("/scenes")) }}
+    {{ nav("/long-videos", "youtube", "Long videos", path.startswith("/long-videos")) }}
     {{ nav("/templates", "star", "Templates", path.startswith("/templates")) }}
     {{ nav("/drawings", "pen", "Drawings", path.startswith("/drawings")) }}
     {{ nav("/music", "music", "Music", path.startswith("/music")) }}
     <div class="group">Growth</div>
     {{ nav("/analytics", "chart", "Analytics", path.startswith("/analytics") or path.startswith("/stats")) }}
     {{ nav("/learning", "bulb", "Learning", path.startswith("/learning")) }}
+    {{ nav("/earn", "wallet", "Earn", path.startswith("/earn")) }}
     {{ nav("/reports", "report", "Reports", path.startswith("/reports")) }}
     {{ nav("/costs", "coins", "Costs", path.startswith("/costs")) }}
     <div class="group">Planning</div>

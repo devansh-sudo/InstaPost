@@ -25,7 +25,7 @@
   <img class="thumb {{ size }}" loading="lazy" alt="" src="/thumb/{{ item.id }}">
 {%- endmacro %}
 
-{% macro fmt_label(f) %}{{ {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel", "story_line": "Story", "weekly_video": "Weekly video"}.get(f, f) }}{% endmacro %}
+{% macro fmt_label(f) %}{{ {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel", "story_line": "Story", "weekly_video": "Weekly video", "long_video": "Long video"}.get(f, f) }}{% endmacro %}
 
 {% macro note(n) %}
   <div class="nt {{ 'unread' if n.unread }}">

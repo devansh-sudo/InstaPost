@@ -12,7 +12,7 @@
   <a class="btn" href="/plan">{{ icon("plan", "sm") }} Edit the plan</a>
 {% endblock %}
 {% block content %}
-{% set flabel = {"reel_book_pov": "Reels", "scene_reel": "Scene reels", "carousel_shlok": "Carousels", "story_line": "Stories", "weekly_video": "Weekly videos"} %}
+{% set flabel = {"reel_book_pov": "Reels", "scene_reel": "Scene reels", "carousel_shlok": "Carousels", "story_line": "Stories", "weekly_video": "Weekly videos", "long_video": "Long videos"} %}
 <div class="kpis">
   <div class="kpi"><div class="k">{{ icon("calendar", "sm") }} Posts in these {{ range_days }} days</div><div class="v">{{ totals.posts }}</div>
     <div class="d">scheduled + waiting + planned</div></div>

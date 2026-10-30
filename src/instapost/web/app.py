@@ -36,7 +36,7 @@ FILE_NAME = re.compile(r"^(reel\.mp4|video\.mp4|cover\.jpg|story\.jpg|slide_\d{2
 MAX_TRACK_MB = 25
 LIBRARY_PAGE = 40  # posts per Library page
 FORMAT_LABEL = {"reel_book_pov": "Reel", "scene_reel": "Scene reel", "carousel_shlok": "Carousel",
-                "story_line": "Story", "weekly_video": "Weekly video"}
+                "story_line": "Story", "weekly_video": "Weekly video", "long_video": "Long video"}
 PILLAR_LABEL = {"jeevan_sutra": "Jeevan sutra", "shiv_dhyan": "Shiv dhyan", "gita": "Gita",
                 "kabir": "Kabir", "life_lesson": "Life lesson"}
 templates = Jinja2Templates(directory=str(HERE / "templates"))
@@ -440,7 +440,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         from instapost.render import templates as looks
         with session() as s:
             item = s.get(Item, item_id)
-            if item is None or item.format == approvals.WEEKLY_VIDEO:
+            if item is None or item.format in approvals.LONG_VIDEOS:
                 raise HTTPException(404)
             fmt = item.format
         look = _look_for(fmt, template)
@@ -503,7 +503,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                           history=history, now_local=load_schedule().local_now(),
                           cost=costs.item_cost(item_id), look=_look(folder),
                           looks=looks.looks(looks.kind_of(item.format))
-                          if item.format != approvals.WEEKLY_VIDEO else {})
+                          if item.format not in approvals.LONG_VIDEOS else {})
 
     @app.get("/calendar", response_class=HTMLResponse)
     def calendar(request: Request, days: int = 14, start: str = "",
@@ -641,6 +641,171 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     def _look(folder: Path) -> str:
         f = folder / "template.txt"
         return f.read_text(encoding="utf-8").strip() if f.exists() else ""
+
+    # Earning: affiliate links, the sutra e-book, and the public link page
+    @app.get("/links", response_class=HTMLResponse)
+    def public_links(request: Request):
+        """Public (no login): the page your Instagram bio points to."""
+        from instapost.studio import earn
+        data = earn.load()
+        brand = load_brand()
+        return templates.TemplateResponse(request, "links.html", {
+            "links": [x for x in data["links"] if x.get("on")], "ebook_url": data["ebook_url"],
+            "brand": brand, "disclosure": earn.DISCLOSURE,
+            "amazon": any("amazon." in x["url"] or "amzn." in x["url"] for x in data["links"]),
+            "amazon_note": earn.AMAZON_NOTE})
+
+    @app.get("/earn", response_class=HTMLResponse)
+    def earn_page(request: Request, who: str = Depends(user)):
+        from instapost.studio import earn, ebook
+        today = load_schedule().local_now().date()
+        start, end = today - timedelta(days=29), today
+        return render(request, "earn.html", data=earn.load(), page=earn.public_page(),
+                      books=ebook.all_books(), pillars=PILLAR_LABEL, today=today,
+                      month_start=start, month_end=end, min_sutras=ebook.MIN_SUTRAS)
+
+    @app.post("/earn/links")
+    async def earn_add_link(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import earn
+        form = await request.form()
+        try:
+            link = earn.add_link(str(form.get("title") or ""), str(form.get("url") or ""),
+                                 [str(v) for v in form.getlist("pillars")],
+                                 str(form.get("tags") or "").replace(",", " ").split())
+        except ValueError as e:
+            return back(request, f"Not added: {e}", "/earn")
+        return back(request, f"Added \"{link['title']}\".", "/earn")
+
+    @app.post("/earn/links/{link_id}")
+    def earn_link_action(request: Request, link_id: str, action: str = Form(...),
+                         who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import earn
+        if action == "delete":
+            earn.remove(link_id)
+        else:
+            earn.update(link_id, on=action == "on")
+        return back(request, "Saved.", "/earn")
+
+    @app.post("/earn/options")
+    def earn_options(request: Request, links_on: str = Form("0"), ebook_url: str = Form(""),
+                     who: str = Depends(user), _=Depends(csrf)):
+        from instapost.studio import earn
+        try:
+            earn.set_options(links_on=links_on == "1", ebook_url=ebook_url)
+        except ValueError as e:
+            return back(request, f"Not saved: {e}", "/earn")
+        return back(request, "Saved.", "/earn")
+
+    @app.post("/earn/ebook")
+    def earn_ebook(request: Request, start: str = Form(...), end: str = Form(...),
+                   pillar: str = Form(""), title: str = Form(""), who: str = Depends(user),
+                   _=Depends(csrf)):
+        a, b = date.fromisoformat(start), date.fromisoformat(end)
+        if b < a:
+            a, b = b, a
+        jobs.enqueue("ebook", f"e-book {a} – {b}", start=a.isoformat(), end=b.isoformat(),
+                     pillar=pillar if pillar in PILLAR_LABEL else None,
+                     title=title.strip() or None, actor=f"web:{who}")
+        return back(request, "Making the e-book (free, about a minute). It appears below and "
+                    "you get a Telegram message.", "/earn")
+
+    @app.get("/earn/ebook/{book_id}/{name}")
+    def earn_ebook_file(book_id: str, name: str, who: str = Depends(user)):
+        from instapost.studio import ebook
+        try:
+            path = ebook.file(book_id, name)
+        except KeyError:
+            raise HTTPException(404) from None
+        return FileResponse(path, filename=f"{book_id}-{name}")
+
+    # Long YouTube videos (audio videos, theme collections)
+    @app.get("/long-videos", response_class=HTMLResponse)
+    def long_page(request: Request, who: str = Depends(user)):
+        from instapost import longform
+        from instapost.render import templates as looks
+        with session() as s:
+            made = list(s.scalars(select(Item).where(Item.format.in_(approvals.LONG_VIDEOS))
+                                  .order_by(Item.created_at.desc()).limit(20)))
+        return render(request, "long_videos.html", audios=longform.audio_list(),
+                      looks=[(t, looks.label(t)) for t in looks.looks("reel")
+                             if t not in ("book_photo", "classic")],
+                      pillars=PILLAR_LABEL, made=made, ts=longform.ts,
+                      min_posts=longform.MONTHLY_MIN_POSTS)
+
+    @app.post("/long-videos/audio")
+    async def long_audio_upload(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost import longform
+        form = await request.form(max_files=1)
+        f = form.get("file")
+        if not getattr(f, "filename", ""):
+            return back(request, "Choose an audio file.", "/long-videos")
+        try:
+            info = await longform.add_audio(f, str(form.get("title") or ""),
+                                            form.get("rights") == "1")
+        except ValueError as e:
+            return back(request, f"Not uploaded: {e}", "/long-videos")
+        return back(request, f"Uploaded \"{info['title']}\" ({info['duration'] / 60:.0f} min).",
+                    "/long-videos")
+
+    @app.get("/long-videos/audio/{name}")
+    def long_audio_file(name: str, who: str = Depends(user)):
+        from instapost import longform
+        try:
+            return FileResponse(longform.audio_path(name))
+        except KeyError:
+            raise HTTPException(404) from None
+
+    @app.post("/long-videos/audio/{name}/rights")
+    def long_audio_rights(request: Request, name: str, who: str = Depends(user),
+                          _=Depends(csrf)):
+        from instapost import longform
+        try:
+            longform.confirm_rights(name)
+        except KeyError:
+            raise HTTPException(404) from None
+        with session() as s:
+            audit(s, f"web:{who}", "audio_rights_confirmed", audio=name)
+        return back(request, "Rights confirmed.", "/long-videos")
+
+    @app.post("/long-videos/audio/{name}/delete")
+    def long_audio_delete(request: Request, name: str, who: str = Depends(user),
+                          _=Depends(csrf)):
+        from instapost import longform
+        try:
+            longform.remove_audio(name)
+        except KeyError:
+            raise HTTPException(404) from None
+        return back(request, "Audio removed.", "/long-videos")
+
+    @app.post("/long-videos/make")
+    async def long_make(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost import longform
+        form = await request.form()
+        get = lambda k, d="": str(form.get(k) or d).strip()  # noqa: E731
+        kind = get("kind")
+        if kind == "audio":
+            try:
+                longform.audio_path(get("audio"))
+            except KeyError:
+                return back(request, "Choose one of your uploaded audios.", "/long-videos")
+            if not get("title"):
+                return back(request, "Give the video a YouTube title.", "/long-videos")
+            opts = dict(audio_name=get("audio"), title=get("title"), line=get("line"),
+                        meaning=get("meaning"), look=get("look", "night"),
+                        pillar=get("pillar", "shiv_dhyan"), chapters=get("chapters"),
+                        about=get("about"))
+        elif kind == "collection":
+            try:
+                days = max(7, min(int(get("days", "30")), 120))
+            except ValueError:
+                days = 30
+            opts = dict(pillar=get("pillar", "gita"), days=days)
+        else:
+            raise HTTPException(400)
+        jobs.enqueue("long_video", f"long video ({kind})", video_kind=kind, actor=f"web:{who}",
+                     **opts)
+        return back(request, "Making the video. It waits in the inbox (and on Telegram) for "
+                    "your OK before going to YouTube.", "/long-videos")
 
     # Scene reels (Shiv and Parvati talking)
     def _scene(scene_id: str) -> dict:

@@ -41,7 +41,7 @@ HELP = """Commands
 
 FORMAT_LABEL = {"reel_book_pov": "🎬 Reel", "scene_reel": "🎭 Scene reel",
                 "carousel_shlok": "🖼 Carousel", "story_line": "📱 Story",
-                "weekly_video": "📺 Weekly YouTube video"}
+                "weekly_video": "📺 Weekly YouTube video", "long_video": "📺 Long YouTube video"}
 TELEGRAM_VIDEO_LIMIT = 48_000_000  # bots may send videos up to 50 MB
 
 
@@ -83,9 +83,10 @@ class Bot:
 
     def item_text(self, item: Item) -> str:
         folder = Path(item.folder)
-        if item.format == "weekly_video":
+        if item.format in approvals.LONG_VIDEOS:
             return self._weekly_text(item)
-        fact = json.loads((folder / "fact_check.json").read_text(encoding="utf-8"))
+        fact_file = folder / "fact_check.json"  # scene reels have none: you approved the script
+        fact = json.loads(fact_file.read_text(encoding="utf-8")) if fact_file.exists() else {}
         warn = ""
         if item.fact_check == "needs_human_review":
             warn = "\n⚠️ Please verify: " + "; ".join(fact.get("issues", []))[:300]
@@ -117,7 +118,7 @@ class Bot:
             *([[{"text": "📲 Trending song (I post it on Instagram)",
                  "callback_data": f"ts:{item.id}"}]] if item.format == "reel_book_pov" else []),
             *([[{"text": "🎨 Other look (same text)", "callback_data": f"rt:{item.id}"}]]
-              if item.format not in (approvals.WEEKLY_VIDEO, approvals.SCENE_REEL) else []),
+              if item.format not in (*approvals.LONG_VIDEOS, approvals.SCENE_REEL) else []),
             [{"text": "❌ Reject", "callback_data": f"rj:{item.id}"},
              {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
             [{"text": "⏭ Approve next 3", "callback_data": "an:3"},
@@ -133,12 +134,12 @@ class Bot:
             text, kb = self.item_text(item), self.keyboard(item)
             caption = text[:1000]
             video = folder / "video.mp4"
-            if item.format == "weekly_video" and video.exists() \
+            if item.format in approvals.LONG_VIDEOS and video.exists() \
                     and video.stat().st_size < TELEGRAM_VIDEO_LIMIT:
                 with open(video, "rb") as f:
                     msg = self.call("sendVideo", files={"video": f}, chat_id=self.admin,
                                     caption=caption, reply_markup=kb, supports_streaming="true")
-            elif item.format == "weekly_video":  # too big for a bot: thumbnail + link
+            elif item.format in approvals.LONG_VIDEOS:  # too big for a bot: thumbnail + link
                 with open(folder / "cover.jpg", "rb") as f:
                     msg = self.call("sendPhoto", files={"photo": f}, chat_id=self.admin,
                                     caption=caption, reply_markup=kb)
