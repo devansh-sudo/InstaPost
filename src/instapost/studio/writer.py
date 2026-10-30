@@ -104,7 +104,7 @@ def write(
         return llm.structured(
             model=st.story_writer_model if story else st.writer_model, system=system,
             content=text, schema=Draft, purpose=f"write:{fmt.value}",
-            effort="low" if story else "medium", max_tokens=8000, estimated_usd=0.05,
+            effort="low" if story else st.writer_effort, max_tokens=8000, estimated_usd=0.05,
         )
 
     draft = ask(content)

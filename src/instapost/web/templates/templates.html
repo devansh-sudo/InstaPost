@@ -3,6 +3,39 @@
 {% block title %}Templates{% endblock %}
 {% block subtitle %}Looks for reels, carousels and stories · posts rotate between the ones switched on, the best performers come up more often{% endblock %}
 {% block content %}
+<div class="card section">
+  <div class="card-head">{{ icon("plus") }}<h2>Create your own look</h2></div>
+  <p class="muted">Make a look once and it is used for free on every post after that. Pick <b>one</b> background: two colours (free), your own picture (free), or describe one and the AI paints it once (about $0.04).</p>
+  <form method="post" action="/templates/custom" enctype="multipart/form-data" class="stack" style="gap:12px">
+    <input type="hidden" name="token" value="{{ csrf }}">
+    <div class="form-grid">
+      <label class="field">Name<input name="name" placeholder="e.g. Kashi evening" maxlength="40" required></label>
+      <label class="field">Background
+        <select name="base"><option value="gradient">Two colours (free)</option><option value="upload">My picture (free)</option><option value="ai">AI paints it once (~$0.04)</option></select></label>
+      <label class="field">Text colour<select name="text"><option value="light">Light text (dark background)</option><option value="dark">Dark text (light background)</option></select></label>
+    </div>
+    <div class="form-grid">
+      <label class="field">Two colours: top<input type="color" name="top" value="#2A1B3D"></label>
+      <label class="field">bottom<input type="color" name="bottom" value="#C8743A"></label>
+      <label class="field">Pattern<select name="pattern"><option value="none">none</option><option value="mandala">mandala</option><option value="lights">diya lights</option><option value="rays">light rays</option></select></label>
+    </div>
+    <div class="form-grid">
+      <label class="field">My picture<input type="file" name="picture" accept="image/*"></label>
+      <label class="field" style="grid-column: span 2">AI background: describe it (English or Hindi)<input name="prompt" placeholder="e.g. Kashi ghats at dusk, soft diya light on the Ganga, mist"></label>
+    </div>
+    <div class="form-grid">
+      <label class="field">Highlight colour (behind the hook)<input type="color" name="highlight" value="#A4581B"></label>
+      <label class="field">Darken / lighten the background (for readable text)<input type="range" name="dim" min="0" max="75" value="35"></label>
+      <label class="field">Motion in reels<select name="motion"><option value="dust">soft dust</option><option value="embers">rising diya embers</option><option value="petals">falling marigold petals</option></select></label>
+    </div>
+    <div class="row" style="gap:16px">
+      <span class="tiny">Use it for:</span>
+      {% for kind, title, list, on in kinds %}<label class="row" style="gap:6px"><input type="checkbox" name="kinds" value="{{ kind }}" checked> {{ title }}</label>{% endfor %}
+      <button class="primary" style="margin-left:auto">{{ icon("check", "sm") }} Save look</button>
+    </div>
+  </form>
+</div>
+
 <form method="post" action="/templates">
   <input type="hidden" name="token" value="{{ csrf }}">
   <div class="card section">
@@ -25,6 +58,7 @@
       <div class="tiny" style="margin-top:4px">
         {% if sc %}score {{ sc.mean }} ({{ sc.low }}–{{ sc.high }}) from {{ sc.posts }} post{{ 's' if sc.posts != 1 }}{% else %}no scored posts yet{% endif %}
         · {% if used %}last used {{ used[:10] }}{% else %}not used yet{% endif %}</div>
+      {% if t.id.startswith("custom-") %}<button class="ghost sm" style="margin-top:6px" formaction="/templates/custom/{{ t.id }}/delete" formmethod="post">{{ icon("x", "sm") }} Delete this look</button>{% endif %}
     </label>
     {% endfor %}
   </div>

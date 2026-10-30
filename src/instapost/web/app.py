@@ -313,7 +313,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                       pillar_labels=PILLAR_LABEL, today=today, tomorrow=today + timedelta(days=1),
                       sched=load_schedule(),
                       looks=[(kind, looks.KIND_NAMES[kind],
-                              [looks.BY_KIND[kind][t] for t in looks.enabled(kind)])
+                              [looks.looks(kind)[t] for t in looks.enabled(kind)])
                              for kind in looks.BY_KIND])
 
     @app.get("/notifications", response_class=HTMLResponse)
@@ -502,7 +502,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                           draft=read("draft.json"), pubs=list(item.publications),
                           history=history, now_local=load_schedule().local_now(),
                           cost=costs.item_cost(item_id), look=_look(folder),
-                          looks=looks.BY_KIND[looks.kind_of(item.format)]
+                          looks=looks.looks(looks.kind_of(item.format))
                           if item.format != approvals.WEEKLY_VIDEO else {})
 
     @app.get("/calendar", response_class=HTMLResponse)
@@ -636,7 +636,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         from instapost.render import templates as looks
         kind, _, look = value.rpartition(":")
         own = looks.kind_of(fmt)
-        return look if (not kind or kind == own) and look in looks.BY_KIND[own] else None
+        return look if (not kind or kind == own) and look in looks.looks(own) else None
 
     def _look(folder: Path) -> str:
         f = folder / "template.txt"
@@ -752,8 +752,8 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
             rows = queries.post_rows(s, since=utcnow() - timedelta(days=assets.HISTORY_DAYS))
         scores = {r["option"]: r for r in assets.table("template", rows=rows)}
         usage = _load_usage()
-        kinds = [(kind, looks.KIND_NAMES[kind], list(by_id.values()), set(looks.enabled(kind)))
-                 for kind, by_id in looks.BY_KIND.items()]
+        kinds = [(kind, looks.KIND_NAMES[kind], list(looks.looks(kind).values()),
+                  set(looks.enabled(kind))) for kind in looks.BY_KIND]
         return render(request, "templates.html", kinds=kinds, scores=scores, usage=usage,
                       key=looks.key, plate_style=get_settings().reel_style == "plate",
                       ready_photos=len(plates.ready()))
@@ -761,7 +761,7 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
     @app.get("/templates/sample/{kind}/{template_id}")
     def template_sample(kind: str, template_id: str, who: str = Depends(user)):
         from instapost.render import templates as looks
-        if template_id not in looks.BY_KIND.get(kind, {}):
+        if kind not in looks.BY_KIND or template_id not in looks.looks(kind):
             raise HTTPException(404)
         return FileResponse(looks.sample(template_id, kind),
                             headers={"Cache-Control": "private, max-age=3600"})
@@ -779,6 +779,52 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                 saved.append(f"{looks.KIND_NAMES[kind]}: "
                              + ", ".join(looks.label(t, kind) for t in ids))
         return back(request, "Saved. " + " · ".join(saved), "/templates")
+
+    @app.post("/templates/custom")
+    async def custom_look_create(request: Request, who: str = Depends(user), _=Depends(csrf)):
+        from instapost.render import custom_looks
+        form = await request.form()
+        get = lambda k, d="": str(form.get(k) or d).strip()  # noqa: E731
+        base, picture = get("base", "gradient"), None
+        try:
+            if base == "upload":
+                f = form.get("picture")
+                if not getattr(f, "filename", ""):
+                    raise ValueError("choose a picture to upload")
+                picture = custom_looks.picture_from_upload(await f.read(15 << 20))
+            elif base == "ai":
+                if len(get("prompt")) < 8:
+                    raise ValueError("describe the background in a few words for the AI")
+                picture = custom_looks.paint(get("prompt"))
+            try:
+                dim = float(get("dim", "35")) / 100
+            except ValueError:
+                dim = 0.35
+            cfg = custom_looks.create(
+                get("name"), [str(k) for k in form.getlist("kinds")],
+                base="picture" if picture is not None else "gradient", top=get("top"),
+                bottom=get("bottom"), pattern=get("pattern"), text=get("text"),
+                highlight=get("highlight"), dim=dim, motion=get("motion"), picture=picture,
+                prompt=get("prompt") if base == "ai" else "")
+        except Exception as e:  # noqa: BLE001 - shown to you, nothing is saved
+            return back(request, f"Not saved: {str(e)[:200]}", "/templates")
+        with session() as s:
+            audit(s, f"web:{who}", "look_created", look=cfg["id"], name=cfg["name"],
+                  source=base)
+        return back(request, f"Saved \"{cfg['name']}\". It is switched on and joins the "
+                    "rotation; its examples are below.", "/templates")
+
+    @app.post("/templates/custom/{look_id}/delete")
+    def custom_look_delete(request: Request, look_id: str, who: str = Depends(user),
+                           _=Depends(csrf)):
+        from instapost.render import custom_looks
+        try:
+            custom_looks.delete(look_id)
+        except KeyError:
+            raise HTTPException(404) from None
+        for f in (get_settings().state_dir / "templates").glob(f"*{look_id}.jpg"):
+            f.unlink(missing_ok=True)
+        return back(request, "Look deleted.", "/templates")
 
     # Ink drawings for the page
     def _drawing(drawing_id: str):

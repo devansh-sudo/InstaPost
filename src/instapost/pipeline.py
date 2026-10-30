@@ -129,6 +129,9 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
     step("generating images")
     provider = _KeepDraftOnQuota(
         images.get_provider("placeholder" if offline else image_provider), folder)
+    # Blurred background scenes: free sources first (the image API only as a last resort).
+    scenes_src = provider if offline or image_provider else _KeepDraftOnQuota(
+        images.scene_provider(), folder)
     reference = ((fact.reference_label, fact.reference_text)
                  if fact.reference_label and fact.reference_text else None)
 
@@ -141,7 +144,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
             body=draft.body, reference_label=fact.reference_label,
             reference_text=fact.reference_text, footer=brand.printed_handle, illustration=illus,
         )
-        comp, vision = _reel_look(brand, content, draft, seed, folder, provider, offline,
+        comp, vision = _reel_look(brand, content, draft, seed, folder, scenes_src, offline,
                                   vision_qa, template)
         still, text_boxes = comp.still, comp.text_boxes
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
@@ -172,7 +175,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
     elif fmt == Format.STORY_LINE:
         line = draft.story_line or draft.hook_lines[0]
         look = _pick_look(fmt, seed, template, folder)
-        scene = (provider.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
+        scene = (scenes_src.generate(images.scene_prompt(draft.scene_prompt), portrait=True)
                  if look == "card" else None)  # the other looks need no photo
         story = carousel.render_story(brand, scene, line, seed, look=look)
         story.save(folder / "story.jpg", quality=92)

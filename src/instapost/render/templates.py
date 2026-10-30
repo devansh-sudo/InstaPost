@@ -43,6 +43,13 @@ _PAPER = "The whole screen is a cream printed page, close up."
 _MANDALA = "Cream page with a faint hand-drawn mandala behind the text."
 _NIGHT = "Dark paper, cream text, amber highlight, a few far-away diya lights."
 _DUSK = "A sunset sky (indigo to saffron) with floating lights and cream text."
+_GOLD = "Deep maroon with an ornate gold border and falling marigold petals, like a temple poster."
+_SUNRISE = "Warm saffron light with soft rays from the top; dark text. Bright in the feed."
+_GANGA = "Night on the river: diyas on the far bank, their light on the water, rising embers."
+_MANUSCRIPT = "An old parchment page with darkened, uneven edges."
+_NEW = ("gold_frame", "sunrise", "ganga", "manuscript")
+_NEW_NAMES = {"gold_frame": ("Gold frame", _GOLD), "sunrise": ("Sunrise", _SUNRISE),
+              "ganga": ("Ganga night", _GANGA), "manuscript": ("Manuscript", _MANUSCRIPT)}
 
 BY_KIND: dict[str, dict[str, Template]] = {
     REEL: {t.id: t for t in (
@@ -54,12 +61,14 @@ BY_KIND: dict[str, dict[str, Template]] = {
         Template("mandala", "Mandala page", _MANDALA),
         Template("night", "Night page", _NIGHT),
         Template("dusk", "Dusk sky", _DUSK),
+        *(Template(t, *_NEW_NAMES[t]) for t in _NEW),
     )},
     CAROUSEL: {t.id: t for t in (
         Template("paper", "Paper", "Cream pages, like the book."),
         Template("mandala", "Mandala", _MANDALA),
         Template("night", "Night", _NIGHT),
         Template("dusk", "Dusk sky", _DUSK),
+        *(Template(t, *_NEW_NAMES[t]) for t in _NEW),
     )},
     STORY: {t.id: t for t in (
         Template("card", "Card on photo", "A paper card over a blurred scene photo.", "scene"),
@@ -67,9 +76,23 @@ BY_KIND: dict[str, dict[str, Template]] = {
         Template("mandala", "Mandala", _MANDALA),
         Template("night", "Night", _NIGHT),
         Template("dusk", "Dusk sky", _DUSK),
+        *(Template(t, *_NEW_NAMES[t]) for t in _NEW),
     )},
 }
 TEMPLATES = BY_KIND[REEL]  # reels (the first kind that had looks)
+
+
+def looks(kind: str) -> dict[str, Template]:
+    """Built-in looks for this kind plus your own (dashboard: Create your own look)."""
+    from instapost.render import custom_looks
+
+    out = dict(BY_KIND[kind])
+    for cfg in custom_looks.all_looks():
+        if kind in cfg["kinds"]:
+            what = ("your picture" if cfg["base"] == "picture"
+                    else f"{cfg['top']} to {cfg['bottom']}, {cfg['pattern']}")
+            out[cfg["id"]] = Template(cfg["id"], cfg["name"], f"Your own look: {what}.")
+    return out
 DEFAULT_ORDER = list(TEMPLATES)
 # The look tried last, which always works: classic needs the image API, which has its own
 # fallbacks; the paper looks need nothing.
@@ -85,6 +108,10 @@ def key(kind: str, template_id: str) -> str:
     """The id the learner and the usage history know a look by (reels keep the plain id)."""
     return template_id if kind == REEL else f"{kind}/{template_id}"
 
+
+# Moving light on the card looks (render.video): diya embers rise on the dark ones, marigold
+# petals drift down on the gold frame; the others keep the soft dust.
+PARTICLES = {"night": "embers", "dusk": "embers", "ganga": "embers", "gold_frame": "petals"}
 
 # Text inside Instagram's safe area even at the reel's strongest zoom (see qa.unsafe_boxes).
 CARD_LAYOUT = Layout(w=FRAME_W, h=FRAME_H, margin=150, header_y=232, top=330, bottom_pad=440,
@@ -112,8 +139,13 @@ def compose_card(brand: Brand, template_id: str, content: PageContent,
                       max(b.x1 for b in boxes), max(b.y1 for b in boxes)) if boxes else None
     still = page.image.convert("RGB")
     base = (page.base if page.base is not None else page.image).convert("RGB")
+    if template_id.startswith("custom-"):
+        from instapost.render import custom_looks
+        particles = custom_looks.motion_of(template_id)
+    else:
+        particles = PARTICLES.get(template_id)
     return Composition(still, base, layers, page.hook_boxes, page.text_boxes,
-                       page_box=content_box, style="card")
+                       page_box=content_box, style="card", particles=particles)
 
 
 def order(enabled: list[str], seed: int, first: str | None = None,
@@ -122,11 +154,11 @@ def order(enabled: list[str], seed: int, first: str | None = None,
     enabled ones (the last few used go to the back), and the fallback look last."""
     from instapost.learn import assets
 
-    looks = BY_KIND[kind]
-    ids = [t for t in enabled if t in looks] or list(looks)
+    available = looks(kind)
+    ids = [t for t in enabled if t in available] or list(available)
     picked = assets.order("template", sorted(key(kind, t) for t in ids), random.Random(seed))
     out = [k.split("/")[-1] for k in picked]
-    if first in looks:
+    if first in available:
         out = [first] + [t for t in out if t != first]
     last = FALLBACK[kind]
     return [t for t in out if t != last] + [last]
@@ -138,24 +170,41 @@ def _kv_key(kind: str) -> str:
     return "templates:enabled" if kind == REEL else f"templates:enabled:{kind}"
 
 
+# The looks there were when on/off choices were first saved (before new ones were tracked).
+_BEFORE_NEW_LOOKS = {
+    REEL: {"book_photo", "classic", "paper", "mandala", "night", "dusk"},
+    CAROUSEL: {"paper", "mandala", "night", "dusk"},
+    STORY: {"card", "paper", "mandala", "night", "dusk"},
+}
+
+
 def enabled(kind: str = REEL) -> list[str]:
-    """Look ids switched on; all of them until you change it on the dashboard."""
+    """Look ids switched on: what you ticked on the dashboard, plus any look added since
+    (new built-in designs and your own new looks start switched on)."""
     from instapost.db import get_kv, session
 
     try:
         with session() as s:
             raw = get_kv(s, _kv_key(kind), "")
+            seen = set(get_kv(s, _kv_key(kind) + ":seen", "").split(","))
     except Exception:  # noqa: BLE001 - no database (CLI dry runs): everything is on
-        raw = ""
-    ids = [t for t in raw.split(",") if t in BY_KIND[kind]]
-    return ids or list(BY_KIND[kind])
+        raw, seen = "", set()
+    available = looks(kind)
+    if not raw:
+        return list(available)
+    ids = [t for t in raw.split(",") if t in available]
+    seen = (seen - {""}) or _BEFORE_NEW_LOOKS[kind]  # choices saved before "seen" existed
+    ids += [t for t in available if t not in seen and t not in ids]
+    return ids or list(available)
 
 
 def set_enabled(s, ids: list[str], actor: str, kind: str = REEL) -> list[str]:
     from instapost.db import audit, set_kv
 
-    ids = [t for t in BY_KIND[kind] if t in ids] or ["paper"]  # never all off
+    available = looks(kind)
+    ids = [t for t in available if t in ids] or ["paper"]  # never all off
     set_kv(s, _kv_key(kind), ",".join(ids))
+    set_kv(s, _kv_key(kind) + ":seen", ",".join(available))
     audit(s, actor, "templates_enabled", kind=kind, templates=ids)
     return ids
 
@@ -167,7 +216,7 @@ def mark_used(template_id: str, kind: str = REEL) -> None:
 
 
 def label(template_id: str | None, kind: str = REEL) -> str:
-    t = BY_KIND[kind].get(template_id or "")
+    t = looks(kind).get(template_id or "")
     return t.name if t else (template_id or "")
 
 

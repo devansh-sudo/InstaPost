@@ -107,6 +107,7 @@ class Composition:
     page_box: Box | None = None  # where the page is in the frame (book photos)
     page_quad: list | None = None  # the page's paper outline (book photos): 4 corners
     style: str = "classic"       # "classic" (drawn book on a blurred scene) or "plate"
+    particles: str | None = None  # card looks: "embers" (rising) or "petals" (falling)
 
 
 def compose_reel(brand: Brand, scene: Image.Image, page: RenderedPage,

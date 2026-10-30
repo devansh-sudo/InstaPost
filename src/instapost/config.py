@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     # Stories are one line plus a poll, so the small model writes them (about 20x cheaper).
     # Set STORY_WRITER_MODEL=claude-sonnet-5-5 to write them with the writer model again.
     story_writer_model: str = "claude-haiku-5-5"
+    # Cost: the writer's thinking effort for reels and carousels ("low" is about half the cost
+    # of "medium" with the same structure), and the fact check runs on the small model first,
+    # going to FACTCHECK_MODEL only when the small one is not sure.
+    writer_effort: str = "low"
+    factcheck_first_model: str = "claude-haiku-5-5"
+    # Blurred scene photos behind the "Drawn book" reels and "Card on photo" stories come from
+    # free sources first (Unsplash, your library); the image API is the last resort.
+    scene_image_provider: str = "unsplash"
 
     image_provider: str = "gemini"
     gemini_api_key: str | None = None

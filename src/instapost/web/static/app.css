@@ -366,3 +366,6 @@ audio.player { width: 240px; height: 34px; display: block; }
   .list > .li > .grow { flex: 1 1 calc(100% - 64px); }
   .li .t { white-space: normal; }
 }
+input[type=color] { width: 100%; height: 44px; padding: 4px; cursor: pointer; background: var(--card, #fff); }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type=color]::-webkit-color-swatch { border: none; border-radius: 6px; }

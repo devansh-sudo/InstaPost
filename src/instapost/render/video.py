@@ -139,6 +139,8 @@ class Motion:
                             (box.x0 - 20, box.y0 - 20, box.x1 + 20, box.y1 + 20) if box else None,
                             count=14 if photo or card else 26)
         self.sprite = _sprite()
+        self.particles = (_Particles(comp.particles, seed, box)
+                          if comp is not None and comp.particles else None)
         self.layers = comp.layers if comp else []
         self.base = np.asarray(comp.base if comp and comp.layers else still, np.float32)
         self.photo = photo
@@ -198,6 +200,9 @@ class Motion:
         phase = 2 * math.pi * t / self.duration
         flicker = 0.6 + 0.22 * math.sin(3 * phase) + 0.12 * math.sin(7 * phase + 1.3)
         arr += self.glow * flicker
+        if self.particles is not None:
+            self.particles.draw(arr, t / self.duration)
+            return np.clip(arr, 0, 255).astype(np.uint8)
         r = self.sprite.shape[0] // 2
         for x, y, radius, k, phi, bright in self.specks:
             px = int(x + radius * math.cos(k * phase + phi))
@@ -210,6 +215,44 @@ class Motion:
     def frames(self) -> Iterator[np.ndarray]:
         for i in range(int(round(self.duration * FPS))):
             yield self.frame_at(i / FPS)
+
+
+class _Particles:
+    """Embers that rise or petals that fall across the whole frame and wrap around, a whole
+    number of times per loop (so the reel still loops without a seam). They dim over the text
+    so it stays readable."""
+
+    def __init__(self, kind: str, seed: int, text_box=None):
+        rng = np.random.default_rng(seed + 11)
+        n = 22 if kind == "embers" else 16
+        self.rise = kind == "embers"
+        self.x = rng.uniform(0, FRAME_W, n)
+        self.y = rng.uniform(0, FRAME_H, n)
+        self.laps = rng.integers(1, 3, n)  # 1 or 2 trips across the frame per loop
+        self.sway = rng.uniform(10, 40, n)
+        self.sway_k = rng.integers(1, 4, n)
+        self.phase = rng.uniform(0, 2 * math.pi, n)
+        self.bright = rng.uniform(0.35, 0.9, n)
+        self.colour = (np.array([255, 170, 80], np.float32) if self.rise
+                       else np.array([255, 150, 30], np.float32))
+        self.sprites = [_sprite(r) for r in ((3, 4, 5) if self.rise else (9, 11, 13))]
+        self.size = rng.integers(0, 3, n)
+        self.box = text_box
+
+    def draw(self, arr: np.ndarray, u: float) -> None:
+        travel = self.laps * (FRAME_H + 40) * u * (-1 if self.rise else 1)
+        ys = (self.y + travel) % (FRAME_H + 40) - 20
+        xs = self.x + self.sway * np.sin(2 * math.pi * self.sway_k * u + self.phase)
+        for x, y, b, sz in zip(xs, ys, self.bright, self.size, strict=True):
+            sp = self.sprites[sz]
+            r = sp.shape[0] // 2
+            px, py = int(x), int(y)
+            if not (r <= px < FRAME_W - r and r <= py < FRAME_H - r):
+                continue
+            if self.box is not None and (self.box.x0 - 30 < px < self.box.x1 + 30
+                                         and self.box.y0 - 30 < py < self.box.y1 + 30):
+                b *= 0.25
+            arr[py - r:py + r + 1, px - r:px + r + 1] += sp[..., None] * self.colour * b
 
 
 def _handheld(img: Image.Image, zoom: float, dx: float, dy: float, rot: float) -> Image.Image:

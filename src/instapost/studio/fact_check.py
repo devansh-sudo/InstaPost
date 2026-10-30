@@ -47,14 +47,24 @@ def fact_check(draft: Draft) -> FactCheckResult:
             "label": verse.label, "speaker": verse.speaker, "text": verse.text,
             "meaning": verse.meaning},
     }
-    result = llm.structured(
-        model=get_settings().factcheck_model, system=SYSTEM,
-        content=json.dumps(payload, ensure_ascii=False, indent=1),
-        # Without a cited verse there is less to verify, so less thinking is needed.
-        schema=FactCheckLLM, purpose="fact_check",
-        effort="medium" if verse is not None else "low", max_tokens=4000,
-        estimated_usd=0.03,
-    )
+    content = json.dumps(payload, ensure_ascii=False, indent=1)
+    st = get_settings()
+    # The small model checks first (about 15x cheaper); only a draft it does not pass goes to
+    # the careful model, whose verdict then counts. FACTCHECK_FIRST_MODEL= (empty) skips this.
+    result = None
+    if st.factcheck_first_model and st.factcheck_first_model != st.factcheck_model:
+        result = llm.structured(
+            model=st.factcheck_first_model, system=SYSTEM, content=content,
+            schema=FactCheckLLM, purpose="fact_check", effort="low", max_tokens=3000,
+            estimated_usd=0.003)
+    if result is None or result.verdict != FactCheckVerdict.PASS:
+        result = llm.structured(
+            model=st.factcheck_model, system=SYSTEM, content=content,
+            # Without a cited verse there is less to verify, so less thinking is needed.
+            schema=FactCheckLLM, purpose="fact_check",
+            effort="medium" if verse is not None else "low", max_tokens=4000,
+            estimated_usd=0.03,
+        )
     issues += result.issues
     verdict = result.verdict
     if verdict == FactCheckVerdict.PASS and verse is not None and not verse.reviewed:

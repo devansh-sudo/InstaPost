@@ -326,6 +326,18 @@ def chain_names(name: str | None = None) -> list[str]:
     return list(dict.fromkeys([name, *extra]))
 
 
+def scene_provider() -> ImageProvider:
+    """For blurred background scenes: free sources first, then the image API."""
+    s = get_settings()
+    if s.image_provider == "placeholder":
+        return _single("placeholder")
+    names = [n for n in dict.fromkeys(chain_names(s.scene_image_provider) + [s.image_provider])
+             if n != "unsplash" or s.unsplash_access_key]  # no key: not worth a try
+    if len(names) == 1:
+        return _single(names[0])
+    return FallbackProvider([_single(n) for n in names])
+
+
 def get_provider(name: str | None = None) -> ImageProvider:
     names = chain_names(name)
     if len(names) == 1:
