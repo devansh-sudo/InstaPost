@@ -667,6 +667,71 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         f = folder / "template.txt"
         return f.read_text(encoding="utf-8").strip() if f.exists() else ""
 
+    # Festivals (India)
+    @app.get("/festivals", response_class=HTMLResponse)
+    def festivals_page(request: Request, who: str = Depends(user)):
+        from instapost import festivals
+        today = load_schedule().local_now().date()
+        months: dict[str, list] = {}
+        for f in festivals.upcoming(today, 420):
+            months.setdefault(f["date"].strftime("%B %Y"), []).append(f)
+        return render(request, "festivals.html", months=months, today=today,
+                      soon=festivals.unconfirmed_soon(today, 42), kinds=festivals.KINDS,
+                      pillars=PILLAR_LABEL)
+
+    @app.post("/festivals/{festival_id}")
+    def festival_action(request: Request, festival_id: str, action: str = Form(...),
+                        day: str = Form(""), who: str = Depends(user), _=Depends(csrf)):
+        from instapost import festivals
+        try:
+            f = festivals.get(festival_id)
+            if action == "confirm":
+                f = festivals.edit(festival_id, confirmed=True, skip=False,
+                                   **({"date": day} if day else {}))
+                msg = f"Confirmed {f['name']} on {f['date']:%d %b %Y}."
+            elif action == "unconfirm":
+                festivals.edit(festival_id, confirmed=False)
+                msg = "Marked as not checked."
+            elif action in ("skip", "restore"):
+                festivals.edit(festival_id, skip=action == "skip")
+                msg = "Skipped: no festival post." if action == "skip" else "Restored."
+            elif action == "remove" and f["mine"]:
+                festivals.remove_mine(festival_id)
+                msg = "Removed."
+            elif action == "make":
+                for_date = max(f["date"], load_schedule().local_now().date())
+                jobs.enqueue("make", f"festival reel: {f['name']}",
+                             format=Format.REEL_BOOK_POV.value, pillar=f["pillar"],
+                             for_date=for_date.isoformat(), topic=f["topic"],
+                             template="gold_frame", actor=f"web:{who}")
+                if f.get("greeting"):
+                    jobs.enqueue("make", f"festival story: {f['name']}",
+                                 format=Format.STORY_LINE.value, pillar=f["pillar"],
+                                 for_date=for_date.isoformat(), topic=f["greeting"],
+                                 template="sunrise", actor=f"web:{who}")
+                msg = (f"Making the {f['name']} reel (gold frame look) and greeting story. "
+                       "They arrive in the inbox for your OK.")
+            else:
+                raise HTTPException(400)
+        except KeyError:
+            raise HTTPException(404) from None
+        except ValueError as e:
+            msg = f"Not saved: {e}"
+        with session() as s:
+            audit(s, f"web:{who}", f"festival_{action}", festival=festival_id)
+        return back(request, msg, "/festivals")
+
+    @app.post("/festivals")
+    def festival_add(request: Request, name: str = Form(...), day: str = Form(...),
+                     pillar: str = Form(...), topic: str = Form(...), greeting: str = Form(""),
+                     who: str = Depends(user), _=Depends(csrf)):
+        from instapost import festivals
+        try:
+            f = festivals.add(name, date.fromisoformat(day), pillar, topic, greeting)
+        except ValueError as e:
+            return back(request, f"Not added: {e}", "/festivals")
+        return back(request, f"Added {f['name']}.", "/festivals")
+
     # Earning: affiliate links, the sutra e-book, and the public link page
     @app.get("/links", response_class=HTMLResponse)
     def public_links(request: Request):

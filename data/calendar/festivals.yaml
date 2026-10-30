@@ -1,40 +1,160 @@
-# Festival calendar for the weekly planner.
+# India festival calendar for the page (November 2026 – December 2027).
 #
-# Lunar-calendar dates move every year, and the dates below are best estimates that have NOT
-# been checked. The planner only uses entries with `confirmed: true`. Check each date against
-# a panchang (e.g. drikpanchang.com or a printed calendar), fix it if needed, then set
-# confirmed: true. Add Pradosh, Ekadashi, Sawan Somvar and others the same way.
+# Lunar-calendar dates move every year. The Hindu festival dates below are ESTIMATES that have
+# NOT been checked: a festival only shapes the plan once it is confirmed. Check each one on
+# drikpanchang.com (or a printed panchang) and confirm or move it on the dashboard's Festivals
+# page, ideally a month ahead. Fixed national days are confirmed already.
 #
-# On a confirmed day, the first reel of the day uses the given pillar and topic.
+# On a confirmed festival day the first reel uses `pillar` and `topic`, and the first story is
+# `greeting`. kind: festival, vrat, jayanti or national.
 
 festivals:
-  - name: Dhanteras
-    date: 2026-11-06
-    pillar: life_lesson
-    topic: "धनतेरस: असली धन क्या है (संतोष, स्वास्थ्य, परिवार)"
-    confirmed: false
-  - name: Diwali
-    date: 2026-11-08
-    pillar: jeevan_sutra
-    topic: "दीपावली: भीतर का दीया जलाना"
-    confirmed: false
-  - name: Dev Deepawali / Kartik Purnima
-    date: 2026-11-24
-    pillar: shiv_dhyan
-    topic: "देव दीपावली: शिव की नगरी काशी और प्रकाश"
-    confirmed: false
-  - name: Gita Jayanti
-    date: 2026-12-20
-    pillar: gita
-    topic: "गीता जयंती: एक श्लोक जो जीवन बदल दे"
-    confirmed: false
-  - name: Makar Sankranti
-    date: 2027-01-14
-    pillar: life_lesson
-    topic: "मकर संक्रांति: नई दिशा, नया प्रकाश"
-    confirmed: false
-  - name: Maha Shivratri
-    date: 2027-03-06
-    pillar: shiv_dhyan
-    topic: "महाशिवरात्रि: मौन, ध्यान और जागरण"
-    confirmed: false
+  # --- 2026 ---------------------------------------------------------------------------------
+  - {name: Dhanteras, name_hi: धनतेरस, date: 2026-11-06, kind: festival, pillar: life_lesson,
+     topic: "धनतेरस: असली धन क्या है (संतोष, स्वास्थ्य, परिवार)",
+     greeting: "धनतेरस की शुभकामनाएँ — सेहत सबसे बड़ा धन है।", confirmed: false}
+  - {name: Choti Diwali, name_hi: छोटी दिवाली (नरक चतुर्दशी), date: 2026-11-07, kind: festival,
+     pillar: jeevan_sutra, topic: "छोटी दिवाली: एक बुरी आदत को आज विदा कीजिए",
+     greeting: "आज एक दीया उनके नाम जो अब साथ नहीं हैं।", confirmed: false}
+  - {name: Diwali, name_hi: दीपावली, date: 2026-11-08, kind: festival, pillar: jeevan_sutra,
+     topic: "दीपावली: भीतर का दीया जलाना",
+     greeting: "शुभ दीपावली 🪔 आपका घर और मन दोनों रोशन रहें।", confirmed: false}
+  - {name: Govardhan Puja, name_hi: गोवर्धन पूजा, date: 2026-11-09, kind: festival, pillar: gita,
+     topic: "गोवर्धन: जब कृष्ण ने पर्वत उठाया — शरण में आने वाले को डर नहीं",
+     greeting: "गोवर्धन पूजा की शुभकामनाएँ — प्रकृति को धन्यवाद।", confirmed: false}
+  - {name: Bhai Dooj, name_hi: भाई दूज, date: 2026-11-11, kind: festival, pillar: life_lesson,
+     topic: "भाई दूज: बिना शर्त साथ खड़े रहने का वादा",
+     greeting: "भाई दूज की शुभकामनाएँ — आज अपने भाई/बहन को एक संदेश भेजिए।", confirmed: false}
+  - {name: Chhath Puja, name_hi: छठ पूजा, date: 2026-11-15, kind: festival, pillar: life_lesson,
+     topic: "छठ: डूबते सूरज को भी अर्घ्य — जीवन के हर चरण का सम्मान",
+     greeting: "छठ पूजा की शुभकामनाएँ ☀️", confirmed: false}
+  - {name: Dev Uthani Ekadashi, name_hi: देवउठनी एकादशी, date: 2026-11-20, kind: vrat, pillar: gita,
+     topic: "देवउठनी एकादशी: भीतर सोई अच्छाई को जगाने का दिन",
+     greeting: "देवउठनी एकादशी की शुभकामनाएँ 🙏", confirmed: false}
+  - {name: Tulsi Vivah, name_hi: तुलसी विवाह, date: 2026-11-21, kind: festival, pillar: jeevan_sutra,
+     topic: "तुलसी विवाह: घर के आँगन की छोटी पूजा, बड़ी शांति",
+     greeting: "तुलसी विवाह की शुभकामनाएँ 🌿", confirmed: false}
+  - {name: Dev Deepawali / Kartik Purnima, name_hi: देव दीपावली · कार्तिक पूर्णिमा, date: 2026-11-24,
+     kind: festival, pillar: shiv_dhyan, topic: "देव दीपावली: शिव की नगरी काशी और प्रकाश",
+     greeting: "कार्तिक पूर्णिमा और देव दीपावली की शुभकामनाएँ 🪔", confirmed: false}
+  - {name: Kaal Bhairav Jayanti, name_hi: काल भैरव जयंती, date: 2026-12-02, kind: jayanti,
+     pillar: shiv_dhyan, topic: "काल भैरव: समय का सम्मान — जो बीत गया, वह लौटता नहीं",
+     greeting: "काल भैरव जयंती — ॐ नमः शिवाय", confirmed: false}
+  - {name: Vivah Panchami, name_hi: विवाह पंचमी, date: 2026-12-14, kind: festival, pillar: life_lesson,
+     topic: "विवाह पंचमी: राम-सीता — रिश्ते में धैर्य और मर्यादा",
+     greeting: "विवाह पंचमी की शुभकामनाएँ — सिया राम 🙏", confirmed: false}
+  - {name: Gita Jayanti, name_hi: गीता जयंती, date: 2026-12-20, kind: jayanti, pillar: gita,
+     topic: "गीता जयंती: एक श्लोक जो जीवन बदल दे (श्लोक: gita-2.47)",
+     greeting: "गीता जयंती की शुभकामनाएँ — आज गीता का एक श्लोक पढ़िए।", confirmed: false}
+  - {name: Datta Jayanti, name_hi: दत्त जयंती, date: 2026-12-23, kind: jayanti, pillar: jeevan_sutra,
+     topic: "दत्तात्रेय: हर जगह से सीखना — प्रकृति के 24 गुरु",
+     greeting: "दत्त जयंती की शुभकामनाएँ", confirmed: false}
+
+  # --- 2027 ---------------------------------------------------------------------------------
+  - {name: Lohri, name_hi: लोहड़ी, date: 2027-01-13, kind: festival, pillar: life_lesson,
+     topic: "लोहड़ी: आग के चारों ओर — मिलकर बाँटी गई खुशी",
+     greeting: "लोहड़ी की लख-लख बधाइयाँ 🔥", confirmed: false}
+  - {name: Makar Sankranti, name_hi: मकर संक्रांति, date: 2027-01-14, kind: festival,
+     pillar: life_lesson, topic: "मकर संक्रांति: नई दिशा, नया प्रकाश",
+     greeting: "मकर संक्रांति की शुभकामनाएँ — तिल-गुड़ सी मिठास बनी रहे।", confirmed: false}
+  - {name: Republic Day, name_hi: गणतंत्र दिवस, date: 2027-01-26, kind: national,
+     pillar: life_lesson, topic: "गणतंत्र दिवस: अधिकार के साथ कर्तव्य भी",
+     greeting: "गणतंत्र दिवस की शुभकामनाएँ 🇮🇳", confirmed: true}
+  - {name: Vasant Panchami, name_hi: वसंत पंचमी, date: 2027-02-11, kind: festival, pillar: jeevan_sutra,
+     topic: "वसंत पंचमी: माँ सरस्वती — सीखते रहना ही जवान रहना है",
+     greeting: "वसंत पंचमी की शुभकामनाएँ 💛", confirmed: false}
+  - {name: Maha Shivratri, name_hi: महाशिवरात्रि, date: 2027-03-06, kind: festival, pillar: shiv_dhyan,
+     topic: "महाशिवरात्रि: मौन, ध्यान और जागरण (श्लोक: shiv-panchakshari)",
+     greeting: "महाशिवरात्रि की शुभकामनाएँ — ॐ नमः शिवाय 🔱", confirmed: false}
+  - {name: Holika Dahan, name_hi: होलिका दहन, date: 2027-03-21, kind: festival, pillar: jeevan_sutra,
+     topic: "होलिका दहन: अहंकार जलता है, भक्ति बचती है (प्रह्लाद की कथा)",
+     greeting: "होलिका दहन — आज एक कड़वाहट को आग में छोड़ दीजिए।", confirmed: false}
+  - {name: Holi, name_hi: होली, date: 2027-03-22, kind: festival, pillar: gita,
+     topic: "होली: रंगों में घुलकर पुराने गिले-शिकवे भूल जाना",
+     greeting: "होली की शुभकामनाएँ 🌈 बुरा न मानो, होली है!", confirmed: false}
+  - {name: Hindu New Year / Chaitra Navratri, name_hi: नव संवत्सर · चैत्र नवरात्रि, date: 2027-04-07,
+     kind: festival, pillar: jeevan_sutra, topic: "नव संवत्सर: नया साल, एक नया संकल्प",
+     greeting: "नव संवत्सर और चैत्र नवरात्रि की शुभकामनाएँ 🌸", confirmed: false}
+  - {name: Ram Navami, name_hi: राम नवमी, date: 2027-04-15, kind: jayanti, pillar: life_lesson,
+     topic: "राम नवमी: मर्यादा — कठिन समय में भी सही चुनना",
+     greeting: "राम नवमी की शुभकामनाएँ — जय सिया राम 🙏", confirmed: false}
+  - {name: Hanuman Jayanti, name_hi: हनुमान जयंती, date: 2027-04-21, kind: jayanti, pillar: life_lesson,
+     topic: "हनुमान जयंती: सेवा और साहस — अपनी शक्ति याद करना",
+     greeting: "हनुमान जयंती की शुभकामनाएँ — जय बजरंगबली 🚩", confirmed: false}
+  - {name: Akshaya Tritiya, name_hi: अक्षय तृतीया, date: 2027-05-09, kind: festival, pillar: gita,
+     topic: "अक्षय तृतीया: जो कभी कम न हो — अच्छे कर्म",
+     greeting: "अक्षय तृतीया की शुभकामनाएँ — आज एक अच्छा काम शुरू कीजिए।", confirmed: false}
+  - {name: Buddha Purnima, name_hi: बुद्ध पूर्णिमा, date: 2027-05-20, kind: jayanti, pillar: jeevan_sutra,
+     topic: "बुद्ध पूर्णिमा: मध्य मार्ग — न बहुत कसा, न बहुत ढीला",
+     greeting: "बुद्ध पूर्णिमा की शुभकामनाएँ ☸️", confirmed: false}
+  - {name: Ganga Dussehra, name_hi: गंगा दशहरा, date: 2027-06-15, kind: festival, pillar: shiv_dhyan,
+     topic: "गंगा दशहरा: शिव ने गंगा को जटाओं में थामा — तेज़ भावनाओं को सँभालना",
+     greeting: "गंगा दशहरा की शुभकामनाएँ — हर हर गंगे 🌊", confirmed: false}
+  - {name: Kabir Jayanti, name_hi: कबीर जयंती, date: 2027-06-19, kind: jayanti, pillar: kabir,
+     topic: "कबीर जयंती: ढाई आखर प्रेम का (श्लोक: kabir-pothi-padhi)",
+     greeting: "संत कबीर जयंती — आज एक दोहा किसी अपने को भेजिए।", confirmed: false}
+  - {name: International Yoga Day, name_hi: अंतरराष्ट्रीय योग दिवस, date: 2027-06-21, kind: national,
+     pillar: shiv_dhyan, topic: "योग दिवस: आदियोगी शिव — साँस से शुरू होने वाली शांति",
+     greeting: "योग दिवस: आज दस मिनट सिर्फ़ अपनी साँस के साथ।", confirmed: true}
+  - {name: Guru Purnima, name_hi: गुरु पूर्णिमा, date: 2027-07-18, kind: festival, pillar: kabir,
+     topic: "गुरु पूर्णिमा: गुरु गोविंद दोऊ खड़े — गुरु का स्थान",
+     greeting: "गुरु पूर्णिमा की शुभकामनाएँ — आज अपने गुरु को धन्यवाद कहिए।", confirmed: false}
+  - {name: Sawan begins, name_hi: सावन आरंभ, date: 2027-07-19, kind: vrat, pillar: shiv_dhyan,
+     topic: "सावन: शिव का महीना — हर सोमवार थोड़ा धीमा, थोड़ा शांत",
+     greeting: "सावन की शुभकामनाएँ — हर हर महादेव 🔱", confirmed: false}
+  - {name: Nag Panchami, name_hi: नाग पंचमी, date: 2027-08-06, kind: festival, pillar: shiv_dhyan,
+     topic: "नाग पंचमी: शिव के गले का नाग — डर को भी अपनाना",
+     greeting: "नाग पंचमी की शुभकामनाएँ", confirmed: false}
+  - {name: Independence Day, name_hi: स्वतंत्रता दिवस, date: 2027-08-15, kind: national,
+     pillar: life_lesson, topic: "स्वतंत्रता दिवस: असली आज़ादी — डर और आदतों से भी",
+     greeting: "स्वतंत्रता दिवस की शुभकामनाएँ 🇮🇳", confirmed: true}
+  - {name: Raksha Bandhan, name_hi: रक्षा बंधन, date: 2027-08-17, kind: festival, pillar: life_lesson,
+     topic: "रक्षा बंधन: धागा छोटा, वादा बड़ा",
+     greeting: "रक्षा बंधन की शुभकामनाएँ — आज किसी अपने की रक्षा का वादा कीजिए।", confirmed: false}
+  - {name: Krishna Janmashtami, name_hi: जन्माष्टमी, date: 2027-08-25, kind: jayanti, pillar: gita,
+     topic: "जन्माष्टमी: अंधेरी कारागार में जन्मा प्रकाश (श्लोक: gita-4.7)",
+     greeting: "जन्माष्टमी की शुभकामनाएँ — जय श्री कृष्ण 🦚", confirmed: false}
+  - {name: Ganesh Chaturthi, name_hi: गणेश चतुर्थी, date: 2027-09-04, kind: festival, pillar: jeevan_sutra,
+     topic: "गणेश चतुर्थी: विघ्नहर्ता — शुरुआत से पहले मन को साफ़ करना",
+     greeting: "गणेश चतुर्थी की शुभकामनाएँ — गणपति बप्पा मोरया 🐘", confirmed: false}
+  - {name: Pitru Paksha begins, name_hi: पितृ पक्ष आरंभ, date: 2027-09-16, kind: vrat,
+     pillar: life_lesson, topic: "पितृ पक्ष: पुरखों को याद करना — कृतज्ञता की परंपरा",
+     greeting: "पितृ पक्ष: आज अपने बुज़ुर्गों की एक सीख याद कीजिए।", confirmed: false}
+  - {name: Sharad Navratri begins, name_hi: शारदीय नवरात्रि, date: 2027-09-30, kind: festival,
+     pillar: jeevan_sutra, topic: "नवरात्रि: नौ दिन, भीतर की शक्ति को जगाना",
+     greeting: "नवरात्रि की शुभकामनाएँ — जय माता दी 🙏", confirmed: false}
+  - {name: Gandhi Jayanti, name_hi: गांधी जयंती, date: 2027-10-02, kind: national, pillar: life_lesson,
+     topic: "गांधी जयंती: सत्य और सादगी — छोटे कदम, बड़ा बदलाव",
+     greeting: "गांधी जयंती: आज एक सच, बिना डर के।", confirmed: true}
+  - {name: Dussehra, name_hi: दशहरा, date: 2027-10-09, kind: festival, pillar: life_lesson,
+     topic: "दशहरा: अपने भीतर का एक रावण — अहंकार, क्रोध या आलस",
+     greeting: "दशहरा की शुभकामनाएँ — बुराई पर अच्छाई की जीत 🏹", confirmed: false}
+  - {name: Sharad Purnima, name_hi: शरद पूर्णिमा, date: 2027-10-14, kind: festival, pillar: gita,
+     topic: "शरद पूर्णिमा: पूरा चाँद — मन की शीतलता",
+     greeting: "शरद पूर्णिमा की शुभकामनाएँ 🌕", confirmed: false}
+  - {name: Karva Chauth, name_hi: करवा चौथ, date: 2027-10-18, kind: vrat, pillar: life_lesson,
+     topic: "करवा चौथ: रिश्ता व्रत से नहीं, रोज़ के धैर्य और सम्मान से गहरा होता है",
+     greeting: "करवा चौथ की शुभकामनाएँ 🌙", confirmed: false}
+  - {name: Dhanteras, name_hi: धनतेरस, date: 2027-10-27, kind: festival, pillar: life_lesson,
+     topic: "धनतेरस: असली धन — संतोष, स्वास्थ्य और परिवार",
+     greeting: "धनतेरस की शुभकामनाएँ — सेहत सबसे बड़ा धन है।", confirmed: false}
+  - {name: Diwali, name_hi: दीपावली, date: 2027-10-29, kind: festival, pillar: jeevan_sutra,
+     topic: "दीपावली: बाहर लाख दीये, भीतर एक", greeting: "शुभ दीपावली 🪔", confirmed: false}
+  - {name: Govardhan Puja, name_hi: गोवर्धन पूजा, date: 2027-10-30, kind: festival, pillar: gita,
+     topic: "गोवर्धन: शरणागति — जब सब भारी लगे", greeting: "गोवर्धन पूजा की शुभकामनाएँ",
+     confirmed: false}
+  - {name: Bhai Dooj, name_hi: भाई दूज, date: 2027-10-31, kind: festival, pillar: life_lesson,
+     topic: "भाई दूज: बचपन का साथ, उम्र भर का भरोसा", greeting: "भाई दूज की शुभकामनाएँ",
+     confirmed: false}
+  - {name: Chhath Puja, name_hi: छठ पूजा, date: 2027-11-04, kind: festival, pillar: life_lesson,
+     topic: "छठ: उगते और डूबते सूरज, दोनों को प्रणाम", greeting: "छठ पूजा की शुभकामनाएँ ☀️",
+     confirmed: false}
+  - {name: Dev Uthani Ekadashi, name_hi: देवउठनी एकादशी, date: 2027-11-09, kind: vrat, pillar: gita,
+     topic: "देवउठनी एकादशी: नई शुरुआत", greeting: "देवउठनी एकादशी की शुभकामनाएँ 🙏",
+     confirmed: false}
+  - {name: Kartik Purnima, name_hi: कार्तिक पूर्णिमा · देव दीपावली, date: 2027-11-14, kind: festival,
+     pillar: shiv_dhyan, topic: "देव दीपावली: काशी के घाटों पर दीये",
+     greeting: "कार्तिक पूर्णिमा की शुभकामनाएँ 🪔", confirmed: false}
+  - {name: Gita Jayanti, name_hi: गीता जयंती, date: 2027-12-09, kind: jayanti, pillar: gita,
+     topic: "गीता जयंती: कर्म करो, फल छोड़ो (श्लोक: gita-2.47)",
+     greeting: "गीता जयंती की शुभकामनाएँ", confirmed: false}

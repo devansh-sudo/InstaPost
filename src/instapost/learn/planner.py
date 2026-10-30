@@ -16,14 +16,12 @@ Entries you edit on the Plan page are never overwritten when the plan is rebuilt
 
 import random
 from datetime import date, timedelta
-from functools import lru_cache
 
 import yaml
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from instapost.brand import load_brand
-from instapost.config import get_settings
 from instapost.db import PlanEntry, WeeklyReview, audit, utcnow
 from instapost.learn.bandit import Learner
 from instapost.models import Format
@@ -38,13 +36,11 @@ def week_start_of(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-@lru_cache
 def festivals() -> dict[str, dict]:
-    path = get_settings().data_dir / "calendar" / "festivals.yaml"
-    if not path.exists():
-        return {}
-    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return {str(f["date"]): f for f in doc.get("festivals", []) if f.get("confirmed")}
+    """Confirmed festivals by date (instapost.festivals: the file plus your dashboard edits)."""
+    from instapost import festivals as fest
+
+    return fest.confirmed_by_day()
 
 
 def _topics(s: Session) -> dict[str, list[str]]:
@@ -100,10 +96,14 @@ def build_week(s: Session, week_start: date, seed: int | None = None,
                 notes: list[str] = []
                 topic = None
                 first_reel = fmt == Format.REEL_BOOK_POV and pos == 0
+                first_story = fmt == Format.STORY_LINE and pos == 0
                 if first_reel and festival:
                     fixed["pillar"] = festival["pillar"]
                     topic = festival.get("topic")
                     notes.append(f"festival: {festival['name']}")
+                elif first_story and festival and festival.get("greeting"):
+                    topic = festival["greeting"]  # the festival greeting is the morning story
+                    notes.append(f"festival greeting: {festival['name']}")
                 elif first_reel and day.weekday() == 0 and sched.monday_pillar:
                     fixed["pillar"] = sched.monday_pillar.value
                     notes.append("Somvar: Shiva")

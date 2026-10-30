@@ -3,8 +3,6 @@
 import random
 from datetime import date, timedelta
 
-import pytest
-
 from instapost import approvals, producer
 from instapost.db import Item, MetricSnapshot, PlanEntry, Publication, WeeklyReview, session
 from instapost.learn import planner, review
@@ -114,7 +112,6 @@ def test_rebuild_keeps_edited_entries():
 def test_confirmed_festival_sets_first_reel(monkeypatch):
     ws = _next_monday()
     wed = (ws + timedelta(days=2)).isoformat()
-    planner.festivals.cache_clear()
     monkeypatch.setattr(planner, "festivals", lambda: {wed: {
         "name": "Test Utsav", "pillar": "gita", "topic": "उत्सव का संदेश", "confirmed": True}})
     with session() as s:
@@ -126,8 +123,8 @@ def test_confirmed_festival_sets_first_reel(monkeypatch):
 
 
 def test_unconfirmed_festivals_are_ignored():
-    planner.festivals.cache_clear()
-    assert planner.festivals() == {}  # the shipped file has only unconfirmed dates
+    # The shipped file confirms only the fixed national days; lunar dates wait for you.
+    assert {f["kind"] for f in planner.festivals().values()} == {"national"}
 
 
 def test_generation_uses_the_plan(monkeypatch):
@@ -212,10 +209,3 @@ def test_plan_and_learning_pages(web):  # noqa: F811
     learning = web.get("/learning")
     assert learning.status_code == 200 and "not tried yet" in learning.text
 
-
-@pytest.fixture(autouse=True)
-def _clear_festival_cache():
-    planner.festivals.cache_clear()
-    yield
-    if hasattr(planner.festivals, "cache_clear"):  # may still be monkeypatched here
-        planner.festivals.cache_clear()

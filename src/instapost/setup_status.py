@@ -76,7 +76,7 @@ def checklist() -> list[Step]:
              "use the built-in tanpura ambience", required=False),
         Step("Demo mode off", not s.demo_mode, "DEMO_MODE=false before going live"),
         Step("Festival dates confirmed", _festivals_confirmed(),
-             "check data/calendar/festivals.yaml against a panchang, set confirmed: true",
+             "dashboard → Festivals: check the next six weeks against a panchang and confirm",
              required=False),
         Step("YouTube uploads public", s.youtube_privacy == "public",
              "after the YouTube API audit is approved, set YOUTUBE_PRIVACY=public",
@@ -89,10 +89,8 @@ def open_items() -> list[Step]:
 
 
 def _festivals_confirmed() -> bool:
-    import yaml
+    """Every festival of the next six weeks has a checked date (or is skipped)."""
+    from instapost import festivals
+    from instapost.schedule import load_schedule
 
-    path = get_settings().data_dir / "calendar" / "festivals.yaml"
-    if not path.exists():
-        return False
-    entries = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("festivals", [])
-    return bool(entries) and all(e.get("confirmed") for e in entries)
+    return not festivals.unconfirmed_soon(load_schedule().local_now().date(), 42)
