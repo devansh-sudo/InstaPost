@@ -151,24 +151,24 @@ def resolve(name: str) -> Path | None:
     return path
 
 
-def mix(ambience_wav: Path, track: Path, duration: float, out_wav: Path) -> None:
-    """Track (faded, loudness-levelled) over the quiet ambience, exactly `duration` long."""
+def mix(track: Path, duration: float, out_wav: Path) -> None:
+    """The track alone (no drone underneath: one music at a time), levelled, exactly
+    `duration` long; a track shorter than the reel repeats."""
     fade_out = min(1.2, duration / 4)
+    samples = round(duration * 44100)
     graph = (
-        f"[1:a]atrim=start={start_offset(track)}:duration={duration},asetpts=N/SR/TB,"
+        # One second extra goes in: the loudness filter keeps back the very end of its input.
+        f"[0:a]atrim=start={start_offset(track)}:duration={duration + 1},asetpts=N/SR/TB,"
         f"aformat=sample_rates=44100:channel_layouts=stereo,"
-        f"loudnorm=I=-16:TP=-1.5:LRA=11,"
-        f"afade=t=in:d=0.4,afade=t=out:st={duration - fade_out:.2f}:d={fade_out:.2f}[m];"
-        f"[0:a]volume=0.22[a];"
-        # The ambience sets the length, so the very end is never silent.
-        f"[a][m]amix=inputs=2:duration=first:normalize=0,atrim=duration={duration}[out]"
+        f"loudnorm=I=-16:TP=-1.5:LRA=11,aresample=44100,asetpts=N/SR/TB,"
+        f"afade=t=in:d=0.4,afade=t=out:st={duration - fade_out:.2f}:d={fade_out:.2f},"
+        f"apad=whole_len={samples},atrim=end_sample={samples}[out]"
     )
     # -stream_loop: a track shorter than the reel repeats instead of stopping.
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(ambience_wav),
-           "-stream_loop", "-1", "-i", str(track),
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-stream_loop", "-1", "-i", str(track),
            "-filter_complex", graph, "-map", "[out]", "-ar", "44100", "-ac", "2", str(out_wav)]
     if subprocess.run(cmd, capture_output=True).returncode != 0:
-        raise RuntimeError(f"could not mix the music track {track.name}")
+        raise RuntimeError(f"could not prepare the music track {track.name}")
 
 
 # --- trending sounds (posted in the Instagram app; never downloaded) ------------------------

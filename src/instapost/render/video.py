@@ -357,9 +357,9 @@ def _mux(video: Path, wav: Path, out: Path) -> None:
 def encode(still: Image.Image, brand: Brand, duration: float, out: Path, seed: int = 0,
            comp: Composition | None = None, music: Path | None = None,
            app_copy: Path | None = None, outro: Image.Image | None = None) -> None:
-    """Write the reel. With `music`, `out` has the track over the ambience; `app_copy` (if
-    given) gets the same picture with only the quiet ambience, for posting in the Instagram
-    app with a song from Instagram's own music library."""
+    """Write the reel. With `music`, `out` has that track alone, otherwise the soft tanpura
+    ambience; `app_copy` (if given) gets the same picture with no music, for posting in the
+    Instagram app with a song from Instagram's own music library."""
     from instapost.render import music as music_mod
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -381,15 +381,18 @@ def encode(still: Image.Image, brand: Brand, duration: float, out: Path, seed: i
         if proc.wait() != 0:
             raise RuntimeError("ffmpeg failed to encode the reel")
 
-        ambience = Path(tmp) / "ambience.wav"
-        audio.write_wav(ambience, audio.ambience(duration, seed))
-        soundtrack = ambience
+        # One music only: the library track when there is one, otherwise the tanpura drone.
+        soundtrack = Path(tmp) / "sound.wav"
         if music is not None:
-            soundtrack = Path(tmp) / "mix.wav"
-            music_mod.mix(ambience, music, duration, soundtrack)
+            music_mod.mix(music, duration, soundtrack)
+        else:
+            audio.write_wav(soundtrack, audio.ambience(duration, seed))
         _mux(silent, soundtrack, out)
         if app_copy is not None:
-            _mux(silent, ambience, app_copy)
+            # For posting in the Instagram app with a trending sound: no music of ours at all.
+            quiet = Path(tmp) / "silence.wav"
+            audio.write_wav(quiet, np.zeros((int(duration * audio.SR), 2), np.float32))
+            _mux(silent, quiet, app_copy)
 
 
 def probe_duration(path: Path) -> float | None:

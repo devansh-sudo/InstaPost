@@ -9,7 +9,7 @@ from instapost.config import get_settings
 from instapost.db import Item, ItemStatus, session
 from instapost.models import Pillar
 from instapost.publish import instagram, publisher
-from instapost.render import audio, music
+from instapost.render import music
 from tests.test_phase2 import _bot, _story
 
 
@@ -44,11 +44,9 @@ def test_ambience_only_when_no_library_or_mode_off(tmp_path, monkeypatch, librar
     assert music.pick(Pillar.GITA) is None
 
 
-def test_mix_is_full_length_loops_short_tracks_and_never_ends_silent(tmp_path, library):
-    amb = tmp_path / "amb.wav"
-    audio.write_wav(amb, audio.ambience(10.0))
+def test_mix_is_the_track_alone_full_length_and_loops_short_tracks(tmp_path, library):
     out = tmp_path / "mix.wav"
-    music.mix(amb, library / "shiv-om-chant.mp3", 10.0, out)  # 4 s track, 10 s reel
+    music.mix(library / "shiv-om-chant.mp3", 10.0, out)  # 4 s track, 10 s reel
     raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(out), "-ac", "1",
                           "-f", "s16le", "-"], capture_output=True, check=True).stdout
     a = np.frombuffer(raw, np.int16).astype(np.float32)
@@ -56,7 +54,9 @@ def test_mix_is_full_length_loops_short_tracks_and_never_ends_silent(tmp_path, l
     seg = a[44100 * 7:44100 * 8]  # after the track's own length: it must have looped
     spec, f = np.abs(np.fft.rfft(seg)), np.fft.rfftfreq(seg.size, 1 / 44100)
     assert spec[(f > 215) & (f < 225)].mean() > 10 * spec[(f > 150) & (f < 200)].mean()
-    assert a[-4410:].std() > 50  # the ambience is still there at the very end
+    # No tanpura drone (about 185 Hz) under the track: one music at a time.
+    whole, fw = np.abs(np.fft.rfft(a)), np.fft.rfftfreq(a.size, 1 / 44100)
+    assert whole[(fw > 180) & (fw < 190)].mean() < 0.05 * whole[(fw > 215) & (fw < 225)].mean()
 
 
 def test_manual_platforms_are_skipped_by_the_publisher(monkeypatch):
