@@ -19,6 +19,7 @@ from instapost.render.text import Box
 from instapost.render.video import ZOOM_AMPLITUDE, Motion, read_time_seconds
 
 MAX_HOOK_WORDS = 12
+MAX_STORY_WORDS = 20
 SAFE_TOP = 0.14 * FRAME_H
 SAFE_BOTTOM = 0.80 * FRAME_H
 SAFE_SIDE = 48
@@ -39,6 +40,8 @@ def _overlaps(a: Box, b: Box) -> bool:
 
 def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) -> list[QACheck]:
     hook_words = sum(len(line.split()) for line in draft.hook_lines)
+    # A story is a single line on a still picture, read at leisure: it may be longer.
+    max_words = MAX_STORY_WORDS if draft.story_line else MAX_HOOK_WORDS
     similarity, match = history.most_similar(" ".join(draft.hook_lines))
     dup_detail = f"closest earlier hook {similarity:.2f}: {match}" if match else "first post"
     try:
@@ -47,8 +50,8 @@ def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) ->
     except text.ShapingUnavailable as e:
         shaping = QACheck(name="hindi_shaping", passed=False, detail=str(e))
     return [
-        QACheck(name="hook_length", passed=1 <= hook_words <= MAX_HOOK_WORDS,
-                detail=f"{hook_words} words (max {MAX_HOOK_WORDS})"),
+        QACheck(name="hook_length", passed=1 <= hook_words <= max_words,
+                detail=f"{hook_words} words (max {max_words})"),
         QACheck(name="hashtags", passed=3 <= len(draft.hashtags) <= 5,
                 detail=f"{len(draft.hashtags)} hashtags (3-5)"),
         QACheck(name="caption_length", passed=len(caption_text(draft)) <= 2000,

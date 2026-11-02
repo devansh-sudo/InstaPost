@@ -110,6 +110,11 @@ def _files(item: Item) -> dict:
             "draft": json.loads((folder / "draft.json").read_text(encoding="utf-8"))}
 
 
+def _expired_container(e: Exception) -> bool:
+    text = str(e).lower()
+    return "does not exist" in text or "2207006" in text or "expired" in text
+
+
 def _earn(item: Item, platform: str, text: str) -> str:
     """Affiliate link and e-book lines for this platform (studio.earn); never blocks a post."""
     from instapost.studio import earn
@@ -138,7 +143,15 @@ def _publish_one(s: Session, item: Item, pub: Publication, files: dict, host) ->
     if pub.platform == "instagram":
         ig = Instagram()
         if pub.container_id:
-            return ig.resume(pub.container_id)
+            try:
+                return ig.resume(pub.container_id)
+            except PublishError as e:
+                # Instagram drops unused containers after about a day ("does not exist",
+                # code 24 / 2207006): make a new one below instead of failing again.
+                if not _expired_container(e):
+                    raise
+                pub.container_id = None
+                s.commit()
         if fmt == Format.REEL_BOOK_POV:
             return ig.reel(host.url_for(files["video"]), caption[:2200],
                            host.url_for(files["cover"]), on_container=remember)

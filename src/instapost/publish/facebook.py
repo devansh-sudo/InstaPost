@@ -53,8 +53,16 @@ class Facebook:
         permalink = None
         deadline = time.monotonic() + self.max_wait
         while time.monotonic() < deadline:
-            info = self._check(self.http.get(f"{self.base}/{video_id}", headers=auth,
-                                             params={"fields": "status,permalink_url"}), "status")
+            try:
+                info = self._check(self.http.get(f"{self.base}/{video_id}", headers=auth,
+                                                 params={"fields": "status,permalink_url"}),
+                                   "status")
+            except PublishError:
+                # The reel was accepted ("finish" above). Right after that, Facebook sometimes
+                # refuses to show it ("does not exist ... missing permissions") while it is
+                # processing: keep waiting, and never upload it a second time.
+                time.sleep(self.poll_seconds)
+                continue
             status = info.get("status", {})
             if status.get("video_status") == "error":
                 raise PublishError(f"Facebook processing failed: {status}")
