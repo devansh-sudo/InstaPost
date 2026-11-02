@@ -225,6 +225,12 @@ def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
                     entries.append(e)
                 e.pillar, e.topic = pillar, str(item["topic"]).strip()
                 e.audio = item.get("audio")
+                if item.get("slot"):  # the file may set the time (one of schedule.yaml's slots)
+                    if str(item["slot"]) in slots:
+                        e.slot = str(item["slot"])
+                    else:
+                        summary["warnings"].append(
+                            f"{day} {fmt.value}: {item['slot']} is not a {fmt.value} slot")
                 e.edited_by = actor
                 e.experiment = None  # the content is fixed by the plan; slots etc. still learn
                 note = spec.get("note")

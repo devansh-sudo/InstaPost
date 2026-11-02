@@ -434,6 +434,20 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
         jobs.enqueue("regenerate", f"regenerate {item_id}", item_id=item_id, actor=f"web:{who}")
         return back(request, "Regenerating. The new version will appear in the queue.")
 
+    @app.post("/items/{item_id}/approve-anyway")
+    def approve_anyway(request: Request, item_id: str, who: str = Depends(user),
+                       _=Depends(csrf)):
+        return _act(request, item_id, who, approvals.approve_anyway,
+                    "Approved despite the failed checks. It posts at its slot.")
+
+    @app.post("/items/{item_id}/make-anyway")
+    def make_anyway(request: Request, item_id: str, who: str = Depends(user),
+                    _=Depends(csrf)):
+        jobs.enqueue("make_anyway", f"make {item_id} anyway", item_id=item_id,
+                     actor=f"web:{who}")
+        return back(request, "Making it with the same text, despite the failed checks. It "
+                    "arrives in the inbox for your approval.")
+
     @app.post("/items/{item_id}/retemplate")
     def retemplate(request: Request, item_id: str, template: str = Form(""),
                    who: str = Depends(user), _=Depends(csrf)):

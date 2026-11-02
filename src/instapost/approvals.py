@@ -166,6 +166,27 @@ def approve(s: Session, item: Item, actor: str, when: datetime | None = None) ->
     return item
 
 
+def has_media(item: Item) -> bool:
+    """The finished picture or video is there (it was made before a check blocked it)."""
+    from pathlib import Path
+
+    folder = Path(item.folder)
+    return any((folder / n).exists() for n in ("reel.mp4", "video.mp4", "story.jpg")) or \
+        any(folder.glob("slide_*.jpg"))
+
+
+def approve_anyway(s: Session, item: Item, actor: str) -> Item:
+    """You decided to post an item the checks blocked: it is approved as it is."""
+    if item.status != ItemStatus.BLOCKED:
+        raise QueueError(f"{item.id} is {item.status}, not blocked")
+    if not has_media(item):
+        raise QueueError("this post was blocked before its picture or video was made; "
+                         "use \"Make it anyway\"")
+    audit(s, actor, "approved_despite_checks", item.id, problems=item.qa_summary)
+    item.status = ItemStatus.NEEDS_REVIEW
+    return approve(s, item, actor)
+
+
 def reject(s: Session, item: Item, actor: str, reason: str = "") -> Item:
     if item.status not in (ItemStatus.NEEDS_REVIEW, ItemStatus.APPROVED, ItemStatus.BLOCKED):
         raise QueueError(f"{item.id} is {item.status} and can no longer be rejected")

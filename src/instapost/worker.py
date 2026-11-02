@@ -207,6 +207,8 @@ class Worker:
                                                p.get("title"), p.get("actor", "web"))
                     self.notify(f"📖 E-book ready: {meta['title']} ({meta['sutras']} sutras, "
                                 f"{meta['pages']} pages). Download it on the dashboard: Earn.")
+                elif job.kind == "make_anyway":
+                    self.send_item(producer.make_anyway(p["item_id"], p.get("actor", "web")))
                 elif job.kind == "retemplate":
                     self.send_item(producer.retemplate(p["item_id"], p.get("template"),
                                                        p.get("actor", "web")))

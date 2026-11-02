@@ -23,7 +23,7 @@ Notify = Callable[[str], None]
 def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
                        topic: str | None = None, entry_id: int | None = None,
                        template: str | None = None, draft=None,
-                       slot: str | None = None) -> str | None:
+                       slot: str | None = None, force: bool = False) -> str | None:
     label = f"{fmt.value} / {pillar.value} for {for_date.isoformat()}"
     plan, scene = None, None
     if entry_id is not None:
@@ -39,7 +39,7 @@ def _make_and_register(fmt: Format, pillar: Pillar, for_date: date, actor: str,
     with track("generate", label) as job:
         result = pipeline.make(fmt, pillar, topic, on_step=job.step,
                                offline=get_settings().demo_mode, plan=plan, template=template,
-                               draft=draft)
+                               draft=draft, force=force)
         with session() as s:
             item = approvals.register(s, result, fmt, pillar.value, for_date, actor=actor,
                                       preferred_slot=slot, scene=scene)
@@ -221,3 +221,29 @@ def make_ebook(start: date, end: date, pillar: str | None, title: str | None,
             meta = ebook.build(s, start, end, pillar, title)
             audit(s, actor, "ebook_made", book=meta["id"], sutras=meta["sutras"])
         return meta
+
+
+def make_anyway(item_id: str, actor: str) -> str:
+    """A post the checks blocked before it was made: make it with the same text anyway. The
+    failed checks stay on the new item, and it still waits for your approval."""
+    from pathlib import Path
+
+    from instapost.models import Draft
+
+    with session() as s:
+        item = s.get(Item, item_id)
+        if item is None:
+            raise approvals.QueueError(f"unknown item {item_id}")
+        if item.status != ItemStatus.BLOCKED or item.format not in {f.value for f in Format}:
+            raise approvals.QueueError(f"{item_id} is not a blocked post")
+        folder = Path(item.folder)
+        draft = Draft.model_validate_json((folder / "draft.json").read_text(encoding="utf-8"))
+        look = (folder / "template.txt").read_text(encoding="utf-8").strip() \
+            if (folder / "template.txt").exists() else None
+        fmt, pillar = Format(item.format), Pillar(item.pillar)
+        for_date, slot = date.fromisoformat(item.for_date), item.preferred_slot
+        approvals.reject(s, item, actor, reason="made anyway")
+        audit(s, actor, "made_despite_checks", item_id, problems=item.qa_summary)
+    history.remove(item_id)
+    return _make_and_register(fmt, pillar, for_date, actor, draft.topic, template=look,
+                              draft=draft, slot=slot, force=True)

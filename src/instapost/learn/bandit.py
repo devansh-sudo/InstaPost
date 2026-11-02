@@ -44,7 +44,10 @@ def dimensions(fmt: Format, brand: Brand | None = None) -> dict[str, list[str]]:
 def length_bucket(duration_s: float | None) -> str | None:
     if duration_s is None:
         return None
-    return "short" if duration_s <= 8.5 else "medium" if duration_s <= 10.5 else "long"
+    # Reels are 15-20 s (with the end card); older 7-12 s reels keep the label they got.
+    if duration_s <= 12.5:
+        return "short" if duration_s <= 8.5 else "medium" if duration_s <= 10.5 else "long"
+    return "short" if duration_s <= 16.5 else "medium" if duration_s <= 18.5 else "long"
 
 
 def scene_index(scene_prompt: str, brand: Brand) -> int:

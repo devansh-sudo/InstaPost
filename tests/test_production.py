@@ -28,6 +28,13 @@ def test_month_plan_loads_and_reloads_without_duplicates():
         again = s.scalars(select(PlanEntry).where(PlanEntry.edited_by == planner.MONTH_PLAN_ACTOR,
                                                   PlanEntry.status == "planned")).all()
         assert len(again) == 107
+        # The file sets reel times: evening on normal days, morning on festival days.
+        tue = s.scalars(select(PlanEntry).where(PlanEntry.day == "2026-11-03",
+                                                PlanEntry.format == "reel_book_pov")).one()
+        assert tue.slot == "20:45" and "नीलकंठ" in tue.topic
+        diwali = s.scalars(select(PlanEntry).where(PlanEntry.day == "2026-11-08",
+                                                   PlanEntry.format == "reel_book_pov")).one()
+        assert diwali.slot == "07:15"
         # Days already made are left alone when the file is loaded again mid-month.
         from instapost.db import set_kv
         set_kv(s, "generated:2026-10-29", "done")

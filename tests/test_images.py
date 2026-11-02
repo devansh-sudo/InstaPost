@@ -194,7 +194,7 @@ def test_writer_rewrites_a_reel_that_is_too_long_to_read(monkeypatch):
     from instapost.render import video
     from instapost.studio import writer
 
-    long = load_sample(Format.REEL_BOOK_POV).model_copy(update={"body": " ".join(["शब्द"] * 30)})
+    long = load_sample(Format.REEL_BOOK_POV).model_copy(update={"body": " ".join(["शब्द"] * 40)})
     short = load_sample(Format.REEL_BOOK_POV)
     answers, prompts = [long, short], []
 
@@ -204,10 +204,10 @@ def test_writer_rewrites_a_reel_that_is_too_long_to_read(monkeypatch):
 
     monkeypatch.setattr(writer.llm, "structured", fake)
     out = writer.write(load_brand(), Format.REEL_BOOK_POV, Pillar.GITA, None, [])
-    assert out is short and len(prompts) == 2 and "at most 29 words" in prompts[1]
-    # The limit really fits the video: 29 words read in time within 12 s.
+    assert out is short and len(prompts) == 2 and "at most 36 words" in prompts[1]
+    # The limit really fits the video: 36 words are read before the end card, within 20 s.
     read = video.read_time_seconds(" ".join(["x"] * writer.MAX_REEL_WORDS))
-    assert video.reel_duration(read) >= read + 1.0
+    assert video.reel_duration(read) >= read + 1.0 + video.OUTRO_S
 
 
 def test_placeholder_handle_is_not_printed_and_real_handle_is_not_a_watermark(monkeypatch):

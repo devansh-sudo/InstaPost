@@ -206,4 +206,4 @@ def test_register_records_reel_duration(monkeypatch):
     with session() as s:
         item = approvals.register(s, result, Format.REEL_BOOK_POV, "gita",
                                   load_schedule().local_now().date())
-        assert 7 <= item.duration_s <= 12
+        assert 15 <= item.duration_s <= 20.5  # 15-20 s reels (encoder rounding)

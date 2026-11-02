@@ -16,7 +16,14 @@ from instapost.models import Draft, FactCheckResult, FactCheckVerdict, QACheck, 
 from instapost.render import text
 from instapost.render.scene import FRAME_H, FRAME_W
 from instapost.render.text import Box
-from instapost.render.video import ZOOM_AMPLITUDE, Motion, read_time_seconds
+from instapost.render.video import (
+    OUTRO_S,
+    REEL_MAX,
+    REEL_MIN,
+    ZOOM_AMPLITUDE,
+    Motion,
+    read_time_seconds,
+)
 
 MAX_HOOK_WORDS = 12
 MAX_STORY_WORDS = 20
@@ -87,8 +94,10 @@ def check_reel(draft: Draft, motion: Motion, text_boxes: list[Box]) -> list[QACh
 
     read = read_time_seconds(*draft.hook_lines, draft.body)
     d = motion.duration
-    checks.append(QACheck(name="duration", passed=7 <= d <= 12 and d >= read + 1.0,
-                          detail=f"{d:.1f}s for {read:.1f}s of reading"))
+    # 15-20 s, and enough time to read before the end card (send it / follow) comes up.
+    checks.append(QACheck(name="duration",
+                          passed=REEL_MIN <= d <= REEL_MAX and d >= read + 1.0 + OUTRO_S,
+                          detail=f"{d:.1f}s for {read:.1f}s of reading + {OUTRO_S:.0f}s end card"))
 
     first = motion.frame_at(0).astype(np.int16)
     last = motion.frame_at(d - 1 / 30).astype(np.int16)
@@ -168,8 +177,11 @@ def _intended_text(brand: Brand | None) -> str:
     return " Intended text on the design (not problems): " + "; ".join(parts) + "."
 
 
+FOLLOW_LINE = "🙏 ऐसे सूत्र रोज़ पाने के लिए फ़ॉलो करें"
+
+
 def caption_text(draft: Draft) -> str:
-    return "\n\n".join([draft.caption_hi, draft.caption_hinglish, draft.cta,
+    return "\n\n".join([draft.caption_hi, draft.caption_hinglish, draft.cta, FOLLOW_LINE,
                         " ".join(draft.hashtags)])
 
 

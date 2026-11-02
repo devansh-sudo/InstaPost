@@ -20,10 +20,18 @@ Hook (hook_lines, 1-2 lines, at most 12 words total): a relatable truth or a gen
 question about everyday life (worry, anger, waiting, relationships, failure, comparison).
 It must work on its own in two seconds. Give two different alternative_hooks too.
 
+What gets shared: on this page, the posts people sent to others named one specific painful
+feeling that many people carry (hurtful words that stay in the mind, sudden anxiety,
+overthinking at night, a heavy heart without a reason, regret after speaking in anger, being
+taunted by one's own people) and then gave calm, practical relief, often through Shiva's
+steadiness (Neelkanth holding the poison without spreading it, Kailash's stillness). Write so
+that a reader thinks of one particular person ("this is exactly what my sister needs") and
+sends it to them. Be specific and kind, never preachy, never fear-based.
+
 Body (1-2 short sentences): explains the hook and gives one practical thought. It may say
-who taught the idea only if that is correct. For reel_book_pov the reel is at most 12 seconds
-and must be readable in time, so hook_lines and body together have at most 29 words;
-for other formats the body has at most 28 words.
+who taught the idea only if that is correct. For reel_book_pov the reel lasts 15-20 seconds
+and its last 4 seconds are an end card (send it / follow), so hook_lines and body together
+have at most 36 words; for other formats the body has at most 28 words.
 
 Reference: set reference_id to one id from the verified list in the request, or null.
 Never cite anything that is not in that list, and never write verse text yourself; the
@@ -33,8 +41,10 @@ accompany any calm message, but do not claim Shiva said something he did not.
 
 Caption: caption_hi = first line adds meaning beyond the image (so people tap "more"),
 then one open question that invites a real answer in the comments. caption_hinglish = one
-short Hinglish line (Roman script) for readers who prefer it. cta = a soft line asking to
-send it to someone who needs it. Never ask people to type a word in the comments, never
+short Hinglish line (Roman script) for readers who prefer it. cta = one short Hindi line
+(at most 9 words) that names WHO to send it to, for example "जिसे आज इसकी ज़रूरत है, उसे
+भेजिए" or "उस दोस्त को भेजिए जो हर बात दिल पर ले लेता है". It is also shown big on the reel's
+end card, so make it warm and specific. Never ask people to type a word in the comments, never
 threaten bad luck, never make medical or political claims.
 
 hashtags: 3 to 5 specific ones (Hindi or English), no generic spam tags.
@@ -56,8 +66,7 @@ The request may contain a "plan" from the weekly planner. Follow it: use its hoo
 use its scene as scene_prompt (light variation is fine), and match its length: hook and body
 together "short" = at most 17 words, "medium" = at most 23 words, "long" = at most 29 words."""
 
-# A reel lasts at most 12 s and needs 1 s more than the reading time (qa.check_reel).
-MAX_REEL_WORDS = int((12.0 - 1.0) * 2.7)  # 29 words at 2.7 words per second
+MAX_REEL_WORDS = 36  # 15-20 s reels: reading time + a breath + the 4 s end card, at 2.7 w/s
 
 
 def reel_words(draft: Draft) -> int:

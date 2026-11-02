@@ -110,6 +110,14 @@ class Bot:
                 + f"Approve to upload it to YouTube.\n{status}\nid: {item.id}")
 
     def keyboard(self, item: Item) -> dict | None:
+        if item.status == ItemStatus.BLOCKED and item.format not in approvals.LONG_VIDEOS:
+            # The checks stopped it; you may still decide to post it.
+            first = ({"text": "⚠️ Post anyway", "callback_data": f"pa:{item.id}"}
+                     if approvals.has_media(item) else
+                     {"text": "⚠️ Make it anyway", "callback_data": f"ma:{item.id}"})
+            return {"inline_keyboard": [
+                [first, {"text": "🔁 Regenerate", "callback_data": f"rg:{item.id}"}],
+                [{"text": "❌ Discard", "callback_data": f"rj:{item.id}"}]]}
         if item.status != ItemStatus.NEEDS_REVIEW:
             return None
         return {"inline_keyboard": [
@@ -213,6 +221,13 @@ class Bot:
                     self.pool.submit(self._send_for_app, item_id, folder, caption, others,
                                      sounds)
                     return "📲 Sending you the video for the Instagram app…"
+                if action == "pa":
+                    item = s.get(Item, arg)
+                    if item is None:
+                        return "That item no longer exists."
+                    approvals.approve_anyway(s, item, actor)
+                    when = approvals.local_time_label(item)
+                    return f"⚠️ Approved despite the checks. Posts {when}."
                 if action in ("ap", "rj", "pn"):
                     item = s.get(Item, arg)
                     if item is None:
@@ -239,6 +254,10 @@ class Bot:
             if action == "rg":
                 self.pool.submit(self._regenerate, arg)
                 return "🔁 Regenerating… the new version will arrive here in a few minutes."
+            if action == "ma":
+                from instapost import jobs
+                jobs.enqueue("make_anyway", f"make {arg} anyway", item_id=arg, actor=actor)
+                return "⚠️ Making it anyway… it arrives here in a few minutes."
             if action == "rt":
                 self.pool.submit(self._retemplate, arg)
                 return "🎨 Making it in another look… it arrives here in a few minutes."

@@ -18,7 +18,11 @@
       {% elif item.status in ('failed', 'partial') %}
         {% set actions = [("retry", "refresh", "Retry publishing", "primary")] %}
       {% elif item.status == 'blocked' %}
-        {% set actions = [("regenerate", "refresh", "Make a new version", "primary"), ("reject", "x", "Discard", "ghost")] %}
+        {% if files.video or files.slides or files.story or files.long %}
+          {% set actions = [("approve-anyway", "rocket", "Post anyway", "primary"), ("regenerate", "refresh", "Make a new version", ""), ("reject", "x", "Discard", "ghost")] %}
+        {% else %}
+          {% set actions = [("make-anyway", "rocket", "Make it anyway", "primary"), ("regenerate", "refresh", "Make a new version", ""), ("reject", "x", "Discard", "ghost")] %}
+        {% endif %}
       {% else %}{% set actions = [] %}{% endif %}
       <div class="row">
         {% for action, ico, label, cls in actions %}

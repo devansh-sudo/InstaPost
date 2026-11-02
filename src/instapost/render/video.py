@@ -126,9 +126,11 @@ class Motion:
     """Precomputed motion layers for one reel; `frame_at(t)` renders any moment."""
 
     def __init__(self, still: Image.Image, brand: Brand, duration: float, seed: int = 0,
-                 comp: Composition | None = None):
+                 comp: Composition | None = None, outro: Image.Image | None = None):
         self.still = still  # everything visible (cover)
         self.duration = duration
+        # The "send it / follow" card at the end (RGBA, full frame), or None.
+        self.outro = (np.asarray(outro, np.float32) if outro is not None else None)
         photo = comp is not None and comp.style == "plate"
         # A real photo has its own light: a softer glow and fewer specks, never on the page.
         self.glow = _glow(brand) * (0.45 if photo else 1.0)
@@ -202,14 +204,17 @@ class Motion:
         arr += self.glow * flicker
         if self.particles is not None:
             self.particles.draw(arr, t / self.duration)
-            return np.clip(arr, 0, 255).astype(np.uint8)
-        r = self.sprite.shape[0] // 2
-        for x, y, radius, k, phi, bright in self.specks:
-            px = int(x + radius * math.cos(k * phase + phi))
-            py = int(y + radius * math.sin(k * phase + phi) - 0.5 * radius * math.sin(phase))
-            if r <= px < FRAME_W - r and r <= py < FRAME_H - r:
-                arr[py - r:py + r + 1, px - r:px + r + 1] += (
-                    self.sprite[..., None] * 255 * bright * 0.5)
+        else:
+            r = self.sprite.shape[0] // 2
+            for x, y, radius, k, phi, bright in self.specks:
+                px = int(x + radius * math.cos(k * phase + phi))
+                py = int(y + radius * math.sin(k * phase + phi) - 0.5 * radius * math.sin(phase))
+                if r <= px < FRAME_W - r and r <= py < FRAME_H - r:
+                    arr[py - r:py + r + 1, px - r:px + r + 1] += (
+                        self.sprite[..., None] * 255 * bright * 0.5)
+        if self.outro is not None and (a := outro_alpha(t, self.duration)) > 0.003:
+            k = self.outro[..., 3:] / 255 * a
+            arr += (self.outro[..., :3] - arr) * k
         return np.clip(arr, 0, 255).astype(np.uint8)
 
     def frames(self) -> Iterator[np.ndarray]:
@@ -297,8 +302,48 @@ def read_time_seconds(*texts: str) -> float:
     return words / 2.7
 
 
+REEL_MIN, REEL_MAX = 15.0, 20.0
+OUTRO_S = 4.0       # the "send it / follow" card at the end of every reel
+OUTRO_GAP = 0.6     # it is gone this long before the loop starts again (seamless loop)
+
+
 def reel_duration(read_seconds: float) -> float:
-    return float(min(12.0, max(7.0, round(read_seconds + 1.5, 1))))
+    """15-20 s: time to read, a breath, then the end card."""
+    return float(min(REEL_MAX, max(REEL_MIN, round(read_seconds + 1.5 + OUTRO_S, 1))))
+
+
+def outro_alpha(t: float, duration: float) -> float:
+    """How visible the end card is at time t (0..1): in over 0.5 s, out over 0.5 s."""
+    start, end = duration - OUTRO_S - OUTRO_GAP, duration - OUTRO_GAP
+    if not start <= t <= end:
+        return 0.0
+    return min(1.0, (t - start) / 0.5, (end - t) / 0.5)
+
+
+def outro_card(brand: Brand, send_line: str, handle: str) -> Image.Image:
+    """End card: the frame darkens, and it asks to send the reel to someone and to follow."""
+    from instapost.render.text import draw_centered, font, wrap_balanced
+
+    card = Image.new("RGBA", (FRAME_W, FRAME_H), (14, 10, 8, 232))
+    d = ImageDraw.Draw(card)
+    cream, accent = (255, 244, 228, 255), (*hex_rgb(brand.colors.highlight), 255)
+    f = font(brand.font_path("hook"), 66)
+    lines = wrap_balanced(f, send_line.strip() or "जिसे आज इसकी ज़रूरत है, उसे भेजिए", 820)
+    while len(lines) > 3 and f.size > 44:
+        f = font(brand.font_path("hook"), f.size - 6)
+        lines = wrap_balanced(f, send_line, 820)
+    block = len(lines) * f.size * 1.4 + 200
+    y = (FRAME_H - block) / 2
+    y, _ = draw_centered(d, lines, f, FRAME_W / 2, y, cream, line_gap=1.4)
+    y += 60
+    d.rounded_rectangle([FRAME_W / 2 - 50, y, FRAME_W / 2 + 50, y + 6], radius=3, fill=accent)
+    y += 40
+    ff = font(brand.font_path("body"), 42)
+    y, _ = draw_centered(d, ["रोज़ एक जीवन सूत्र के लिए फ़ॉलो करें"], ff, FRAME_W / 2, y, accent)
+    if handle:
+        draw_centered(d, [handle], font(brand.font_path("footer"), 36), FRAME_W / 2, y + 16,
+                      cream)
+    return card
 
 
 def _mux(video: Path, wav: Path, out: Path) -> None:
@@ -311,7 +356,7 @@ def _mux(video: Path, wav: Path, out: Path) -> None:
 
 def encode(still: Image.Image, brand: Brand, duration: float, out: Path, seed: int = 0,
            comp: Composition | None = None, music: Path | None = None,
-           app_copy: Path | None = None) -> None:
+           app_copy: Path | None = None, outro: Image.Image | None = None) -> None:
     """Write the reel. With `music`, `out` has the track over the ambience; `app_copy` (if
     given) gets the same picture with only the quiet ambience, for posting in the Instagram
     app with a song from Instagram's own music library."""
@@ -329,7 +374,7 @@ def encode(still: Image.Image, brand: Brand, duration: float, out: Path, seed: i
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         assert proc.stdin is not None
         try:
-            for frame in Motion(still, brand, duration, seed, comp).frames():
+            for frame in Motion(still, brand, duration, seed, comp, outro).frames():
                 proc.stdin.write(frame.tobytes())
         finally:
             proc.stdin.close()

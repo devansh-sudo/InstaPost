@@ -81,21 +81,23 @@ def make(
     on_step: Callable[[str], None] | None = None,
     plan: dict | None = None,
     template: str | None = None,
+    force: bool = False,
 ) -> Result:
     """`on_step` receives a short label for each stage, for live progress on the dashboard.
-    `template` asks for one reel look (render.templates); without it the looks rotate."""
+    `template` asks for one reel look (render.templates); without it the looks rotate.
+    `force` makes the post even when checks fail (you asked for it; it still needs your OK)."""
     item_id = _item_id(fmt)
     # Every paid call below is recorded against this item (dashboard: Costs).
     with budget.tagged(item_id=item_id, format=fmt.value, pillar=Pillar(pillar).value):
         return _make(item_id, fmt, pillar, topic, offline=offline, draft=draft,
                      image_provider=image_provider, vision_qa=vision_qa, brand=brand,
-                     on_step=on_step, plan=plan, template=template)
+                     on_step=on_step, plan=plan, template=template, force=force)
 
 
 def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offline: bool,
           draft: Draft | None, image_provider: str | None, vision_qa: bool | None,
           brand: Brand | None, on_step: Callable[[str], None] | None,
-          plan: dict | None, template: str | None = None) -> Result:
+          plan: dict | None, template: str | None = None, force: bool = False) -> Result:
     step = on_step or (lambda _label: None)
     if vision_qa is None:  # look at every finished picture, except in offline/demo runs
         vision_qa = get_settings().vision_check and not offline
@@ -123,7 +125,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
     _write_json(folder / "fact_check.json", fact)
     checks = qa.check_text(draft, fact, safety_issues)
 
-    if any(not c.passed for c in checks):
+    if any(not c.passed for c in checks) and not force:
         return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
 
     step("generating images")
@@ -148,16 +150,18 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
                                   vision_qa, template)
         still, text_boxes = comp.still, comp.text_boxes
         duration = video.reel_duration(video.read_time_seconds(*draft.hook_lines, draft.body))
-        motion = video.Motion(still, brand, duration, seed, comp)
+        # The last seconds ask to send the reel to someone and to follow the page.
+        outro = video.outro_card(brand, draft.cta, brand.printed_handle)
+        motion = video.Motion(still, brand, duration, seed, comp, outro)
         checks += qa.check_reel(draft, motion, text_boxes)
         still.save(folder / "cover.jpg", quality=92)
         if vision_qa:
             checks.append(vision or qa.check_vision(still, brand))
-        if all(c.passed for c in checks):
+        if force or all(c.passed for c in checks):
             step("encoding video")
             track = music.pick(pillar)
             video.encode(still, brand, duration, folder / "reel.mp4", seed, comp, music=track,
-                         app_copy=folder / "reel_for_app.mp4")
+                         app_copy=folder / "reel_for_app.mp4", outro=outro)
             if track is not None:
                 (folder / "music.txt").write_text(music.rel(track) + "\n", encoding="utf-8")
 
@@ -186,7 +190,7 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
         if vision_qa:
             checks.append(qa.check_vision(story, brand))
 
-    return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks))
+    return _finish(folder, item_id, fmt, pillar, draft, fact, qa.report(checks), force)
 
 
 def _drawing(draft: Draft, pillar: Pillar, brand: Brand, provider, folder: Path,
@@ -286,8 +290,9 @@ def _on_book_photo(brand: Brand, page, seed: int, search: bool = True,
 
 
 def _finish(folder: Path, item_id: str, fmt: Format, pillar: Pillar, draft: Draft,
-            fact: FactCheckResult, report: QAReport) -> Result:
-    status = "needs_review" if report.passed else "blocked"
+            fact: FactCheckResult, report: QAReport, force: bool = False) -> Result:
+    # force: you chose to make it despite failed checks; it still waits for your approval.
+    status = "needs_review" if report.passed or force else "blocked"
     _write_json(folder / "qa.json", report)
     (folder / "caption.txt").write_text(qa.caption_text(draft) + "\n", encoding="utf-8")
     _write_json(folder / "status.json", {
@@ -296,6 +301,6 @@ def _finish(folder: Path, item_id: str, fmt: Format, pillar: Pillar, draft: Draf
         "needs_human_fact_review": fact.verdict == FactCheckVerdict.NEEDS_HUMAN,
         "alternative_hooks": draft.alternative_hooks, "alt_text": draft.alt_text,
     })
-    if report.passed:
+    if report.passed or force:
         history.add(item_id, fmt.value, pillar.value, draft.topic, " ".join(draft.hook_lines))
     return Result(item_id=item_id, folder=folder, status=status, qa=report, fact=fact)
