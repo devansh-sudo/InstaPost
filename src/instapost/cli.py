@@ -371,6 +371,15 @@ def _scene(args) -> int:
     return 0
 
 
+def _insights(args) -> int:
+    from instapost.db import session
+    from instapost.stats import insights
+
+    with session() as s:
+        print(insights.build(s, args.days))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="instapost")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -420,6 +429,9 @@ def main(argv: list[str] | None = None) -> int:
     sc.add_argument("id", nargs="?", help="make: the scene id")
     sc.add_argument("--topic", help="write: what the scene is about")
     sc.set_defaults(func=_scene)
+    ins = sub.add_parser("insights", help="full report: numbers, what works, learning, costs")
+    ins.add_argument("--days", type=int, default=30)
+    ins.set_defaults(func=_insights)
     sub.add_parser("web", help="run the dashboard").set_defaults(func=_web)
     sub.add_parser("worker", help="run scheduler/publisher/bot").set_defaults(func=_worker)
     yt = sub.add_parser("youtube-login", help="connect YouTube (one time)")
