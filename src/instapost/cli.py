@@ -416,7 +416,13 @@ def _stats_refresh(args) -> int:
         pubs = s.query(Publication).filter(
             Publication.status == "published",
             Publication.published_at >= utcnow() - timedelta(days=args.days)).all()
+        skipped = 0
         for pub in pubs:
+            # Instagram deletes a story (and its numbers) after 24 hours: nothing to fetch.
+            if pub.item.format == "story_line" and \
+                    utcnow() - pub.published_at > timedelta(hours=24):
+                skipped += 1
+                continue
             try:
                 snap = collect.collect_post(s, pub, fetchers)
             except Exception as e:  # noqa: BLE001 - report and go on
@@ -428,7 +434,9 @@ def _stats_refresh(args) -> int:
                     errors.append(f"{pub.platform} {pub.item_id}: "
                                   f"{snap.raw['insights']['_error'][:160]}")
             s.commit()
-    print(f"Fresh numbers for {done} of {len(pubs)} posts.")
+    print(f"Fresh numbers for {done} of {len(pubs) - skipped} posts"
+          + (f" ({skipped} stories older than 24 h skipped: Instagram has deleted them)"
+             if skipped else "") + ".")
     for line in errors[:15]:
         print("  !", line)
     return 0
