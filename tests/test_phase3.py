@@ -64,7 +64,7 @@ def test_instagram_media_falls_back_per_metric_and_remembers(monkeypatch):
     metrics, _raw = client.media("m1")
     assert metrics["reach"] == 400 and metrics["saves"] == 12
     assert metrics["avg_watch_s"] == 6.5  # API reports milliseconds
-    assert "ig_reels_video_view_total_time" in fetch._unsupported("ig_unsupported:REELS")
+    assert "ig_reels_video_view_total_time" in fetch._unsupported("ig_unsupported:REELS:v2")
     calls.clear()
     client.media("m1")
     assert "ig_reels_video_view_total_time" not in ",".join(c or "" for c in calls)

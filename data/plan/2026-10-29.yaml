@@ -16,8 +16,11 @@
 # three Shiva carousels and Shiva stories through the week (about 1 post in 5). Edited on
 # 30 Oct; loading the file again leaves days that were already made as they are.
 #
-# 2 Nov update (from the first week's report): reels go out at 20:45 (the best hour); festival
-# reels at 07:15, when greetings are shared. Eight topics follow the pattern people shared most:
+# 3 Nov update: three reels a day at 08:00, 13:00 and 20:00 (set with
+#   bash deploy/docker.sh cli reel-times 08:00,13:00,20:00
+# before loading this file). The reel below goes out at 20:00 (the best hour in the first
+# report); festival reels at 08:00, when greetings are shared. The day's other reels keep
+# the planner's own themes and topics. Eight topics follow the pattern people shared most:
 # name one painful everyday feeling, then give calm relief, so the viewer sends it to someone.
 #
 # Volume follows schedule.yaml: Monday 2 reels, other days 1; carousels Tue/Thu/Sat; 2 stories
@@ -68,7 +71,7 @@ days:
 
   "2026-11-03":   # Tuesday
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "om chant, calm", topic: "किसी की बात दिल पर लग जाए, तो क्या करें? — नीलकंठ: कड़वाहट गले में रोकी, दिल तक नहीं जाने दी"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "om chant, calm", topic: "किसी की बात दिल पर लग जाए, तो क्या करें? — नीलकंठ: कड़वाहट गले में रोकी, दिल तक नहीं जाने दी"}
     carousel_shlok:
       - {pillar: gita, topic: "आप ही अपने मित्र, आप ही अपने शत्रु — खुद को ऊपर उठाने के 3 तरीके (श्लोक: gita-6.5)"}
     story_line:
@@ -77,14 +80,14 @@ days:
 
   "2026-11-04":   # Wednesday
     reel_book_pov:
-      - {slot: "20:45", pillar: kabir, audio: "sitar, gentle", topic: "ऐसी वाणी बोलिए — शब्द जो दूसरे को भी ठंडक दें और खुद को भी (श्लोक: kabir-aisi-vani)"}
+      - {slot: "20:00", pillar: kabir, audio: "sitar, gentle", topic: "ऐसी वाणी बोलिए — शब्द जो दूसरे को भी ठंडक दें और खुद को भी (श्लोक: kabir-aisi-vani)"}
     story_line:
       - {pillar: shiv_dhyan, topic: "नंदी की तरह धैर्य: सच्चे मन का इंतज़ार कभी व्यर्थ नहीं जाता।"}
       - {pillar: life_lesson, topic: "जिसे माफ़ करना है, उसे आज मन ही मन माफ़ कर दीजिए।"}
 
   "2026-11-05":   # Thursday
     reel_book_pov:
-      - {slot: "20:45", pillar: gita, audio: "bansuri, night calm", topic: "रात को दिमाग़ चुप नहीं होता? — मन को अभ्यास से थामना, आज रात के लिए एक छोटा तरीका (श्लोक: gita-6.35)"}
+      - {slot: "20:00", pillar: gita, audio: "bansuri, night calm", topic: "रात को दिमाग़ चुप नहीं होता? — मन को अभ्यास से थामना, आज रात के लिए एक छोटा तरीका (श्लोक: gita-6.35)"}
     carousel_shlok:
       - {pillar: shiv_dhyan, topic: "शिव के प्रतीक और उनकी सीख: चंद्रमा, गंगा, त्रिशूल, डमरू, नंदी — हर एक का अर्थ आज के जीवन में (श्लोक: shiv-panchakshari)"}
     story_line:
@@ -94,7 +97,7 @@ days:
   "2026-11-06":   # Friday · ⚠️ Dhanteras + Pradosh (estimate)
     note: "धनतेरस, प्रदोष (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: life_lesson, audio: "festive diya, soft bells", topic: "धनतेरस: असली धन — संतोष, स्वास्थ्य और परिवार का साथ"}
+      - {slot: "08:00", pillar: life_lesson, audio: "festive diya, soft bells", topic: "धनतेरस: असली धन — संतोष, स्वास्थ्य और परिवार का साथ"}
     story_line:
       - {pillar: jeevan_sutra, topic: "धनतेरस की शुभकामनाएँ — आज सेहत को सबसे बड़ा धन मानिए।"}
       - {pillar: shiv_dhyan, topic: "आज प्रदोष भी (अनुमानित): सूर्यास्त के समय दो मिनट — ॐ नमः शिवाय।"}
@@ -102,7 +105,7 @@ days:
   "2026-11-07":   # Saturday · ⚠️ Choti Diwali / Narak Chaturdashi (estimate)
     note: "छोटी दिवाली (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: jeevan_sutra, audio: "festive flute", topic: "छोटी दिवाली: एक बुरी आदत को आज विदा कीजिए, घर के साथ मन भी रोशन हो"}
+      - {slot: "08:00", pillar: jeevan_sutra, audio: "festive flute", topic: "छोटी दिवाली: एक बुरी आदत को आज विदा कीजिए, घर के साथ मन भी रोशन हो"}
     carousel_shlok:
       - {pillar: gita, topic: "जब-जब धर्म की हानि होती है — अंधकार पर प्रकाश की जीत का अर्थ (श्लोक: gita-4.7)"}
     story_line:
@@ -112,7 +115,7 @@ days:
   "2026-11-08":   # Sunday · ⚠️ Diwali (estimate)
     note: "दीपावली (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: jeevan_sutra, audio: "diwali devotional, aarti bells", topic: "दीपावली: बाहर लाख दीये, पर असली प्रकाश भीतर का दीया जलाने से आता है"}
+      - {slot: "08:00", pillar: jeevan_sutra, audio: "diwali devotional, aarti bells", topic: "दीपावली: बाहर लाख दीये, पर असली प्रकाश भीतर का दीया जलाने से आता है"}
     story_line:
       - {pillar: jeevan_sutra, topic: "शुभ दीपावली 🪔 आपके घर और मन दोनों रोशन रहें।"}
       - {pillar: life_lesson, topic: "आज की रात: किसे दिल से शुभकामना भेजेंगे?"}
@@ -120,15 +123,15 @@ days:
   "2026-11-09":   # Monday · Somvar · ⚠️ Govardhan Puja (estimate)
     note: "गोवर्धन पूजा (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: gita, audio: "krishna bansuri", topic: "गोवर्धन: जब कृष्ण ने पर्वत उठाया — शरण में आने वाले को डर नहीं (श्लोक: gita-18.66)"}
-      - {slot: "07:15", pillar: shiv_dhyan, audio: "om chant, calm", topic: "सोमवार: त्योहार की थकान के बाद शिव-ध्यान के दो मिनट"}
+      - {slot: "08:00", pillar: gita, audio: "krishna bansuri", topic: "गोवर्धन: जब कृष्ण ने पर्वत उठाया — शरण में आने वाले को डर नहीं (श्लोक: gita-18.66)"}
+      - {slot: "08:00", pillar: shiv_dhyan, audio: "om chant, calm", topic: "सोमवार: त्योहार की थकान के बाद शिव-ध्यान के दो मिनट"}
     story_line:
       - {pillar: jeevan_sutra, topic: "गोवर्धन पूजा की शुभकामनाएँ — आज प्रकृति को धन्यवाद कहिए।"}
       - {pillar: life_lesson, topic: "त्योहार के बाद: खुद को आराम देना भी पूजा है।"}
 
   "2026-11-10":   # Tuesday
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "rudra, deep drone", topic: "महामृत्युंजय मंत्र: डर नहीं, भीतर की स्थिरता का मंत्र (श्लोक: shiv-mahamrityunjaya)"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "rudra, deep drone", topic: "महामृत्युंजय मंत्र: डर नहीं, भीतर की स्थिरता का मंत्र (श्लोक: shiv-mahamrityunjaya)"}
     carousel_shlok:
       - {pillar: gita, topic: "सुख-दुःख आते-जाते हैं — सहना कमज़ोरी नहीं, समझदारी है (श्लोक: gita-2.14)"}
     story_line:
@@ -138,14 +141,14 @@ days:
   "2026-11-11":   # Wednesday · ⚠️ Bhai Dooj (estimate; may be 10 Nov)
     note: "भाई दूज (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: life_lesson, audio: "warm flute", topic: "भाई दूज: भाई-बहन का रिश्ता — बिना शर्त साथ खड़े रहने का वादा"}
+      - {slot: "08:00", pillar: life_lesson, audio: "warm flute", topic: "भाई दूज: भाई-बहन का रिश्ता — बिना शर्त साथ खड़े रहने का वादा"}
     story_line:
       - {pillar: jeevan_sutra, topic: "भाई दूज की शुभकामनाएँ — आज अपने भाई/बहन को एक संदेश भेजिए।"}
       - {pillar: life_lesson, topic: "बचपन की कौन-सी याद आज भी मुस्कान देती है?"}
 
   "2026-11-12":   # Thursday
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "deep drone, soft", topic: "मन भारी है, पर वजह नहीं पता? — कैलाश जैसी स्थिरता: दो मिनट बस साँस के साथ"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "deep drone, soft", topic: "मन भारी है, पर वजह नहीं पता? — कैलाश जैसी स्थिरता: दो मिनट बस साँस के साथ"}
     carousel_shlok:
       - {pillar: gita, topic: "समत्व योग: सफलता और असफलता में एक-सा रहना (श्लोक: gita-2.48)"}
     story_line:
@@ -154,14 +157,14 @@ days:
 
   "2026-11-13":   # Friday
     reel_book_pov:
-      - {slot: "20:45", pillar: life_lesson, audio: "soft piano", topic: "पुरानी बात बार-बार लौट आए तो… — जो बीत गया, उसे आज की शांति न छीनने दें"}
+      - {slot: "20:00", pillar: life_lesson, audio: "soft piano", topic: "पुरानी बात बार-बार लौट आए तो… — जो बीत गया, उसे आज की शांति न छीनने दें"}
     story_line:
       - {pillar: jeevan_sutra, topic: "आज का संकल्प: एक काम, पूरा ध्यान।"}
       - {pillar: life_lesson, topic: "कभी-कभी 'ना' कहना भी आत्म-सम्मान है।"}
 
   "2026-11-14":   # Saturday
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "om chant, calm", topic: "शिव का मौन: हर बात पर लड़ना ज़रूरी नहीं — शांति चुनना हार नहीं"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "om chant, calm", topic: "शिव का मौन: हर बात पर लड़ना ज़रूरी नहीं — शांति चुनना हार नहीं"}
     carousel_shlok:
       - {pillar: kabir, topic: "पोथी पढ़ि पढ़ि जग मुआ — किताबों से बड़ा प्रेम का ढाई आखर (श्लोक: kabir-pothi-padhi)"}
     story_line:
@@ -171,22 +174,22 @@ days:
   "2026-11-15":   # Sunday · ⚠️ Chhath Puja (estimate)
     note: "छठ पूजा (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: life_lesson, audio: "folk devotional, river", topic: "छठ: डूबते सूरज को भी अर्घ्य — जीवन के हर चरण का सम्मान"}
+      - {slot: "08:00", pillar: life_lesson, audio: "folk devotional, river", topic: "छठ: डूबते सूरज को भी अर्घ्य — जीवन के हर चरण का सम्मान"}
     story_line:
       - {pillar: jeevan_sutra, topic: "छठ पूजा की शुभकामनाएँ ☀️"}
       - {pillar: life_lesson, topic: "आज सूरज ढलते समय दो मिनट शांत बैठिए।"}
 
   "2026-11-16":   # Monday · Somvar
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "om chant, damru soft", topic: "सोमवार: शिव का नीलकंठ रूप — कड़वाहट पी लेना, पर फैलाना नहीं"}
-      - {slot: "07:15", pillar: shiv_dhyan, audio: "devotional strings, warm", topic: "अर्धनारीश्वर: शिव और शक्ति एक-दूसरे के बिना अधूरे — रिश्ते में बराबरी और संतुलन"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "om chant, damru soft", topic: "सोमवार: शिव का नीलकंठ रूप — कड़वाहट पी लेना, पर फैलाना नहीं"}
+      - {slot: "08:00", pillar: shiv_dhyan, audio: "devotional strings, warm", topic: "अर्धनारीश्वर: शिव और शक्ति एक-दूसरे के बिना अधूरे — रिश्ते में बराबरी और संतुलन"}
     story_line:
       - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — इस हफ़्ते की शुरुआत शांत मन से।"}
       - {pillar: life_lesson, topic: "किसी की कड़वी बात को आज दिल पर मत लीजिए।"}
 
   "2026-11-17":   # Tuesday
     reel_book_pov:
-      - {slot: "20:45", pillar: kabir, audio: "ektara folk", topic: "गुस्से में बोलकर पछताते हैं? — बोलने से पहले एक साँस, कबीर की सीख (श्लोक: kabir-aisi-vani)"}
+      - {slot: "20:00", pillar: kabir, audio: "ektara folk", topic: "गुस्से में बोलकर पछताते हैं? — बोलने से पहले एक साँस, कबीर की सीख (श्लोक: kabir-aisi-vani)"}
     carousel_shlok:
       - {pillar: gita, topic: "मन को कैसे साधें: अभ्यास के 5 छोटे कदम (श्लोक: gita-6.35)"}
     story_line:
@@ -195,14 +198,14 @@ days:
 
   "2026-11-18":   # Wednesday
     reel_book_pov:
-      - {slot: "20:45", pillar: kabir, audio: "ektara folk", topic: "बुरा जो देखन मैं चला — आलोचना से पहले आत्म-निरीक्षण (श्लोक: kabir-bura-jo-dekhan)"}
+      - {slot: "20:00", pillar: kabir, audio: "ektara folk", topic: "बुरा जो देखन मैं चला — आलोचना से पहले आत्म-निरीक्षण (श्लोक: kabir-bura-jo-dekhan)"}
     story_line:
       - {pillar: jeevan_sutra, topic: "आज किसी की तारीफ़ दिल से कीजिए।"}
       - {pillar: life_lesson, topic: "गलती मान लेना सबसे बहादुर काम है।"}
 
   "2026-11-19":   # Thursday
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "om chant, deep", topic: "सब ठीक है, फिर भी खालीपन क्यों? — जो शांति भीतर है, वह बाहर नहीं मिलती"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "om chant, deep", topic: "सब ठीक है, फिर भी खालीपन क्यों? — जो शांति भीतर है, वह बाहर नहीं मिलती"}
     carousel_shlok:
       - {pillar: shiv_dhyan, topic: "महादेव से 5 जीवन-सूत्र: धैर्य (नंदी), संतुलन (अर्धनारीश्वर), सहनशीलता (नीलकंठ), सादगी (भोलेनाथ), स्थिरता (कैलाश)"}
     story_line:
@@ -212,14 +215,14 @@ days:
   "2026-11-20":   # Friday · ⚠️ Dev Uthani Ekadashi (estimate)
     note: "देवउठनी एकादशी (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: gita, audio: "vishnu bhajan instrumental", topic: "देवउठनी एकादशी: भीतर सोई हुई अच्छाई को जगाने का दिन (श्लोक: gita-6.5)"}
+      - {slot: "08:00", pillar: gita, audio: "vishnu bhajan instrumental", topic: "देवउठनी एकादशी: भीतर सोई हुई अच्छाई को जगाने का दिन (श्लोक: gita-6.5)"}
     story_line:
       - {pillar: jeevan_sutra, topic: "देवउठनी एकादशी की शुभकामनाएँ 🙏"}
       - {pillar: life_lesson, topic: "आज कौन-सा अच्छा काम शुरू करेंगे?"}
 
   "2026-11-21":   # Saturday
     reel_book_pov:
-      - {slot: "20:45", pillar: life_lesson, audio: "calm flute", topic: "जब अपने ही ताने दें… — हर बात का जवाब देना ज़रूरी नहीं, मन बचाना ज़रूरी है"}
+      - {slot: "20:00", pillar: life_lesson, audio: "calm flute", topic: "जब अपने ही ताने दें… — हर बात का जवाब देना ज़रूरी नहीं, मन बचाना ज़रूरी है"}
     carousel_shlok:
       - {pillar: kabir, topic: "ऐसी वाणी बोलिए: रिश्तों को बचाने वाले शब्द (श्लोक: kabir-aisi-vani)"}
     story_line:
@@ -228,15 +231,15 @@ days:
 
   "2026-11-22":   # Sunday · ⚠️ Pradosh (estimate)
     reel_book_pov:
-      - {slot: "20:45", pillar: life_lesson, audio: "soft piano", topic: "माँ की वह बात जो तब समझ नहीं आई, अब हर दिन काम आती है"}
+      - {slot: "20:00", pillar: life_lesson, audio: "soft piano", topic: "माँ की वह बात जो तब समझ नहीं आई, अब हर दिन काम आती है"}
     story_line:
       - {pillar: shiv_dhyan, topic: "आज प्रदोष (अनुमानित): शाम के दीये के साथ ॐ नमः शिवाय।"}
       - {pillar: life_lesson, topic: "आपकी माँ की कौन-सी सीख आज भी साथ है?"}
 
   "2026-11-23":   # Monday · Somvar
     reel_book_pov:
-      - {slot: "20:45", pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: ध्यान में बैठे शिव — मौन भी एक उत्तर है (श्लोक: shiv-panchakshari)"}
-      - {slot: "07:15", pillar: shiv_dhyan, audio: "damru soft, deep drone", topic: "गंगा को जटाओं में थामना: तेज़ भावनाओं को शांत मन से संभालना"}
+      - {slot: "20:00", pillar: shiv_dhyan, audio: "om chant, deep", topic: "सोमवार: ध्यान में बैठे शिव — मौन भी एक उत्तर है (श्लोक: shiv-panchakshari)"}
+      - {slot: "08:00", pillar: shiv_dhyan, audio: "damru soft, deep drone", topic: "गंगा को जटाओं में थामना: तेज़ भावनाओं को शांत मन से संभालना"}
     story_line:
       - {pillar: jeevan_sutra, topic: "ॐ नमः शिवाय — आज कम बोलें, ज़्यादा सुनें।"}
       - {pillar: life_lesson, topic: "कल कार्तिक पूर्णिमा: दीपदान और प्रकाश का पर्व।"}
@@ -244,7 +247,7 @@ days:
   "2026-11-24":   # Tuesday · ⚠️ Kartik Purnima / Dev Deepawali / Guru Nanak Jayanti (estimate)
     note: "कार्तिक पूर्णिमा, देव दीपावली, गुरु नानक जयंती (अनुमानित तिथि)"
     reel_book_pov:
-      - {slot: "07:15", pillar: shiv_dhyan, audio: "aarti bells, ganga", topic: "देव दीपावली: काशी के घाटों पर दीये — शिव की नगरी का प्रकाश"}
+      - {slot: "08:00", pillar: shiv_dhyan, audio: "aarti bells, ganga", topic: "देव दीपावली: काशी के घाटों पर दीये — शिव की नगरी का प्रकाश"}
     carousel_shlok:
       - {pillar: shiv_dhyan, topic: "महामृत्युंजय मंत्र का अर्थ, पंक्ति दर पंक्ति (श्लोक: shiv-mahamrityunjaya)"}
     story_line:
@@ -253,14 +256,14 @@ days:
 
   "2026-11-25":   # Wednesday
     reel_book_pov:
-      - {slot: "20:45", pillar: gita, audio: "bansuri, calm", topic: "भरोसा टूटा है, अब क्या? — यह दुःख भी मौसम की तरह बीतेगा, आप टिके रहिए (श्लोक: gita-2.14)"}
+      - {slot: "20:00", pillar: gita, audio: "bansuri, calm", topic: "भरोसा टूटा है, अब क्या? — यह दुःख भी मौसम की तरह बीतेगा, आप टिके रहिए (श्लोक: gita-2.14)"}
     story_line:
       - {pillar: life_lesson, topic: "आज जो भी हो, एक बार मुस्कुराइए।"}
       - {pillar: shiv_dhyan, topic: "रात की बात: महामृत्युंजय मंत्र — आज कौन-सा डर छोड़ना चाहेंगे?"}
 
   "2026-11-26":   # Thursday
     reel_book_pov:
-      - {slot: "20:45", pillar: kabir, audio: "sitar, gentle", topic: "पोथी पढ़ि पढ़ि — ज्ञान से बड़ा प्रेम और व्यवहार (श्लोक: kabir-pothi-padhi)"}
+      - {slot: "20:00", pillar: kabir, audio: "sitar, gentle", topic: "पोथी पढ़ि पढ़ि — ज्ञान से बड़ा प्रेम और व्यवहार (श्लोक: kabir-pothi-padhi)"}
     carousel_shlok:
       - {pillar: gita, topic: "शरणागति: जब सब छूटता दिखे, तब भी आप अकेले नहीं (श्लोक: gita-18.66)"}
     story_line:
@@ -269,7 +272,7 @@ days:
 
   "2026-11-27":   # Friday
     reel_book_pov:
-      - {slot: "20:45", pillar: jeevan_sutra, audio: "hopeful flute", topic: "एक महीना, एक आदत: छोटा-सा बदलाव जो पूरा जीवन बदल दे"}
+      - {slot: "20:00", pillar: jeevan_sutra, audio: "hopeful flute", topic: "एक महीना, एक आदत: छोटा-सा बदलाव जो पूरा जीवन बदल दे"}
     story_line:
       - {pillar: jeevan_sutra, topic: "आज का संकल्प: अगले 30 दिन एक अच्छी आदत।"}
       - {pillar: life_lesson, topic: "आप इस हफ़्ते खुद पर किस बात के लिए गर्व करते हैं?"}

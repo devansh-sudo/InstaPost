@@ -28,13 +28,6 @@ def test_month_plan_loads_and_reloads_without_duplicates():
         again = s.scalars(select(PlanEntry).where(PlanEntry.edited_by == planner.MONTH_PLAN_ACTOR,
                                                   PlanEntry.status == "planned")).all()
         assert len(again) == 107
-        # The file sets reel times: evening on normal days, morning on festival days.
-        tue = s.scalars(select(PlanEntry).where(PlanEntry.day == "2026-11-03",
-                                                PlanEntry.format == "reel_book_pov")).one()
-        assert tue.slot == "20:45" and "नीलकंठ" in tue.topic
-        diwali = s.scalars(select(PlanEntry).where(PlanEntry.day == "2026-11-08",
-                                                   PlanEntry.format == "reel_book_pov")).one()
-        assert diwali.slot == "07:15"
         # Days already made are left alone when the file is loaded again mid-month.
         from instapost.db import set_kv
         set_kv(s, "generated:2026-10-29", "done")
@@ -87,3 +80,28 @@ def test_app_mode_sends_the_package_once_and_waits_for_posted(monkeypatch):
         assert item.status == ItemStatus.APPROVED and item.scheduled_at is None
         actions = s.scalars(select(AuditLog.action).where(AuditLog.item_id == item_id)).all()
         assert actions.count("app_package_sent") == 1
+
+
+def test_three_reels_a_day_at_set_times_and_the_plan_uses_them():
+    from instapost import cli
+    from instapost.schedule import load_schedule
+
+    assert cli.main(["reel-times", "13:00,08:00,20:00"]) == 0
+    sched = load_schedule()
+    assert sched.slots["reel_book_pov"] and [t.strftime("%H:%M") for t in
+                                             sched.slot_times("reel_book_pov")] == \
+        ["08:00", "13:00", "20:00"]
+    assert all(sched.daily_plan[d]["reel_book_pov"] == 3 for d in sched.daily_plan)
+    assert sched.max_posts_per_day["youtube"] >= 5 and sched.max_posts_per_day["facebook"] >= 4
+    with session() as s:
+        planner.load_month(s, MONTH)
+        reels = s.scalars(select(PlanEntry).where(PlanEntry.day == "2026-11-03",
+                                                  PlanEntry.format == "reel_book_pov",
+                                                  PlanEntry.status == "planned")).all()
+        assert sorted(e.slot for e in reels) == ["08:00", "13:00", "20:00"]
+        ours = [e for e in reels if e.edited_by == planner.MONTH_PLAN_ACTOR]
+        assert len(ours) == 1 and ours[0].slot == "20:00" and "नीलकंठ" in ours[0].topic
+        diwali = s.scalars(select(PlanEntry).where(
+            PlanEntry.day == "2026-11-08", PlanEntry.format == "reel_book_pov",
+            PlanEntry.edited_by == planner.MONTH_PLAN_ACTOR)).one()
+        assert diwali.slot == "08:00"

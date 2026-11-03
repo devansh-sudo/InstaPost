@@ -234,7 +234,7 @@ def publish_item(s: Session, item: Item, host=None) -> Item:
     elif retry_needed:
         attempts = max((p.attempts for p in item.publications), default=1)
         item.status = ItemStatus.APPROVED
-        item.scheduled_at = _next_morning() if limit_hit else _retry_time(attempts)
+        item.scheduled_at = _next_slot(s, item) if limit_hit else _retry_time(attempts)
     elif any(st == "published" for st in states):
         item.status = ItemStatus.PARTIAL
     else:
@@ -249,6 +249,19 @@ def _retry_time(attempts: int):
     if local.hour >= 23 or local.hour < 6:
         return _next_morning(local)
     return when
+
+
+def _next_slot(s: Session, item: Item):
+    """A post held back by a daily limit goes out at its kind's next free slot tomorrow (one
+    of the times in Settings), not at a random hour."""
+    sched = load_schedule()
+    tomorrow = sched.local_now().date() + timedelta(days=1)
+    try:
+        if item.format in LONG_VIDEOS:
+            return _next_morning()
+        return approvals.next_free_slot(s, item.format, tomorrow)
+    except approvals.QueueError:
+        return _next_morning()
 
 
 def _next_morning(after=None):

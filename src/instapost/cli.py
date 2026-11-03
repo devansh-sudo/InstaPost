@@ -371,6 +371,109 @@ def _scene(args) -> int:
     return 0
 
 
+def _reel_times(args) -> int:
+    """Reels at fixed times every day, saved like a change on the dashboard's Settings."""
+    import re
+
+    from instapost import overrides
+    from instapost.schedule import WEEKDAYS, load_schedule
+
+    times = sorted({t.strip() for t in args.times.split(",") if t.strip()})
+    if not times or not all(re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", t) for t in times):
+        print("ERROR: give times like 08:00,13:00,20:00", file=sys.stderr)
+        return 1
+    data = overrides.load()
+    sched = data["schedule"]
+    sched.setdefault("slots", {})["reel_book_pov"] = times
+    plan = sched.setdefault("daily_plan", {})
+    for day in WEEKDAYS:
+        plan.setdefault(day, {})["reel_book_pov"] = len(times)
+    current = load_schedule().max_posts_per_day
+    limits = sched.setdefault("max_posts_per_day", {})
+    # Room for every reel plus the stories, carousels and the long videos on the same day.
+    limits["instagram"] = max(current.get("instagram", 0), len(times) + 5)
+    limits["facebook"] = max(current.get("facebook", 0), len(times) + 1)
+    limits["youtube"] = max(current.get("youtube", 0), min(len(times) + 2, 6))
+    overrides.save(data)
+    s = load_schedule()
+    print(f"Reels every day at {', '.join(times)} ({s.timezone}).")
+    print("Daily limits: " + ", ".join(f"{k} {v}" for k, v in s.max_posts_per_day.items()))
+    print("Shown and changeable on the dashboard: Settings -> Agent settings. Then reload the "
+          "month plan so its days use these times.")
+    return 0
+
+
+def _stats_refresh(args) -> int:
+    """Fresh numbers for every post of the last days, now (not waiting for the schedule)."""
+    from datetime import timedelta
+
+    from instapost.db import Publication, session, utcnow
+    from instapost.stats import collect
+
+    fetchers = collect.Fetchers()
+    done, errors = 0, []
+    with session() as s:
+        pubs = s.query(Publication).filter(
+            Publication.status == "published",
+            Publication.published_at >= utcnow() - timedelta(days=args.days)).all()
+        for pub in pubs:
+            try:
+                snap = collect.collect_post(s, pub, fetchers)
+            except Exception as e:  # noqa: BLE001 - report and go on
+                errors.append(f"{pub.platform} {pub.item_id}: {str(e)[:160]}")
+                continue
+            if snap is not None:
+                done += 1
+                if snap.raw and (snap.raw.get("insights") or {}).get("_error"):
+                    errors.append(f"{pub.platform} {pub.item_id}: "
+                                  f"{snap.raw['insights']['_error'][:160]}")
+            s.commit()
+    print(f"Fresh numbers for {done} of {len(pubs)} posts.")
+    for line in errors[:15]:
+        print("  !", line)
+    return 0
+
+
+def _facebook_check(args) -> int:
+    """What Facebook says about your latest reels: visible? numbers readable?"""
+    from instapost.db import Publication, session
+    from instapost.stats import fetch
+
+    try:
+        fb = fetch.FacebookStats()
+    except fetch.FetchError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    try:
+        page = fb.account()
+        print(f"Page: {page.get('fan_count', '?')} likes, "
+              f"{page.get('followers_count', '?')} followers")
+    except fetch.FetchError as e:
+        print(f"! page: {e}")
+    with session() as s:
+        pubs = s.query(Publication).filter(Publication.platform == "facebook",
+                                           Publication.status == "published").order_by(
+            Publication.published_at.desc()).limit(args.last).all()
+        if not pubs:
+            print("No published Facebook reels yet.")
+        for pub in pubs:
+            print(f"\n{pub.published_at:%d %b %H:%M} UTC  reel {pub.remote_id}  "
+                  f"{pub.permalink or ''}")
+            try:
+                info = fb.get(pub.remote_id, fields="status,permalink_url,length")
+                status = info.get("status", {})
+                print(f"  status: {status.get('video_status')}, "
+                      f"publishing {status.get('publishing_phase', {}).get('status')}")
+            except fetch.FetchError as e:
+                print(f"  ! cannot read the reel: {e}")
+            metrics, raw = fb.reel(pub.remote_id)
+            err = (raw.get("insights") or {}).get("_error")
+            print(f"  numbers: {metrics or 'none'}" + (f"\n  ! {err}" if err else ""))
+    print("\nIf it says a permission is missing, reconnect Facebook so the Page token has "
+          "pages_read_engagement and read_insights (docs/SETUP_META_YOUTUBE.md).")
+    return 0
+
+
 def _insights(args) -> int:
     from instapost.db import session
     from instapost.stats import insights
@@ -429,6 +532,15 @@ def main(argv: list[str] | None = None) -> int:
     sc.add_argument("id", nargs="?", help="make: the scene id")
     sc.add_argument("--topic", help="write: what the scene is about")
     sc.set_defaults(func=_scene)
+    rt = sub.add_parser("reel-times", help="reels every day at these times, e.g. 08:00,13:00,20:00")
+    rt.add_argument("times")
+    rt.set_defaults(func=_reel_times)
+    sr = sub.add_parser("stats-refresh", help="fetch fresh numbers for recent posts now")
+    sr.add_argument("--days", type=int, default=14)
+    sr.set_defaults(func=_stats_refresh)
+    fc = sub.add_parser("facebook-check", help="what Facebook says about your latest reels")
+    fc.add_argument("--last", type=int, default=3)
+    fc.set_defaults(func=_facebook_check)
     ins = sub.add_parser("insights", help="full report: numbers, what works, learning, costs")
     ins.add_argument("--days", type=int, default=30)
     ins.set_defaults(func=_insights)

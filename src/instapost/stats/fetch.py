@@ -49,8 +49,27 @@ def _remember_unsupported(key: str, names: set[str]) -> None:
         set_kv(s, key, ",".join(sorted(_unsupported(key) | names)))
 
 
+# Keys end in ":v2": older versions also remembered temporary refusals as "unsupported",
+# which switched Facebook (and Instagram story) numbers off for good; that memory is dropped.
+#
+# Only these answers mean "this metric does not exist for this kind of post". Anything else
+# (no permission yet, the post still processing, too few viewers for Instagram to show
+# numbers) is temporary: nothing is remembered, and the next checkpoint asks again.
+INVALID_METRIC = ("invalid metric", "not a valid", "is not supported", "unsupported metric",
+                  "must be one of", "invalid parameter", "(#100)")
+
+
+def _invalid_metric(e: Exception) -> bool:
+    text = str(e).lower()
+    if "does not exist" in text or "permission" in text or "not enough" in text:
+        return False
+    return any(k in text for k in INVALID_METRIC)
+
+
 def _insights(get, path: str, metrics: list[str], cache_key: str, **extra) -> dict:
-    """Ask for all metrics at once; on rejection, ask one by one and remember failures."""
+    """Ask for all metrics at once; on rejection, ask one by one and remember only the
+    metrics the API says are invalid. A temporary refusal gives no numbers this time (its
+    message is kept under "_error"), and the next checkpoint asks again."""
     wanted = [m for m in metrics if m not in _unsupported(cache_key)]
     if not wanted:
         return {}
@@ -59,15 +78,21 @@ def _insights(get, path: str, metrics: list[str], cache_key: str, **extra) -> di
         return {e["name"]: _value(e) for e in data}
     except FetchError:
         pass
-    out, bad = {}, set()
+    out, bad, temporary = {}, set(), None
     for m in wanted:
         try:
             for e in get(path, metric=m, **extra).get("data", []):
                 out[e["name"]] = _value(e)
-        except FetchError:
-            bad.add(m)
+        except FetchError as e:
+            if _invalid_metric(e):
+                bad.add(m)
+            else:
+                temporary = e
     if bad:
         _remember_unsupported(cache_key, bad)
+    if not out and temporary is not None:
+        # Kept with the snapshot (no numbers this time); the next checkpoint asks again.
+        out["_error"] = str(temporary)[:300]
     return out
 
 
@@ -98,7 +123,7 @@ class InstagramStats:
         info = self.get(media_id, fields="media_product_type,like_count,comments_count,timestamp")
         kind = info.get("media_product_type", "FEED")
         raw = _insights(self.get, f"{media_id}/insights", IG_MEDIA_METRICS.get(kind, []),
-                        f"ig_unsupported:{kind}")
+                        f"ig_unsupported:{kind}:v2")
         m = {
             "views": raw.get("views"), "reach": raw.get("reach"),
             "likes": raw.get("likes", info.get("like_count")),
@@ -116,7 +141,7 @@ class InstagramStats:
 
     def account_day(self, since: int, until: int) -> dict:
         return _insights(self.get, f"{self.user_id}/insights", IG_ACCOUNT_DAILY,
-                         "ig_unsupported:account", period="day", metric_type="total_value",
+                         "ig_unsupported:account:v2", period="day", metric_type="total_value",
                          since=since, until=until)
 
 
@@ -145,7 +170,7 @@ class FacebookStats:
 
     def reel(self, video_id: str) -> tuple[dict, dict]:
         raw = _insights(self.get, f"{video_id}/video_insights", FB_REEL_METRICS,
-                        "fb_unsupported:reel")
+                        "fb_unsupported:reel:v2")
         social = raw.get("post_video_social_actions") or {}
         reactions = raw.get("post_video_likes_by_reaction_type") or {}
         m = {

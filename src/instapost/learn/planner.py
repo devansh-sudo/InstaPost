@@ -205,9 +205,10 @@ def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
                 PlanEntry.day == day.isoformat(), PlanEntry.format == fmt.value,
                 PlanEntry.status == "planned").order_by(PlanEntry.position)))
             expected = sched.daily_plan[WEEKDAYS[day.weekday()]].get(fmt, 0)
-            if len(wanted) != expected:
+            if len(wanted) > expected:
                 summary["warnings"].append(
-                    f"{day} {fmt.value}: {len(wanted)} in the file, schedule.yaml says {expected}")
+                    f"{day} {fmt.value}: {len(wanted)} in the file, the schedule makes "
+                    f"{expected}; the extra ones are added")
             slots = sched.slots.get(fmt, [])
             for pos, item in enumerate(wanted):
                 pillar = Pillar(item["pillar"]).value  # raises on a typo
@@ -227,6 +228,10 @@ def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
                 e.audio = item.get("audio")
                 if item.get("slot"):  # the file may set the time (one of schedule.yaml's slots)
                     if str(item["slot"]) in slots:
+                        # Another entry of that day holding the time takes this one's.
+                        for other in entries:
+                            if other is not e and other.slot == str(item["slot"]):
+                                other.slot = e.slot
                         e.slot = str(item["slot"])
                     else:
                         summary["warnings"].append(
@@ -236,8 +241,8 @@ def load_month(s: Session, path, actor: str = MONTH_PLAN_ACTOR) -> dict:
                 note = spec.get("note")
                 e.reason = "month plan" + (f" · {note}" if note else "")
                 summary["entries"] += 1
-            for extra in entries[len(wanted):]:
-                extra.status, extra.edited_by = "skipped", actor
+            # More planned than the file lists (e.g. 3 reels a day, the file gives 1-2): the
+            # rest keep the learner's own theme and topic, at their own times.
     audit(s, actor, "month_plan_loaded", start=start.isoformat(), end=max(days).isoformat(),
           entries=summary["entries"])
     return summary
