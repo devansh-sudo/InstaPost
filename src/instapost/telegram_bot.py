@@ -94,6 +94,8 @@ class Bot:
             warn = "\n⛔ Fact check failed: " + "; ".join(fact.get("issues", []))[:300]
         status = {"approved": f"✅ Approved, posts {approvals.local_time_label(item)}",
                   "blocked": f"⛔ Blocked by QA: {item.qa_summary[:300]}"}.get(item.status, "")
+        if item.status == "needs_review" and item.qa_summary:
+            status = f"⚠️ Have a look before approving: {item.qa_summary[:300]}"
         return (f"{FORMAT_LABEL.get(item.format, item.format)} · {item.pillar} · for "
                 f"{item.for_date}\n\n{item.hook}\n\n{item.caption[:500]}{warn}\n\n{status}"
                 f"\nid: {item.id}")

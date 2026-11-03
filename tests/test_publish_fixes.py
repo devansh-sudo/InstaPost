@@ -97,5 +97,6 @@ def test_story_lines_may_be_longer_than_reel_hooks():
         return next(c for c in check_text(draft, fact, []) if c.name == "hook_length").passed
 
     assert length_ok(_draft(19, story=True))
-    assert not length_ok(_draft(21, story=True))
-    assert not length_ok(_draft(13, story=False))
+    # A few words over only warns (the writing is paid for); far over still blocks.
+    assert length_ok(_draft(23, story=True)) and not length_ok(_draft(26, story=True))
+    assert length_ok(_draft(15, story=False)) and not length_ok(_draft(18, story=False))

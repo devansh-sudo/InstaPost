@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     # Look at every finished picture with the small model before it reaches you (readable
     # Hindi, no stray letters, a book photo that looks natural); about $0.001 a post.
     vision_check: bool = True
+    # When the image check finds a problem in a finished post: false = a warning you see when
+    # approving (the post is already paid for); true = the post is blocked.
+    vision_blocks: bool = False
     unsplash_access_key: str | None = None
     # Scene reels (Shiv and Parvati talking): voices from Gemini text-to-speech, same key as
     # the pictures. SCENE_VOICES=false makes them subtitle-only (no AI voices, no AI label).

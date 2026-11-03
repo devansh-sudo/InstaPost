@@ -26,7 +26,7 @@ def test_caption_asks_to_follow():
 def _blocked_reel(monkeypatch) -> str:
     monkeypatch.setattr(video, "encode", lambda *a, **k: Path(a[3]).write_bytes(b"mp4"))
     draft = pipeline.load_sample(Format.REEL_BOOK_POV)
-    draft = draft.model_copy(update={"hook_lines": [" ".join(["शब्द"] * 15)]})  # 15 > 12 words
+    draft = draft.model_copy(update={"hook_lines": [" ".join(["शब्द"] * 20)]})  # far too long
     r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, draft=draft)
     assert r.status == "blocked" and not (r.folder / "reel.mp4").exists()
     with session() as s:
@@ -62,3 +62,34 @@ def test_post_anyway_from_the_item_page(web, monkeypatch):  # noqa: F811
     web.post(f"/items/{item_id}/approve-anyway", data={"token": token})
     with session() as s:
         assert s.get(Item, item_id).status == ItemStatus.APPROVED
+
+
+def test_mantra_spellings_and_hashtags_are_fixed_for_free():
+    from instapost.studio import tidy
+    draft = pipeline.load_sample(Format.STORY_LINE).model_copy(update={
+        "story_line": "ॐ नम: शिवाय — आज कम बोलें", "hook_lines": ["ॐ नम शिवाय"],
+        "hashtags": ["#a", "#b", "#c", "#d", "#e", "#f", "#g"]})
+    fixed, changes = tidy.draft(draft)
+    assert fixed.story_line == "ॐ नमः शिवाय — आज कम बोलें"
+    assert fixed.hook_lines == ["ॐ नमः शिवाय"] and len(fixed.hashtags) == 5 and changes
+    assert tidy.text("संदर्भ: गीता") == "संदर्भ: गीता"  # real colons are left alone
+
+
+def test_a_slightly_long_hook_only_warns():
+    from instapost.models import FactCheckResult, FactCheckVerdict
+    fact = FactCheckResult(verdict=FactCheckVerdict.PASS, issues=[])
+    draft = pipeline.load_sample(Format.REEL_BOOK_POV)
+    warn = draft.model_copy(update={"hook_lines": [" ".join(["शब्द"] * 14)]})
+    check = next(c for c in qa.check_text(warn, fact, []) if c.name == "hook_length")
+    assert check.passed and check.detail.startswith(qa.WARN)
+    assert qa.warnings([check]) == ["hook_length: 14 words (aim 12)"]
+
+
+def test_rejected_post_can_be_posted_anyway(monkeypatch):
+    item_id = _blocked_reel(monkeypatch)
+    with session() as s:
+        item = s.get(Item, item_id)
+        (Path(item.folder) / "reel.mp4").write_bytes(b"mp4")
+        approvals.reject(s, item, "test")
+        approvals.approve_anyway(s, item, "test")
+        assert item.status == ItemStatus.APPROVED

@@ -115,6 +115,11 @@ def _make(item_id: str, fmt: Format, pillar: Pillar, topic: str | None, *, offli
 
     folder = get_settings().output_dir / date.today().isoformat() / item_id
     folder.mkdir(parents=True, exist_ok=True)
+    # Free fixes first (mantra spellings, hashtag count), so small slips never block a post.
+    from instapost.studio import tidy
+    draft, tidied = tidy.draft(draft)
+    if tidied:
+        (folder / "tidy.txt").write_text("\n".join(tidied) + "\n", encoding="utf-8")
     _write_json(folder / "draft.json", draft)
     seed = int(hashlib.sha1(item_id.encode()).hexdigest()[:8], 16)
 

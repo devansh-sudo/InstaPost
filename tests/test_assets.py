@@ -76,8 +76,18 @@ def test_text_problems_block_the_post_and_do_not_blame_the_photo(monkeypatch):
         readable=False, looks_real=True, page_fits=True, problems=["broken matra"]))
     r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True,
                       template="book_photo")
-    assert r.status == "blocked"
+    # By default a text problem only warns (the reel is made and paid for)...
+    assert r.status == "needs_review"
+    vision = next(c for c in r.qa.checks if c.name == "vision")
+    assert vision.passed and "broken matra" in vision.detail
     assert all(v["status"] == "on" for v in plates.load_index()["plates"].values())
+    # ...unless you set the image check to block.
+    monkeypatch.setenv("VISION_BLOCKS", "true")
+    get_settings.cache_clear()
+    monkeypatch.setattr(pipeline.history, "most_similar", lambda hook: (0.0, None))
+    r = pipeline.make(Format.REEL_BOOK_POV, Pillar.GITA, offline=True, vision_qa=True,
+                      template="book_photo")
+    assert r.status == "blocked"
 
 
 def test_posts_record_their_photo_and_drawing(monkeypatch):

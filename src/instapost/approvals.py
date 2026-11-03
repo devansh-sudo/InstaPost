@@ -65,7 +65,8 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
         status=ItemStatus.NEEDS_REVIEW if result.status == "needs_review" else ItemStatus.BLOCKED,
         hook=draft_hook, caption=(result.folder / "caption.txt").read_text(encoding="utf-8"),
         fact_check=result.fact.verdict.value, for_date=for_date.isoformat(),
-        qa_summary="; ".join(f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed),
+        qa_summary="; ".join([f"{c.name}: {c.detail}" for c in result.qa.checks if not c.passed]
+                             + [f"⚠️ {w}" for w in _warnings(result.qa.checks)]),
         duration_s=duration, preferred_slot=preferred_slot,
         features=_features(result.folder, draft, pillar, duration, scene, fmt),
         music=(result.folder / "music.txt").read_text(encoding="utf-8").strip()
@@ -78,6 +79,11 @@ def register(s: Session, result: Result, fmt: Format, pillar: str, for_date: dat
     if item.status == ItemStatus.NEEDS_REVIEW and _auto_approvable(s, item):
         approve(s, item, f"{actor}:autonomy-{autonomy(s)}")
     return item
+
+
+def _warnings(checks) -> list[str]:
+    from instapost.qa import warnings
+    return warnings(checks)
 
 
 def _features(folder, draft: dict, pillar: str, duration, scene, fmt=None) -> dict:
@@ -176,13 +182,15 @@ def has_media(item: Item) -> bool:
 
 
 def approve_anyway(s: Session, item: Item, actor: str) -> Item:
-    """You decided to post an item the checks blocked: it is approved as it is."""
-    if item.status != ItemStatus.BLOCKED:
-        raise QueueError(f"{item.id} is {item.status}, not blocked")
+    """You decided to post an item that was blocked by a check or rejected (by you, or
+    replaced by a new version): it is approved as it is."""
+    if item.status not in (ItemStatus.BLOCKED, ItemStatus.REJECTED):
+        raise QueueError(f"{item.id} is {item.status}: only blocked or rejected posts")
     if not has_media(item):
         raise QueueError("this post was blocked before its picture or video was made; "
                          "use \"Make it anyway\"")
-    audit(s, actor, "approved_despite_checks", item.id, problems=item.qa_summary)
+    audit(s, actor, "approved_despite_checks", item.id, problems=item.qa_summary,
+          was=item.status)
     item.status = ItemStatus.NEEDS_REVIEW
     return approve(s, item, actor)
 

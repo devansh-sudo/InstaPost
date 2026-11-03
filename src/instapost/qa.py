@@ -57,8 +57,10 @@ def check_text(draft: Draft, fact: FactCheckResult, safety_issues: list[str]) ->
     except text.ShapingUnavailable as e:
         shaping = QACheck(name="hindi_shaping", passed=False, detail=str(e))
     return [
-        QACheck(name="hook_length", passed=1 <= hook_words <= max_words,
-                detail=f"{hook_words} words (max {max_words})"),
+        # A few words over only warns: blocking would waste the writing already paid for.
+        QACheck(name="hook_length", passed=1 <= hook_words <= max_words + 4,
+                detail=(WARN if hook_words > max_words else "")
+                + f"{hook_words} words (aim {max_words})"),
         QACheck(name="hashtags", passed=3 <= len(draft.hashtags) <= 5,
                 detail=f"{len(draft.hashtags)} hashtags (3-5)"),
         QACheck(name="caption_length", passed=len(caption_text(draft)) <= 2000,
@@ -133,6 +135,7 @@ Some images are a photo of an open book with our page printed onto its blank pag
 For images that are not book photos, answer true for both. Be strict only about real faults:
 a small tilt, soft background or warm colour is how these photos are meant to look."""
 
+WARN = "⚠️ "  # detail prefix of a check that passed with something for you to look at
 PHOTO_FAULT = "photo:"  # detail prefix: the book photo, not the text, is the problem
 
 
@@ -158,8 +161,13 @@ def check_vision(image: Image.Image, brand: Brand | None = None,
                                 ("page does not sit on the book's paper", verdict.page_fits))
                 if not ok]
         problems.insert(0, PHOTO_FAULT + " " + "; ".join(what))
-    return QACheck(name="vision", passed=verdict.readable and not problems,
-                   detail="; ".join(problems))
+    ok = verdict.readable and not problems
+    if photo_bad or ok or get_settings().vision_blocks:
+        return QACheck(name="vision", passed=ok, detail="; ".join(problems))
+    # By default the image check only warns: the reel is already made (and paid for), and
+    # you see the warning when you approve it.
+    issues = problems or ["text may be hard to read"]
+    return QACheck(name="vision", passed=True, detail=WARN + "; ".join(issues))
 
 
 def photo_fault(check: QACheck) -> bool:
@@ -183,6 +191,11 @@ FOLLOW_LINE = "🙏 ऐसे सूत्र रोज़ पाने के �
 def caption_text(draft: Draft) -> str:
     return "\n\n".join([draft.caption_hi, draft.caption_hinglish, draft.cta, FOLLOW_LINE,
                         " ".join(draft.hashtags)])
+
+
+def warnings(checks: list[QACheck]) -> list[str]:
+    return [f"{c.name}: {c.detail.removeprefix(WARN)}" for c in checks
+            if c.passed and c.detail.startswith(WARN)]
 
 
 def report(checks: list[QACheck]) -> QAReport:
