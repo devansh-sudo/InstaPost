@@ -20,7 +20,8 @@
       {% for a in audios %}
       <div class="li"><div class="grow"><div class="t">{{ a.title }}</div>
         <div class="s">{{ a.name }} · {{ ts(a.duration or 0) }} · {{ a.size_mb }} MB</div>
-        <audio controls preload="none" src="/long-videos/audio/{{ a.name|urlencode }}" style="width:100%;margin-top:6px"></audio></div>
+        <audio controls preload="none" src="/long-videos/audio/{{ a.name|urlencode }}" style="width:100%;margin-top:6px"></audio>
+        <form method="post" action="/long-videos/audio/{{ a.name|urlencode }}/rename" class="row" style="gap:6px;margin-top:6px"><input type="hidden" name="token" value="{{ csrf }}"><input name="title" value="{{ a.title }}" style="flex:1"><button class="sm ghost">Rename</button></form></div>
         {% if not a.rights %}<form method="post" action="/long-videos/audio/{{ a.name|urlencode }}/rights" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="sm" title="Copied to the server by hand: confirm it is yours or licensed">I have the rights</button></form>{% endif %}
         <form method="post" action="/long-videos/audio/{{ a.name|urlencode }}/delete" class="inline"><input type="hidden" name="token" value="{{ csrf }}"><button class="sm ghost">{{ icon("x", "sm") }}</button></form></div>
       {% else %}<p class="muted">No long audio yet.</p>{% endfor %}
@@ -47,8 +48,10 @@
       <div class="form-grid">
         <label class="field">Audio<select name="audio" required>{% for a in audios %}<option value="{{ a.name }}">{{ a.title }} ({{ ts(a.duration or 0) }})</option>{% endfor %}</select></label>
         <label class="field">Look<select name="look">{% for id, name in looks %}<option value="{{ id }}" {{ 'selected' if id == 'ganga' }}>{{ name }}</option>{% endfor %}</select></label>
-        <label class="field">Theme<select name="pillar">{% for key, label in pillars.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+        <label class="field">Theme<select name="pillar">{% for key, label in pillars.items() %}<option value="{{ key }}" {{ 'selected' if key == 'shiv_dhyan' }}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field">Length<select name="minutes"><option value="">as the audio is</option>{% for m in (15, 30, 45, 60) %}<option value="{{ m }}" {{ 'selected' if m == 30 }}>repeat to about {{ m }} min</option>{% endfor %}</select></label>
       </div>
+      <p class="tiny">A short dhun or mantra is repeated in whole rounds, with a soft fade at each repeat.</p>
       <label class="field">YouTube title (the search words matter)<input name="title" maxlength="100" placeholder="ॐ नमः शिवाय 108 जाप | शांत मन और गहरी नींद के लिए" required></label>
       <div class="form-grid">
         <label class="field">On screen (big)<input name="line" placeholder="ॐ नमः शिवाय"></label>

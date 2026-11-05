@@ -135,6 +135,13 @@ def confirm_rights(name: str) -> None:
     _save_info(path, info)
 
 
+def rename_audio(name: str, title: str) -> None:
+    path = audio_path(name)
+    info = _info(path)
+    info["title"] = " ".join(title.split())[:80] or info.get("title", path.stem)
+    _save_info(path, info)
+
+
 def remove_audio(name: str) -> None:
     path = audio_path(name)
     path.unlink()
@@ -259,13 +266,34 @@ def _ffmpeg(args: list[str], what: str) -> None:
         raise RuntimeError(f"ffmpeg failed ({what}): {out.stderr.strip()[-300:]}")
 
 
+def repeated_audio(audio: Path, minutes: float, folder: Path) -> Path:
+    """A short audio (a dhun, a mantra) repeated in whole rounds to about `minutes`, with a
+    soft fade at each repeat so no round starts with a click."""
+    from instapost.render.video import probe_duration
+
+    length = probe_duration(audio) or 0
+    if length <= 0:
+        raise ValueError("the audio could not be read")
+    rounds = max(1, round(minutes * 60 / length))
+    seg, out = folder / "round.wav", folder / "long.wav"
+    _ffmpeg(["-i", str(audio), "-af",
+             f"afade=t=in:d=0.8,afade=t=out:st={max(length - 1.2, 0):.2f}:d=1.2",
+             "-ar", "48000", "-ac", "2", str(seg)], "audio round")
+    _ffmpeg(["-stream_loop", str(rounds - 1), "-i", str(seg), "-c", "copy", str(out)],
+            "audio repeat")
+    return out
+
+
 def render_audio_video(still: Image.Image, look: str, audio: Path, out: Path,
-                       seed: int = 0) -> float:
+                       seed: int = 0, minutes: float | None = None) -> float:
     """The loop repeated for the whole audio (the picture is copied, not re-encoded, so a
-    long video is quick). Returns the length in seconds."""
+    long video is quick). With `minutes`, a short audio is repeated to about that length.
+    Returns the length in seconds."""
     from instapost.render.video import probe_duration
 
     with tempfile.TemporaryDirectory() as tmp:
+        if minutes:
+            audio = repeated_audio(audio, minutes, Path(tmp))
         loop = Path(tmp) / "loop.mp4"
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
                "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset",
@@ -323,7 +351,7 @@ def _item(s: Session, item_id: str, folder: Path, pillar: str, meta: dict, check
 def make_audio_video(s: Session, audio_name: str, title: str, line: str = "",
                      meaning: str = "", look: str = "night", pillar: str = "shiv_dhyan",
                      chapters: str = "", about: str = "", actor: str = "agent",
-                     for_date: date | None = None) -> Item:
+                     for_date: date | None = None, minutes: float | None = None) -> Item:
     path = audio_path(audio_name)
     info = _info(path)
     brand = load_brand()
@@ -334,7 +362,7 @@ def make_audio_video(s: Session, audio_name: str, title: str, line: str = "",
     title = " ".join(title.split())[:100] or info.get("title", "")
     still = screen(brand, look, line.strip(), meaning.strip(), seed)
     still.save(folder / "screen.jpg", quality=90)
-    seconds = render_audio_video(still, look, path, folder / "video.mp4", seed)
+    seconds = render_audio_video(still, look, path, folder / "video.mp4", seed, minutes)
     thumbnail(brand, look, title, seed).save(folder / "cover.jpg", quality=90)
     marks = parse_chapters(chapters, seconds)
     handle = brand.printed_handle

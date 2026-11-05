@@ -100,7 +100,7 @@ def test_long_audio_upload_and_audio_video(web, tmp_path, monkeypatch):  # noqa:
     assert web.get(f"/long-videos/audio/{audio['name']}").status_code == 200
     assert web.get("/long-videos/audio/..%2F..%2F.env").status_code == 404
 
-    def fake_render(still, look, audio_path, out, seed=0):
+    def fake_render(still, look, audio_path, out, seed=0, minutes=None):
         out.write_bytes(b"mp4")
         return 70.0
 
@@ -164,3 +164,22 @@ def test_public_link_page_and_earn_page(web):  # noqa: F811
     assert r.status_code == 303
     with session() as s:
         assert s.query(Job).filter(Job.kind == "ebook").count() == 1
+
+
+def test_short_dhun_is_repeated_to_the_chosen_length(tmp_path):
+    from instapost.render.video import probe_duration
+    clip = _wav(tmp_path / "dhun.wav", seconds=100)
+    long = longform.repeated_audio(clip, 5, tmp_path)  # 5 min = 3 whole rounds of 100 s
+    assert abs(probe_duration(long) - 300) < 1.5
+
+
+def test_audio_can_be_renamed(web, tmp_path):  # noqa: F811
+    _login(web)
+    token = _csrf(web, "/long-videos")
+    wav = _wav(tmp_path / "a.wav", seconds=65)
+    web.post("/long-videos/audio", data={"token": token, "title": "गलत नाम", "rights": "1"},
+             files={"file": ("a.wav", wav.read_bytes(), "audio/wav")})
+    [audio] = longform.audio_list()
+    web.post(f"/long-videos/audio/{audio['name']}/rename",
+             data={"token": token, "title": "ॐ नमः शिवाय धुन"})
+    assert longform.audio_list()[0]["title"] == "ॐ नमः शिवाय धुन"

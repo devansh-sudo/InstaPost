@@ -871,6 +871,16 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
             audit(s, f"web:{who}", "audio_rights_confirmed", audio=name)
         return back(request, "Rights confirmed.", "/long-videos")
 
+    @app.post("/long-videos/audio/{name}/rename")
+    def long_audio_rename(request: Request, name: str, title: str = Form(...),
+                          who: str = Depends(user), _=Depends(csrf)):
+        from instapost import longform
+        try:
+            longform.rename_audio(name, title)
+        except KeyError:
+            raise HTTPException(404) from None
+        return back(request, "Renamed.", "/long-videos")
+
     @app.post("/long-videos/audio/{name}/delete")
     def long_audio_delete(request: Request, name: str, who: str = Depends(user),
                           _=Depends(csrf)):
@@ -898,6 +908,8 @@ def _routes(app: FastAPI) -> None:  # noqa: C901 - one place for all routes keep
                         meaning=get("meaning"), look=get("look", "night"),
                         pillar=get("pillar", "shiv_dhyan"), chapters=get("chapters"),
                         about=get("about"))
+            if get("minutes") in ("15", "30", "45", "60"):
+                opts["minutes"] = int(get("minutes"))
         elif kind == "collection":
             try:
                 days = max(7, min(int(get("days", "30")), 120))
